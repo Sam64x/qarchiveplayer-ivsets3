@@ -1,0 +1,16 @@
+[requires]
+inc/[*]@iv/stable
+core/[*]@ab/stable
+stable/[*]@m_work/stable
+mem/[*]@m_work/stable
+mjson/[*]@ipcams/stable
+threads.pool/[*]@ag/stable
+threads/[*]@ag/stable
+tasks.noncritical/[*]@ag/stable
+vcli.settings/[*]@ag/stable
+autoloader/[*]@ag/stable
+log/[*]@av/stable
+ewriter.client/[*]@av/stable
+IVConanTools/[*]@iv/stable
+[generators]
+cmake

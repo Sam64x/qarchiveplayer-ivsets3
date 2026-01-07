@@ -1,0 +1,15 @@
+{
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "files.associations": {
+      "cerrno": "cpp",
+      "system_error": "cpp",
+      "type_traits": "cpp",
+      "typeinfo": "cpp",
+      "*.tcc": "cpp",
+      "list": "cpp",
+      "ratio": "cpp",
+      "chrono": "cpp"
+    },
+    "cmake.configureOnOpen": false
+  }

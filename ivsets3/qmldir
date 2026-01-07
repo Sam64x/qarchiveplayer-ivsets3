@@ -1,0 +1,42 @@
+module iv.sets.sets3
+ActiveExportsButton 1.0 ActiveExportsButton.qml
+IVSets3 1.0 IVSets3.qml
+IVSetZone 1.0 IVSetZone.qml
+IVSetZoneWindow 1.0 IVSetZoneWindow.qml
+IVSets3Window 1.0 IVSets3Window.qml
+SetsBlock 1.0 SetsBlock.qml
+IVRowCam 1.0 IVRowCam.qml
+IVPreviewCam 1.0 IVPreviewCam.qml
+IVCamsBlock 1.0 IVCamsBlock.qml
+IVClientRect 1.0 IVClientRect.qml
+IVClientLeftMenu 1.0 IVClientLeftMenu.qml
+IVClientTabsPanel 1.0 IVClientTabsPanel.qml
+IVClientTopEditPanel 1.0 IVClientTopEditPanel.qml
+IVClientTabDelegate 1.0 IVClientTabDelegate.qml
+IVClientHeaderMini 1.0 IVClientHeaderMini.qml
+IVClientMainRect 1.0 IVClientMainRect.qml
+IVClientSetsBlock 1.0 IVClientSetsBlock.qml
+IVClientCamsBlock 1.0 IVClientCamsBlock.qml
+IVClientSetsAndCamsBlockImp 1.0 IVClientSetsAndCamsBlockImp.qml
+IVClientCamsSlots 1.0 IVClientCamsSlots.qml
+IVClientSlotDelegate 1.0 IVClientSlotDelegate.qml
+IVClientSetsDelegate 1.0 IVClientSetsDelegate.qml
+IVClientCamsDelegate 1.0 IVClientCamsDelegate.qml
+IVClientSetsAndCamsBlock 1.0 IVClientSetsAndCamsBlock.qml
+IVClientZone 1.0 IVClientZone.qml
+IVClientSetsSettingsBlock 1.0 IVClientSetsSettingsBlock.qml
+IVClientZonesDelegate 1.0 IVClientZonesDelegate.qml
+IVClientSetsZone 1.0 IVClientSetsZone.qml
+IVClientSetsSync 1.0 IVClientSetsSync.qml
+IVClientZoneSettingsBlock 1.0 IVClientZoneSettingsBlock.qml
+RightPanelBlock 1.0 RightPanelBlock.qml
+TopPanelBlock 1.0 TopPanelBlock.qml
+IVSetsDelegate 1.0 IVSetsDelegate.qml
+IVExportHistory 1.0 IVExportHistory.qml
+IVSegmentedControlAdaptive 1.0 IVSegmentedControlAdaptive.qml
+IVSourcesListFlat 1.0 IVSourcesListFlat.qml
+IVSourcesListFact 1.0 IVSourcesListFact.qml
+IVSourcesListCustom 1.0 IVSourcesListCustom.qml
+IVEventsFilter 1.0 IVEventsFilter.qml
+
+plugin ivsets3

@@ -1,0 +1,271 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Gdb Server",
+            "type": "shell",
+            "options": {
+                "env": {           
+                    "IV_SSH_USERNAME": "test",
+                    "IV_SSH_HOST": "192.168.40.107"
+                }
+            },
+            "command": "echo $IV_SSH_USERNAME && ssh $IV_SSH_USERNAME@$IV_SSH_HOST \"gdbserver :9999 /home/test/video-server-7.0/video-server-7.0\"",
+            "windows": {
+                "command": "@copy /y nul \"${workspaceRoot}\\.iv_build_folder\"",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+           
+        },
+        {
+            "label": "Switch to 'build' Build Folder",
+            "type": "shell",
+            "options": {
+                "env": {              
+                }
+            },
+            "command": "touch \"${workspaceRoot}/.iv_build_folder\"",
+            "windows": {
+                "command": "@copy /y nul \"${workspaceRoot}\\.iv_build_folder\"",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Switch to '../build' Build Folder",
+            "type": "shell",
+            "options": {
+                "env": {               
+                }
+            },
+            "command": "rm \"${workspaceRoot}/.iv_build_folder\" &>/dev/null",
+            "windows": {
+                "command": "@del \"${workspaceRoot}\\.iv_build_folder\"",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Switch to 'Release'",
+            "type": "shell",
+            "options": {
+                "env": {             
+                }
+            },
+            "command": "touch \"${workspaceRoot}/.iv_build_config\"",
+            "windows": {
+                "command": "@copy /y nul \"${workspaceRoot}\\.iv_build_config\"",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Switch to 'Debug'",
+            "type": "shell",
+            "options": {
+                "env": {         
+                }
+            },
+            "command": "rm \"${workspaceRoot}/.iv_build_config\" &>/dev/null",
+            "windows": {
+                "command": "@del \"${workspaceRoot}\\.iv_build_config\"",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Conan Install",
+            "type": "shell",
+            "options": {
+                "env": {
+                    "IV_CONAN_USER_HOME": "${workspaceRoot}/.."
+                }
+            },
+            "command": "[[ -e \"${workspaceRoot}/.iv_build_config\" ]] && export IV_CONFIG=\"release\" || export IV_CONFIG=\"debug\" ; [[ -e \"${workspaceRoot}/.iv_build_folder\" ]] && export IV_BUILD_DIR=\"build\" || export IV_BUILD_DIR=\"../build\" ; [[ -e \"${workspaceRoot}/../pyvenv/bin/python\" ]] && export IV_PYTHON=\"${workspaceRoot}/../pyvenv/bin/python\" || export IV_PYTHON=\"python\" ; cd \"${workspaceRoot}\" && git clean -xdf --exclude=.iv_build_folder --exclude=.iv_build_config && \"$IV_PYTHON\" conanfile.py --cmd conan --conan-user-home \"$IV_CONAN_USER_HOME\" --stages config,install --profile linux-x64-$IV_CONFIG  --conan-build-dir \"${IV_BUILD_DIR}\" && echo \"$IV_CONFIG is installed in '$IV_BUILD_DIR'\"",
+            "windows": {
+                "command": "set \"IV_BUILD_DIR=../build\" && (if exist \"${workspaceRoot}\\.iv_build_folder\" set \"IV_BUILD_DIR=build\") & set \"IV_CONFIG=debug\" && (if exist \"${workspaceRoot}\\.iv_build_config\" set \"IV_CONFIG=release\") & set \"IV_PYTHON=python.exe\" && (if exist \"${workspaceRoot}\\..\\pyvenv\\bin\\python.exe\" set \"IV_PYTHON=${workspaceRoot}\\..\\pyvenv\\bin\\python.exe\") & chcp 866 && cd \"${workspaceRoot}\" && git clean -xdf --exclude=.iv_build_folder --exclude=.iv_build_config && call \"%IV_PYTHON%\" conanfile.py --cmd conan --conan-user-home \"%IV_CONAN_USER_HOME%\" --stages config,install --profile windows-x64-%IV_CONFIG% --conan-build-dir \"%IV_BUILD_DIR%\" && @call echo \"%IV_CONFIG% is installed in '%IV_BUILD_DIR%'\"",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Conan Build",
+            "type": "shell",
+            "options": {
+                "env": {
+                    "IV_CONAN_USER_HOME": "${workspaceRoot}/..",
+                    "IV_CONAN_DONT_STRIP": "true"                 
+                }
+            },
+            "command": "[[ -e \"${workspaceRoot}/.iv_build_config\" ]] && export IV_CONFIG=\"release\" || export IV_CONFIG=\"debug\" ; [[ -e \"${workspaceRoot}/.iv_build_folder\" ]] && export IV_BUILD_DIR=\"build\" || export IV_BUILD_DIR=\"../build\" ; [[ -e \"${workspaceRoot}/../pyvenv/bin/python\" ]] && export IV_PYTHON=\"${workspaceRoot}/../pyvenv/bin/python\" || export IV_PYTHON=\"python\" ; cd \"${workspaceRoot}\" && \"$IV_PYTHON\" conanfile.py --cmd conan --conan-user-home \"$IV_CONAN_USER_HOME\" --stages build  --conan-build-dir \"${IV_BUILD_DIR}\" && echo \"$IV_CONFIG is builded in '$IV_BUILD_DIR'\"",
+            "windows": {
+                "command": "set \"IV_BUILD_DIR=../build\" && (if exist \"${workspaceRoot}\\.iv_build_folder\" set \"IV_BUILD_DIR=build\") & set \"IV_CONFIG=debug\" && (if exist \"${workspaceRoot}\\.iv_build_config\" set \"IV_CONFIG=release\") & set \"IV_PYTHON=python.exe\" && (if exist \"${workspaceRoot}\\..\\pyvenv\\bin\\python.exe\" set \"IV_PYTHON=${workspaceRoot}\\..\\pyvenv\\bin\\python.exe\") & chcp 1251 && cd \"${workspaceRoot}\" && call \"%IV_PYTHON%\" conanfile.py --cmd conan --conan-user-home \"%IV_CONAN_USER_HOME%\" --stages build --conan-build-dir \"%IV_BUILD_DIR%\" && @call echo \"%IV_CONFIG% is builded in '%IV_BUILD_DIR%'\"",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Conan Export",
+            "type": "shell",
+            "options": {
+                "env": {
+                    "IV_CONAN_USER_HOME": "${workspaceRoot}/..",
+                    "IV_CONAN_DONT_STRIP": "true"                 
+                }
+            },
+            "command": "[[ -e \"${workspaceRoot}/.iv_build_config\" ]] && export IV_CONFIG=\"release\" || export IV_CONFIG=\"debug\" ; [[ -e \"${workspaceRoot}/.iv_build_folder\" ]] && export IV_BUILD_DIR=\"build\" || export IV_BUILD_DIR=\"../build\" ; [[ -e \"${workspaceRoot}/../pyvenv/bin/python\" ]] && export IV_PYTHON=\"${workspaceRoot}/../pyvenv/bin/python\" || export IV_PYTHON=\"python\" ; cd \"${workspaceRoot}\" && \"$IV_PYTHON\" conanfile.py --cmd conan --conan-user-home \"$IV_CONAN_USER_HOME\" --stages export --conan-build-dir \"${IV_BUILD_DIR}\" && echo \"$IV_CONFIG is exported in '$IV_BUILD_DIR'\"",
+            "windows": {
+                "command": "set \"IV_BUILD_DIR=../build\" && (if exist \"${workspaceRoot}\\.iv_build_folder\" set \"IV_BUILD_DIR=build\") & set \"IV_CONFIG=debug\" && (if exist \"${workspaceRoot}\\.iv_build_config\" set \"IV_CONFIG=release\") & set \"IV_PYTHON=python.exe\" && (if exist \"${workspaceRoot}\\..\\pyvenv\\bin\\python.exe\" set \"IV_PYTHON=${workspaceRoot}\\..\\pyvenv\\bin\\python.exe\") & chcp 1251 && cd \"${workspaceRoot}\" && call \"%IV_PYTHON%\" conanfile.py --cmd conan --conan-user-home \"%IV_CONAN_USER_HOME%\" --stages export --conan-build-dir \"%IV_BUILD_DIR%\" && @call echo \"%IV_CONFIG% is exported in '%IV_BUILD_DIR%'\"",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Git Clean",
+            "type": "shell",
+            "command": "cd \"${workspaceRoot}\" && git clean -xdf",
+            "windows": {
+                "command": "chcp 866 && cd \"${workspaceRoot}\" && git clean -xdf"
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Conan Test",
+            "type": "shell",
+            "options": {
+                "env": {
+                    "IV_CONAN_USER_HOME": "${workspaceRoot}/..",
+                    "IV_CONAN_DONT_STRIP": "true",
+                    "INTEGRA_S_VIDEO_LOG_WRITE_HOME_ALLOW": "1",
+                    "IVTEST_DOES_NOT_RUN": "true"
+                }
+            },
+            "command": "[[ -e \"${workspaceRoot}/.iv_build_config\" ]] && export IV_CONFIG=\"release\" || export IV_CONFIG=\"debug\" ; [[ -e \"${workspaceRoot}/.iv_build_folder\" ]] && export IV_BUILD_DIR=\"build\" || export IV_BUILD_DIR=\"../build\" ; [[ -e \"${workspaceRoot}/../pyvenv/bin/python\" ]] && export IV_PYTHON=\"${workspaceRoot}/../pyvenv/bin/python\" || export IV_PYTHON=\"python\" ; cd \"${workspaceRoot}\" && \"$IV_PYTHON\" conanfile.py --cmd conan --conan-user-home \"$IV_CONAN_USER_HOME\" --stages test --profile linux-x64-$IV_CONFIG --conan-build-dir \"${IV_BUILD_DIR}\" && echo \"$IV_CONFIG test_package is builded in '$IV_BUILD_DIR'\"",
+            "windows": {
+                "command": "set \"IV_BUILD_DIR=../build\" && (if exist \"${workspaceRoot}\\.iv_build_folder\" set \"IV_BUILD_DIR=build\") & set \"IV_CONFIG=debug\" && (if exist \"${workspaceRoot}\\.iv_build_config\" set \"IV_CONFIG=release\") & set \"IV_PYTHON=python.exe\" && (if exist \"${workspaceRoot}\\..\\pyvenv\\bin\\python.exe\" set \"IV_PYTHON=${workspaceRoot}\\..\\pyvenv\\bin\\python.exe\") & chcp 1251 && cd \"${workspaceRoot}\" && call \"%IV_PYTHON%\" conanfile.py --cmd conan --conan-user-home \"%IV_CONAN_USER_HOME%\" --stages build,export,test --profile windows-x64-%IV_CONFIG% --conan-build-dir \"%IV_BUILD_DIR%\" && @call echo \"%IV_CONFIG% test_package is builded in '%IV_BUILD_DIR%'\"",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Conan Test(only build)",
+            "type": "shell",
+            "options": {
+                "env": {
+                    "IV_CONAN_USER_HOME": "${workspaceRoot}/..",
+                    "IV_CONAN_DONT_STRIP": "true",
+                    "INTEGRA_S_VIDEO_LOG_WRITE_HOME_ALLOW": "1",
+                    "IVTEST_DOES_NOT_RUN": "true"
+                }
+            },
+            "command": "[[ -e \"${workspaceRoot}/.iv_build_config\" ]] && export IV_CONFIG=\"release\" || export IV_CONFIG=\"debug\" ; [[ -e \"${workspaceRoot}/.iv_build_folder\" ]] && export IV_BUILD_DIR=\"build\" || export IV_BUILD_DIR=\"../build\" ; [[ -e \"${workspaceRoot}/../pyvenv/bin/python\" ]] && export IV_PYTHON=\"${workspaceRoot}/../pyvenv/bin/python\" || export IV_PYTHON=\"python\" ; cd \"${workspaceRoot}\" && \"$IV_PYTHON\" conanfile.py --cmd conan --conan-user-home \"$IV_CONAN_USER_HOME\" --stages build_test --profile linux-x64-$IV_CONFIG --conan-build-dir \"${IV_BUILD_DIR}\" && echo \"$IV_CONFIG test_package is builded in '$IV_BUILD_DIR'\"",
+            "windows": {
+                "command": "set \"IV_BUILD_DIR=../build\" && (if exist \"${workspaceRoot}\\.iv_build_folder\" set \"IV_BUILD_DIR=build\") & set \"IV_CONFIG=debug\" && (if exist \"${workspaceRoot}\\.iv_build_config\" set \"IV_CONFIG=release\") & set \"IV_PYTHON=python.exe\" && (if exist \"${workspaceRoot}\\..\\pyvenv\\bin\\python.exe\" set \"IV_PYTHON=${workspaceRoot}\\..\\pyvenv\\bin\\python.exe\") & chcp 1251 && cd \"${workspaceRoot}\" && call \"%IV_PYTHON%\" conanfile.py --cmd conan --conan-user-home \"%IV_CONAN_USER_HOME%\" --stages build,export,test --profile windows-x64-%IV_CONFIG% --conan-build-dir \"%IV_BUILD_DIR%\" && @call echo \"%IV_CONFIG% test_package is builded in '%IV_BUILD_DIR%'\"",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Update conanfile.py",
+            "type": "shell",
+            "command": "cd \"${workspaceRoot}\" && \"${workspaceRoot}/../scripts/update_repo_conan_files.sh\" -ny",
+            "windows": {
+                "command": "chcp 866 && cd \"${workspaceRoot}\" && \"${workspaceRoot}/../scripts/update_repo_conan_files.bat\" -ny",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Update .vscode",
+            "type": "shell",
+            "command": "cd \"${workspaceRoot}\" && \"${workspaceRoot}/../scripts/update_repo_vscode_files.sh\" -y",
+            "windows": {
+                "command": "chcp 866 && cd \"${workspaceRoot}\" && \"${workspaceRoot}/../scripts/update_repo_vscode_files.bat\" -y",
+            },
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        }
+    ]
+}

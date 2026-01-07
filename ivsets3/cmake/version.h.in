@@ -1,0 +1,53 @@
+
+#ifndef IV_VERSION_H
+#define IV_VERSION_H
+
+#define IV_VERSION_MAJOR   @PROJECT_VERSION_MAJOR@
+#define IV_VERSION_MINOR   @PROJECT_VERSION_MINOR@
+#define IV_VERSION_PATCH   @PROJECT_VERSION_PATCH@
+#define IV_VERSION_BUILD   @BUILD_ID@
+#define IV_PROJECT_NAME    "@PROJECT_NAME@"
+#define IV_PROJECT_DESCRIPTION "Integra-S @PROJECT_NAME@ library"
+#define IV_BUILD_TIME  "@BUILD_TIME@"
+#define IV_BUILD_YEAR  "@BUILD_YEAR@"
+#define IV_GIT_BRANCH  "@GIT_BRANCH@"
+#define IV_GIT_COMMIT  "@GIT_COMMIT@"
+
+#define IV_VERSION_H_STR(n) IV_VERSION_H_STRINGIFY_HELPER(n)
+#define IV_VERSION_H_STRINGIFY_HELPER(n) #n
+
+#define IV_VERSION_STRING \
+  IV_VERSION_H_STR(IV_VERSION_MAJOR) "." \
+  IV_VERSION_H_STR(IV_VERSION_MINOR) "." \
+  IV_VERSION_H_STR(IV_VERSION_PATCH) "-" IV_GIT_BRANCH
+
+#ifndef RC_INVOKED
+#include "iv_common.h" 
+#include "iv_defines.h"
+
+#define IVVERSION \
+  ivexport const char* dll_version(version_t* ver) {\
+    if(ver) {\
+    ver->major = IV_VERSION_MAJOR;\
+    ver->minor = IV_VERSION_MINOR;\
+    ver->patch = IV_VERSION_PATCH;\
+    ver->build = IV_VERSION_BUILD;\
+    ver->is_dev = 0;\
+    }\
+    return IV_VERSION_STRING;\
+  }\
+  ivexport const char* dll_build_date() {\
+      return IV_BUILD_TIME;\
+  }\
+  ivexport const char* dll_package_name() {\
+    return IV_PROJECT_NAME;\
+  }\
+  ivexport const char* dll_package_channel() {\
+    return IV_GIT_BRANCH;\
+  }\
+  ivexport const char* dll_git_commit() {\
+    return IV_GIT_COMMIT;\
+  }
+#endif
+
+#endif

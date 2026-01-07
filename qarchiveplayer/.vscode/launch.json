@@ -1,0 +1,205 @@
+{
+    "version": "0.2.0",
+    "configurations": [        
+        {
+            "name": "server(Linux)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/../SERVER/video-server-7.0",
+            // "miDebuggerServerAddress": "192.168.40.107:9999",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}/../SERVER",
+            "environment": [{"name": "INTEGRA_S_VIDEO_LOG_WRITE_HOME_ALLOW", "value": "1"}],
+            "logging": {
+                "trace": true
+            },
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "WOW",
+                    "text": "set debug-file-directory /mnt/manual_video7_linux_debug_symbols",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "WOW2",
+                    "text": "set debug-file-directory \"${workspaceRoot}/../build/lib\"",
+                    "ignoreFailures": false
+                }
+            ],
+            "additionalSOLibSearchPath": "/mnt/manual_video7_linux_debug_symbols",
+            "sourceFileMap": {
+                "/home/olecsys/JENKINS/workspace/olecsys/vcli.settings linux x64/projects/linux/x64/vcli.settings/./../../../../ag/libvcli.settings/lib": "${workspaceRoot}/../libvcli.settings/lib",
+                "/home/olecsys/JENKINS/workspace/olecsys/vcli.settings linux x64/projects/linux/x64/vcli.settings/./../../../../inc": "${workspaceRoot}/../../inc"
+            }
+        },
+        {
+            "name": "OpenGL(Linux)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/../build/video-client-7.0",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}/../build",
+            "environment": [{"name": "INTEGRA_S_VIDEO_LOG_WRITE_HOME_ALLOW", "value": "1"}],
+            "logging": {
+                "trace": true
+            },
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "WOW",
+                    "text": "set debug-file-directory /mnt/manual_video7_linux_debug_symbols",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "WOW2",
+                    "text": "set debug-file-directory \"${workspaceRoot}/../build/lib\"",
+                    "ignoreFailures": false
+                }
+            ],
+            "additionalSOLibSearchPath": "/mnt/manual_video7_linux_debug_symbols",
+            "sourceFileMap": {
+                "/home/olecsys/JENKINS/workspace/olecsys/vcli.settings linux x64/projects/linux/x64/vcli.settings/./../../../../ag/libvcli.settings/lib": "${workspaceRoot}/../libvcli.settings/lib",
+                "/home/olecsys/JENKINS/workspace/olecsys/vcli.settings linux x64/projects/linux/x64/vcli.settings/./../../../../inc": "${workspaceRoot}/../../inc"
+            }
+        },
+        {
+            "name": "OpenGL(Windows)",
+            "type": "cppvsdbg",
+            "symbolSearchPath": "",
+            "request": "launch",
+            "program": "${workspaceRoot}/../build/video-client-7.0",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}/../build",
+            "environment": [{"name": "INTEGRA_S_VIDEO_LOG_WRITE_HOME_ALLOW", "value": "1"}],
+            "logging": {
+                "trace": true
+            },
+            "externalConsole": false
+        },
+        {
+            "name": "QML(Linux)",          
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/../build/qvideoclient",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}/../build",
+            "environment": [{"name": "INTEGRA_S_VIDEO_LOG_WRITE_HOME_ALLOW", "value": "1"}],
+            "logging": {
+                "trace": true
+            },
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "WOW",
+                    "text": "set debug-file-directory /mnt/manual_video7_linux_debug_symbols",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "WOW2",
+                    "text": "set debug-file-directory \"${workspaceRoot}/../build/lib\"",
+                    "ignoreFailures": true
+                }
+            ],
+            "additionalSOLibSearchPath": "/mnt/manual_video7_linux_debug_symbols",
+            "sourceFileMap": {
+                "/home/olecsys/JENKINS/workspace/olecsys/vcli.settings linux x64/projects/linux/x64/vcli.settings/./../../../../ag/libvcli.settings/lib": "${workspaceRoot}/../libvcli.settings/lib",
+                "/home/olecsys/JENKINS/workspace/olecsys/vcli.settings linux x64/projects/linux/x64/vcli.settings/./../../../../inc": "${workspaceRoot}/../../inc"
+            }
+        },
+        {
+            "name": "QML(Windows)",                      
+            "type": "cppvsdbg",
+            "symbolSearchPath": "",
+            "request": "launch",
+            "program": "${workspaceRoot}/../build/qvideoclient",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}/../build",
+            "environment": [{"name": "INTEGRA_S_VIDEO_LOG_WRITE_HOME_ALLOW", "value": "1"}],
+            "logging": {
+                "trace": true
+            },
+            "externalConsole": false
+        },
+        {
+            "name": "test_package(Linux)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/test_package/build/bin/test_package",
+            "args": ["\"simple\""],
+            // "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}/test_package/build/bin/",
+            "environment": [{"name": "INTEGRA_S_VIDEO_LOG_WRITE_HOME_ALLOW", "value": "1"}],
+            "logging": {
+                "trace": true
+            },
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "WOW",
+                    "text": "set debug-file-directory /mnt/manual_video7_linux_debug_symbols",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "WOW2",
+                    "text": "set debug-file-directory \"${workspaceRoot}/../build/lib\"",
+                    "ignoreFailures": false
+                }
+            ],
+            "additionalSOLibSearchPath": "/mnt/manual_video7_linux_debug_symbols",
+            "sourceFileMap": {
+                "/home/olecsys/JENKINS/workspace/olecsys/vcli.settings linux x64/projects/linux/x64/vcli.settings/./../../../../ag/libvcli.settings/lib": "${workspaceRoot}/../libvcli.settings/lib",
+                "/home/olecsys/JENKINS/workspace/olecsys/vcli.settings linux x64/projects/linux/x64/vcli.settings/./../../../../inc": "${workspaceRoot}/../../inc",
+                "/home/user/jenkins/workspace/ag_autoloader_master-QIHAGXNSOWDX6ZZVALJLBGM4LXLV556F4EBZL5TXBYS4T2WGRCRA/lib": "${workspaceRoot}/../autoloader/lib",
+                "/home/user/jenkins/workspace/ag_tasks.noncritical_master-I3MWI2RO6GSLPDQOQAUDQFSTGBKT37ECDOJXVF6PFXXKFTQBCIIQ/lib": "${workspaceRoot}/../tasks.noncritical/lib",
+                "/home/olecsys/GOGS/autoloader/inc/booldog": "${workspaceRoot}/inc/booldog",
+                "/home/user/jenkins/workspace/ag_vcli.cache_master-32QW46DSCQUC7GXUCKC5VWMYRF3DYYWGYZJMDM5ES3IJWJUWIIQA/lib":"${workspaceRoot}/../vcli.cache/lib"
+            }
+        },
+        {
+            "name": "test_package(Windows)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "symbolSearchPath": "",
+            "program": "${workspaceRoot}/test_package/build/bin/test_package",
+            // "args": ["\"test(iv_config.h)\""],
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}/test_package/build/bin/",
+            "environment": [{"name": "INTEGRA_S_VIDEO_LOG_WRITE_HOME_ALLOW", "value": "1"}],
+            "logging": {
+                "trace": true
+            },
+            "externalConsole": false
+        }
+    ]
+}
