@@ -34,12 +34,38 @@ public:
                                  bool exportCameraInformation,
                                  bool exportImagePipeline,
                                  ImagePipeline* imagePipeline);
+    Q_INVOKABLE void startExportWithWsUrl(const QString& wsUrl,
+                                          const QString& cameraId,
+                                          const QDateTime& fromLocal,
+                                          const QDateTime& toLocal,
+                                          const QString& archiveId,
+                                          const QString& outputPath,
+                                          const QString& format,
+                                          int maxChunkDurationMinutes,
+                                          qint64 maxChunkFileSizeBytes,
+                                          bool exportPrimitives,
+                                          bool exportCameraInformation,
+                                          bool exportImagePipeline,
+                                          ImagePipeline* imagePipeline);
     Q_INVOKABLE void removeExport(int index);
 
 signals:
     void showExportsPanelChanged();
 
 private:
+    void startExportInternal(const QUrl& wsUrl,
+                             const QString& cameraId,
+                             const QDateTime& fromLocal,
+                             const QDateTime& toLocal,
+                             const QString& archiveId,
+                             const QString& outputPath,
+                             const QString& format,
+                             int maxChunkDurationMinutes,
+                             qint64 maxChunkFileSizeBytes,
+                             bool exportPrimitives,
+                             bool exportCameraInformation,
+                             bool exportImagePipeline,
+                             ImagePipeline* imagePipeline);
     void setShowExportsPanel(bool show);
     void updatePreview(ExportController* controller);
     void updateSizeBytes(ExportController* controller);

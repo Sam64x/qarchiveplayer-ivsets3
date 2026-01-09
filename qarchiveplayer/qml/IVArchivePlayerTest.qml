@@ -15,6 +15,7 @@ import iv.archivecomponents.selectinterval 1.0
 import iv.photocam 1.0
 import QtQuick.Controls.Styles 1.4
 
+import ArchiveComponents 1.0
 import iv.plugins.users 1.0
 import iv.exprogress 1.0
 import iv.export 1.0

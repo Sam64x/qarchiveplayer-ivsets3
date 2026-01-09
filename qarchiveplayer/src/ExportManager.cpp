@@ -41,11 +41,69 @@ void ExportManager::startExport(const QString& cameraId,
                                bool exportImagePipeline,
                                ImagePipeline* imagePipeline)
 {
+    const QUrl wsUrl = m_appInfo ? QUrl(m_appInfo->wsUrl()) : QUrl();
+    startExportInternal(wsUrl,
+                        cameraId,
+                        fromLocal,
+                        toLocal,
+                        archiveId,
+                        outputPath,
+                        format,
+                        maxChunkDurationMinutes,
+                        maxChunkFileSizeBytes,
+                        exportPrimitives,
+                        exportCameraInformation,
+                        exportImagePipeline,
+                        imagePipeline);
+}
+
+void ExportManager::startExportWithWsUrl(const QString& wsUrl,
+                                         const QString& cameraId,
+                                         const QDateTime& fromLocal,
+                                         const QDateTime& toLocal,
+                                         const QString& archiveId,
+                                         const QString& outputPath,
+                                         const QString& format,
+                                         int maxChunkDurationMinutes,
+                                         qint64 maxChunkFileSizeBytes,
+                                         bool exportPrimitives,
+                                         bool exportCameraInformation,
+                                         bool exportImagePipeline,
+                                         ImagePipeline* imagePipeline)
+{
+    startExportInternal(QUrl(wsUrl),
+                        cameraId,
+                        fromLocal,
+                        toLocal,
+                        archiveId,
+                        outputPath,
+                        format,
+                        maxChunkDurationMinutes,
+                        maxChunkFileSizeBytes,
+                        exportPrimitives,
+                        exportCameraInformation,
+                        exportImagePipeline,
+                        imagePipeline);
+}
+
+void ExportManager::startExportInternal(const QUrl& wsUrl,
+                                        const QString& cameraId,
+                                        const QDateTime& fromLocal,
+                                        const QDateTime& toLocal,
+                                        const QString& archiveId,
+                                        const QString& outputPath,
+                                        const QString& format,
+                                        int maxChunkDurationMinutes,
+                                        qint64 maxChunkFileSizeBytes,
+                                        bool exportPrimitives,
+                                        bool exportCameraInformation,
+                                        bool exportImagePipeline,
+                                        ImagePipeline* imagePipeline)
+{
     auto* client = new WebSocketClient(this);
     client->startWorkerThread();
-    if (m_appInfo) {
-        client->setUrl(QUrl(m_appInfo->wsUrl()));
-    }
+    if (wsUrl.isValid())
+        client->setUrl(wsUrl);
 
     auto* controller = new ExportController(this);
     controller->setClient(client);

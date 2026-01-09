@@ -34,6 +34,20 @@ Item {
 
     signal removeRequested()
 
+    function localFileUrl(path) {
+        if (!path)
+            return ""
+
+        if (Qt.platform.os === "windows") {
+            var normalized = path.replace(/\\/g, "/")
+            if (normalized[0] !== "/")
+                normalized = "/" + normalized
+            return "file://" + normalized
+        }
+
+        return "file:" + path
+    }
+
     function formatFileSize(bytes) {
         if (!bytes || bytes <= 0)
             return ""
@@ -81,12 +95,27 @@ Item {
             spacing: 2
 
             Text {
+                id: textField
                 text: root.cameraName
                 color: IVColors.get("Colors/Text new/TxPrimaryThemed")
                 font: IVColors.getFont("Label accent")
                 elide: Text.ElideRight
                 horizontalAlignment: Text.AlignLeft
                 Layout.fillWidth: true
+                Layout.preferredWidth: Math.min(implicitWidth, 300)
+
+                MouseArea {
+                    id: hover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                }
+
+                ToolTip {
+                    text: textField.text
+                    visible: textField.truncated && hover.containsMouse
+                    timeout: 3000
+                    delay: 300
+                }
             }
 
             Text {
@@ -228,8 +257,7 @@ Item {
                 onClicked: {
                     if (!enabled)
                         return
-                    var url = "file:///" + root.selectedPath
-                    Qt.openUrlExternally(url)
+                    Qt.openUrlExternally(root.localFileUrl(root.selectedPath))
                 }
             }
         }

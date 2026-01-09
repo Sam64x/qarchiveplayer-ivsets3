@@ -69,10 +69,15 @@ namespace {
 QObject* exportManagerProvider(QQmlEngine* engine, QJSEngine* scriptEngine)
 {
     Q_UNUSED(scriptEngine);
+    auto existing = qvariant_cast<QObject*>(engine->property("exportManagerInstance"));
+    if (existing)
+        return existing;
+
     auto exportManager = new ExportManager(engine);
     auto appInfo = qvariant_cast<AppInfo*>(engine->property("appInfo"));
     if (appInfo)
         exportManager->setAppInfo(appInfo);
+    engine->setProperty("exportManagerInstance", QVariant::fromValue(static_cast<QObject*>(exportManager)));
     return exportManager;
 }
 } // namespace
@@ -112,6 +117,8 @@ void QarchiveplayerPlugin::registerTypes(const char *uri)
     qmlRegisterType<VideoItem>("ArchiveComponents", 1, 0, "VideoItem");
     qmlRegisterType<PrimitiveOverlay>("ArchiveComponents", 1, 0, "PrimitiveOverlay");
     qmlRegisterSingletonType<ExportManager>("ArchiveComponents", 1, 0, "ExportManager",
+                                            exportManagerProvider);
+    qmlRegisterSingletonType<ExportManager>(uri, 1, 0, "ExportManager",
                                             exportManagerProvider);
 
     qmlRegisterType<EventsModel>("iv.data",1,0,"EventsModel");

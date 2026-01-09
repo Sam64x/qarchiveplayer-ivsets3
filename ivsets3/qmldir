@@ -1,5 +1,5 @@
 module iv.sets.sets3
-ActiveExportsButton 1.0 ActiveExportsButton.qml
+ActiveExportsButton 1.0 qml/client/archive/ActiveExportsButton.qml
 IVSets3 1.0 IVSets3.qml
 IVSetZone 1.0 IVSetZone.qml
 IVSetZoneWindow 1.0 IVSetZoneWindow.qml

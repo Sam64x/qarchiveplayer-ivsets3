@@ -31,6 +31,7 @@ C.IVButtonControl {
     property bool isMemoryLimit: true
 
     property var imagePipeline
+    property string wsUrl: appInfo ? appInfo.wsUrl : ""
 
     property var rootRef
     property var iv_arc_slider_new
@@ -843,7 +844,19 @@ C.IVButtonControl {
                     size: C.IVButtonControl.Size.Big
                     type: C.IVButtonControl.Type.Primary
                     onClicked: {
-                        if (ExportManager && ExportManager.startExport) {
+                        if (ExportManager && ExportManager.startExportWithWsUrl && root.wsUrl.length > 0) {
+                            var maxChunkFileSizeBytes = root.isMemoryLimit ? root.maxMemory * 1024 * 1024 : 0
+                            var maxChunkDurationMinutes = root.isMinutesLimit ? root.maxMinutes : 0
+                            var exportPrimitives = root.exportPrimitives
+                            var exportCameraInformation = root.exportCameraInformation
+                            var exportImagePipeline = root.exportImagePipeline
+                            ExportManager.startExportWithWsUrl(root.wsUrl, root.cameraId, timeFieldLayout.fromTime,
+                                                               timeFieldLayout.toTime, root.archiveId, root.selectedPath,
+                                                               root.selectedFormat, maxChunkDurationMinutes,
+                                                               maxChunkFileSizeBytes, exportPrimitives,
+                                                               exportCameraInformation, exportImagePipeline,
+                                                               root.imagePipeline)
+                        } else if (ExportManager && ExportManager.startExport) {
                             var maxChunkFileSizeBytes = root.isMemoryLimit ? root.maxMemory * 1024 * 1024 : 0
                             var maxChunkDurationMinutes = root.isMinutesLimit ? root.maxMinutes : 0
                             var exportPrimitives = root.exportPrimitives

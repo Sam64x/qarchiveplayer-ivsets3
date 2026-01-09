@@ -3,7 +3,7 @@ import QtQuick 2.11
 import QtQuick.Controls 2.4
 import QtQuick.Layouts 1.11
 
-import iv.viewers.archiveplayer 1.0
+import iv.viewers.archiveplayer 1.0 as Archive
 import iv.singletonLang 1.0
 import iv.controls 1.0 as C
 import iv.colors 1.0
@@ -19,7 +19,7 @@ C.IVButtonControl {
     leftPadding: 8
     spacing: 4
     source: "new_images/record-list.svg"
-    text: ExportManager.activeExportsModel.count.toString()
+    text: Archive.ExportManager.activeExportsModel.count.toString()
     size: C.IVButtonControl.Size.Small
     type: C.IVButtonControl.Type.Tertiary
     checkable: true
@@ -37,7 +37,7 @@ C.IVButtonControl {
        id: artiveExportMenu
        bgColor: IVColors.get("Colors/Background new/BgContextMenuThemed")
        horizontalPadding: 0
-       visible: ExportManager.showExportsPanel && ExportManager.activeExportsModel.count > 0
+       visible: Archive.ExportManager.showExportsPanel && Archive.ExportManager.activeExportsModel.count > 0
 
        readonly property real popupWidth: Math.min(artiveExportMenu.implicitWidth, 444)
        readonly property real controlWidth: popupWidth + artiveExportMenu.leftPadding + artiveExportMenu.rightPadding
@@ -75,7 +75,7 @@ C.IVButtonControl {
            }
 
            Repeater {
-               model: ExportManager.activeExportsModel
+               model: Archive.ExportManager.activeExportsModel
                Layout.fillWidth: true
 
                delegate: UploadProgressBar {
@@ -95,8 +95,8 @@ C.IVButtonControl {
                    sizeOverride: model.sizeBytes
 
                    onRemoveRequested: {
-                        if (ExportManager)
-                           ExportManager.removeExport(modelIndex)
+                        if (Archive.ExportManager)
+                           Archive.ExportManager.removeExport(modelIndex)
                    }
                }
            }
