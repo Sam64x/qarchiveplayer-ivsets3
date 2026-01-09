@@ -1,0 +1,98 @@
+name: Build package
+run-name: Build for PROD
+on: [push]
+env:
+  PROD_NAME: ${{github.event.repository.name}}
+  PROD_VERSION: ${{github.ref_name}}
+  CONAN_USER_HOME: ${{ gitea.workspace }}
+  FTP_URL: ftp://iv.integra-s.com:2121/IntegraVideo/packages
+  CONAN_URL: http://iv.integra-s.com:30203/artifactory/api/conan/conan
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    container: iv.integra-s.com:30205/astra-dev:2.12
+    env:
+      OS_ARCH: lin-x64
+      PACKAGE_NAME: ${{github.event.repository.name}}-${{github.ref_name}}-${{env.OS_ARCH}}
+
+
+    steps:
+      - name: Environment
+        run: |
+          printenv
+          echo "${{ toJSON(github) }}"
+          echo "${{ toJSON(secrets) }}"
+          
+      - name: Checkout
+        uses: http://iv.integra-s.com:30201/actions/checkout@v1
+
+      - name: Configure conan
+        run: |
+          conan profile new default --detect
+          conan profile update settings.compiler.libcxx=libstdc++11 default
+          conan remote clean
+          conan remote add artifactory ${{env.CONAN_URL}} False
+          conan user ci -r artifactory -p ${{secrets.CONAN_PASS}}
+
+      - name: Build project
+        run: |
+          cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=./distr -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --target install/strip
+
+      - name: Update version
+        if: ${{ github.ref == 'refs/heads/master' }}
+        run: |
+          echo "PROD_VERSION=$(cat version.txt)" >> $GITHUB_ENV
+          echo "PACKAGE_NAME=${{github.event.repository.name}}-$(cat version.txt)-${{env.OS_ARCH}}" >> $GITHUB_ENV
+
+      - name: Deploy
+        run: |
+          tar -czvf ${{env.PROD_NAME}}.tar.gz -C distr/ .
+          curl -k --user ftpuser:${{secrets.FTP_PASS}} --ftp-create-dirs --upload-file ${{env.PROD_NAME}}.tar.gz ${{env.FTP_URL}}/${{env.PROD_NAME}}/${{env.PROD_VERSION}}/${{env.PACKAGE_NAME}}.tar.gz
+          echo "deploy ${{env.PACKAGE_NAME}}.tar.gz"
+
+
+  build-windows:
+    runs-on: windows-latest
+    env:
+      OS_ARCH: win-x64
+      PACKAGE_NAME: ${{github.event.repository.name}}-${{github.ref_name}}-${{env.OS_ARCH}}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Environment
+        run: |
+          echo "${{ toJSON(github) }}"
+          echo "WORKSPACE=${{ gitea.workspace }}" >> $GITHUB_ENV
+         
+      - name: Checkout
+        uses: http://iv.integra-s.com:30201/actions/checkout@v1
+
+      - name: Configure conan
+        run: |
+          conan profile new default --detect
+          conan remote clean
+          conan remote add artifactory ${{env.CONAN_URL}} False
+          conan user ci -r artifactory -p ${{secrets.CONAN_PASS}}
+
+      - name: Build project
+        run: |
+          cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=./distr -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --target install
+
+      - name: Update version
+        if: ${{ github.ref == 'refs/heads/master' }}
+        run: |
+          echo "PROD_VERSION=$(cat version.txt)" >> $GITHUB_ENV
+          echo "PACKAGE_NAME=${{github.event.repository.name}}-$(cat version.txt)-${{env.OS_ARCH}}" >> $GITHUB_ENV
+
+      - name: Deploy
+        run: |
+          tar -czvf ${{env.PROD_NAME}}.tar.gz -C distr/ .
+          curl -k --user ftpuser:${{secrets.FTP_PASS}} --ftp-create-dirs --upload-file ${{env.PROD_NAME}}.tar.gz ${{env.FTP_URL}}/${{env.PROD_NAME}}/${{env.PROD_VERSION}}/${{env.PACKAGE_NAME}}.tar.gz
+          echo "deploy ${{env.PACKAGE_NAME}}.tar.gz"
+
+

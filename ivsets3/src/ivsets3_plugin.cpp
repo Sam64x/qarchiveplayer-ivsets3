@@ -6,10 +6,13 @@
 #include "archive/filter/treemodel.h"
 #include "archive/filter/treeitem.h"
 #include "sourceTree.h"
+#include "ExportManager.h"
 
 #include <QObject>
 #include <QFile>
 #include <QDir>
+#include <QQmlEngine>
+#include <QJSEngine>
 #include <qqml.h>
 #include <iv_mem2.h>
 #include <iv_autoloader.h>
@@ -59,6 +62,18 @@ const char* mapsParams ="{"
                         " \"params\": {\"jsonDataFileName\":{\"type\":\"var\",\"value\":[\"\"]}}"
                         "}";
 QString _preset3 = "[{\"x\":1,\"y\":1,\"dx\":4,\"dy\":4},{\"x\":4,\"y\":1,\"dx\":4,\"dy\":4},{\"x\":1,\"y\":4,\"dx\":2,\"dy\":2},{\"x\":3,\"y\":4,\"dx\":2,\"dy\":2},{\"x\":5,\"y\":4,\"dx\":2,\"dy\":2},{\"x\":7,\"y\":4,\"dx\":2,\"dy\":2},{\"x\":1,\"y\":8,\"dx\":2,\"dy\":2},{\"x\":3,\"y\":8,\"dx\":2,\"dy\":2},{\"x\":5,\"y\":8,\"dx\":2,\"dy\":2},{\"x\":7,\"y\":8,\"dx\":2,\"dy\":2}]";
+
+namespace {
+QObject* exportManagerProvider(QQmlEngine* engine, QJSEngine* scriptEngine)
+{
+    Q_UNUSED(scriptEngine);
+    auto* exportManager = new ExportManager(engine);
+    QObject* appInfo = engine->property("appInfo").value<QObject*>();
+    if (appInfo)
+        exportManager->setAppInfo(appInfo);
+    return exportManager;
+}
+} // namespace
 void save_sets(QString type,char* json)
 {
     St2_FUNCT_St2(322);
@@ -1195,6 +1210,9 @@ void IVSets3Plugin::registerTypes(const char* uri) {
   qRegisterMetaType<IVArchSource*>("IVArchSource");
   qmlRegisterType<TreeModel>(uri, 1, 0, "TreeModel");
   qmlRegisterType<IVMainArea>(uri, 1, 0, "IVMainArea");
+
+  qmlRegisterSingletonType<ExportManager>("ExportComponents", 1, 0, "ExportManager",
+                                          exportManagerProvider);
 }
 //реализуем данную функцию для отписки от всех зависимостей(core, log-1 и т.д)
 booexport bool pre_dll_free(const char*)

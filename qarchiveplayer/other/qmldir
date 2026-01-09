@@ -1,7 +1,7 @@
 module iv.viewers.archiveplayer
+depends ArchiveComponents 1.0
 IVArchiveContextMenu 1.0 IVArchiveContextMenu.qml
 IVArchivePlayer 1.0 IVArchivePlayer.qml
-IVArchivePlayerTest 1.0 IVArchivePlayerTest.qml
 IVArchivePlayerMin 1.0 IVArchivePlayerMin.qml
 IVArcSliderControl 1.0 IVArcSliderControl.qml
 IVArc_slider_new2 1.0 IVArc_slider_new2.qml
@@ -10,12 +10,10 @@ IVButtonFullPaneArc 1.0 IVButtonFullPaneArc.qml
 IVButtonTopPanel 1.0 IVButtonTopPanel.qml
 IVSourceListView 1.0 IVSourceListView.qml
 IVSeparator 1.0 IVSeparator.qml
-UploadProgressBar 1.0 UploadProgressBar.qml
 ArchiveMarker 1.0 ArchiveMarker.qml
 FrameRewindButtons 1.0 FrameRewindButtons.qml
 EventButtons 1.0 EventButtons.qml
 ExportSettingsButton 1.0 ExportSettingsButton.qml
-ActiveExportsButton 1.0 ActiveExportsButton.qml
 IntervalScaleButton 1.0 IntervalScaleButton.qml
 LabeledCalendarButton 1.0 LabeledCalendarButton.qml
 ScreenshotButton 1.0 ScreenshotButton.qml

@@ -3,7 +3,7 @@ import QtQuick 2.11
 import QtQuick.Controls 2.4
 import QtQuick.Layouts 1.11
 
-import iv.viewers.archiveplayer 1.0
+import ExportComponents 1.0
 import iv.singletonLang 1.0
 import iv.controls 1.0 as C
 import iv.colors 1.0

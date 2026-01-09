@@ -1068,18 +1068,6 @@ Item {
                     }
 
                     Rectangle {
-                        implicitWidth: 40
-                        implicitHeight: 24
-                        radius: 4*root.isize
-                        color: IVColors.get("Colors/Background new/BgEvent")
-                        visible: ExportManager.activeExportsModel.count > 0
-
-                        ActiveExportsButton {
-                            rootRef: root
-                        }
-                    }
-
-                    Rectangle {
                         height: parent.height
                         width: height
                         radius: 4*root.isize

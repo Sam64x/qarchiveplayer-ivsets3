@@ -35,7 +35,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
   POSITION_INDEPENDENT_CODE ON
-  INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../lib:\$ORIGIN/lib"
+  INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../lib:\$ORIGIN/lib:\$ORIGIN/../../../../qt:\$ORIGIN/../../../../qt/lib"
 )
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
@@ -47,7 +47,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/MP;/Z7>
     $<$<CXX_COMPILER_ID:GNU>:-fvisibility=hidden;-fno-gnu-unique>
 )
-find_package(Qt5 COMPONENTS Widgets Qml Quick REQUIRED)
+find_package(Qt5 COMPONENTS Widgets Qml Quick WebSockets Concurrent REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC 
     ${CONAN_LIBS} 
 	Qt5::Core 
@@ -55,6 +55,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     Qt5::Qml
     Qt5::Quick
     Qt5::Widgets
+    Qt5::WebSockets
+    Qt5::Concurrent
     $<$<CXX_COMPILER_ID:GNU>:-Wno-unused-variable>
     $<$<CXX_COMPILER_ID:GNU>:-Wreturn-type>
     $<$<CXX_COMPILER_ID:GNU>:pthread>
@@ -62,6 +64,14 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     $<$<CXX_COMPILER_ID:GNU>:rt>
     $<$<CXX_COMPILER_ID:GNU>:-Wl,-E,--no-undefined>
 )
+
+if(WIN32 AND EXISTS "${FFMPEG_BIN_DIR}")
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E echo "Copying FFmpeg DLLs from ${FFMPEG_BIN_DIR}"
+      COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../lib"
+      COMMAND ${CMAKE_COMMAND} -E copy_directory "${FFMPEG_BIN_DIR}" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../lib"
+  )
+endif()
 
 message("Copying qmldir, *.js and *.qml to build directory....")
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${FILETOCOPY} $<TARGET_FILE_DIR:${PROJECT_NAME}>)
