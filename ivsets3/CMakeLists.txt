@@ -16,6 +16,7 @@ file(GLOB_RECURSE PROJECT_SRC
 file (GLOB_RECURSE QML_SRC
     qml/*.qml
     qml/client/*.qml
+    qml/client/archive/*.qml
     qmldir
 )
 set(FILETOCOPY ${QML_SRC})
