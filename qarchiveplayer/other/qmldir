@@ -1,4 +1,5 @@
 module iv.viewers.archiveplayer
+depends ArchiveComponents 1.0
 IVArchiveContextMenu 1.0 IVArchiveContextMenu.qml
 IVArchivePlayer 1.0 IVArchivePlayer.qml
 IVArchivePlayerTest 1.0 IVArchivePlayerTest.qml
