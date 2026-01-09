@@ -113,6 +113,8 @@ void QarchiveplayerPlugin::registerTypes(const char *uri)
     qmlRegisterType<PrimitiveOverlay>("ArchiveComponents", 1, 0, "PrimitiveOverlay");
     qmlRegisterSingletonType<ExportManager>("ArchiveComponents", 1, 0, "ExportManager",
                                             exportManagerProvider);
+    qmlRegisterSingletonType<ExportManager>("iv.viewers.archiveplayer", 1, 0, "ExportManager",
+                                            exportManagerProvider);
 
     qmlRegisterType<EventsModel>("iv.data",1,0,"EventsModel");
     qmlRegisterType<FullnessModel>("iv.data",1,0,"FullnessModel");
