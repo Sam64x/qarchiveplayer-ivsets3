@@ -1,11 +1,10 @@
 #include "ExportManager.h"
 
-#include "AppInfo.h"
 #include "ExportController.h"
-#include "ImagePipeline.h"
 #include "WebSocketClient.h"
 
 #include <QUrl>
+#include <QVariant>
 
 ExportManager::ExportManager(QObject* parent)
     : QObject(parent)
@@ -23,7 +22,7 @@ bool ExportManager::showExportsPanel() const
     return m_showExportsPanel;
 }
 
-void ExportManager::setAppInfo(AppInfo* appInfo)
+void ExportManager::setAppInfo(QObject* appInfo)
 {
     m_appInfo = appInfo;
 }
@@ -39,12 +38,16 @@ void ExportManager::startExport(const QString& cameraId,
                                bool exportPrimitives,
                                bool exportCameraInformation,
                                bool exportImagePipeline,
-                               ImagePipeline* imagePipeline)
+                               QObject* imagePipeline)
 {
     auto* client = new WebSocketClient(this);
     client->startWorkerThread();
     if (m_appInfo) {
-        client->setUrl(QUrl(m_appInfo->wsUrl()));
+        const QVariant wsUrlValue = m_appInfo->property("wsUrl");
+        if (wsUrlValue.canConvert<QUrl>())
+            client->setUrl(wsUrlValue.toUrl());
+        else
+            client->setUrl(QUrl(wsUrlValue.toString()));
     }
 
     auto* controller = new ExportController(this);

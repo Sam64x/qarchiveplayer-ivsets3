@@ -47,7 +47,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/MP;/Z7>
     $<$<CXX_COMPILER_ID:GNU>:-fvisibility=hidden;-fno-gnu-unique>
 )
-find_package(Qt5 COMPONENTS Widgets Qml Quick REQUIRED)
+find_package(Qt5 COMPONENTS Widgets Qml Quick WebSockets Concurrent REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC 
     ${CONAN_LIBS} 
 	Qt5::Core 
@@ -55,6 +55,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     Qt5::Qml
     Qt5::Quick
     Qt5::Widgets
+    Qt5::WebSockets
+    Qt5::Concurrent
     $<$<CXX_COMPILER_ID:GNU>:-Wno-unused-variable>
     $<$<CXX_COMPILER_ID:GNU>:-Wreturn-type>
     $<$<CXX_COMPILER_ID:GNU>:pthread>

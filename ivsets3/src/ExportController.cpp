@@ -1,6 +1,5 @@
 #include "ExportController.h"
 #include "WebSocketClient.h"
-#include "ImagePipeline.h"
 #include "VideoSegmentDecoder.h"
 
 #include <QJsonArray>
@@ -23,6 +22,8 @@
 #include <QMutexLocker>
 #include <QTimer>
 #include <QSaveFile>
+#include <type_traits>
+#include <cmath>
 
 #include <algorithm>
 #include <atomic>
@@ -61,6 +62,213 @@ constexpr int kMaxRawMetadataEntries = 200;
 constexpr int kInflightTimeoutSeconds = 10;
 constexpr int kInflightCheckIntervalMs = 1500;
 constexpr int kMaxSegmentRetries = 3;
+
+static int clamp255(int v) { return std::max(0, std::min(255, v)); }
+static int clamp100(int v) { return std::max(0, std::min(100, v)); }
+
+static ExportController::PipelineSettings sanitizePipelineSettings(const ExportController::PipelineSettings& in)
+{
+    ExportController::PipelineSettings s = in;
+    s.r = clamp255(s.r);
+    s.g = clamp255(s.g);
+    s.b = clamp255(s.b);
+    s.brightness = clamp100(s.brightness);
+    s.contrast = clamp100(s.contrast);
+    s.saturation = clamp100(s.saturation);
+    return s;
+}
+
+static int pipelineIntProperty(QObject* obj, const char* name, int fallback)
+{
+    if (!obj)
+        return fallback;
+    QVariant value = obj->property(name);
+    if (!value.isValid())
+        return fallback;
+    bool ok = false;
+    const int v = value.toInt(&ok);
+    return ok ? v : fallback;
+}
+
+static ExportController::PipelineSettings pipelineSettingsFromObject(QObject* pipeline)
+{
+    ExportController::PipelineSettings s;
+    s.r = pipelineIntProperty(pipeline, "rgbR", s.r);
+    s.g = pipelineIntProperty(pipeline, "rgbG", s.g);
+    s.b = pipelineIntProperty(pipeline, "rgbB", s.b);
+    s.brightness = pipelineIntProperty(pipeline, "brightness", s.brightness);
+    s.contrast = pipelineIntProperty(pipeline, "contrast", s.contrast);
+    s.saturation = pipelineIntProperty(pipeline, "saturation", s.saturation);
+    return sanitizePipelineSettings(s);
+}
+
+template <class T, class = void> struct has_yStride   : std::false_type {};
+template <class T> struct has_yStride<T, std::void_t<decltype(std::declval<const T&>().yStride())>> : std::true_type {};
+
+template <class T, class = void> struct has_uvStride  : std::false_type {};
+template <class T> struct has_uvStride<T, std::void_t<decltype(std::declval<const T&>().uvStride())>> : std::true_type {};
+
+template <class T, class = void> struct has_strideY   : std::false_type {};
+template <class T> struct has_strideY<T, std::void_t<decltype(std::declval<const T&>().strideY())>> : std::true_type {};
+
+template <class T, class = void> struct has_strideUV  : std::false_type {};
+template <class T> struct has_strideUV<T, std::void_t<decltype(std::declval<const T&>().strideUV())>> : std::true_type {};
+
+template <class T>
+static inline int getYStride(const T& f) {
+    if constexpr (has_yStride<T>::value)         return f.yStride();
+    else if constexpr (has_strideY<T>::value)    return f.strideY();
+    else                                         return f.width();
+}
+template <class T>
+static inline int getUVStride(const T& f) {
+    if constexpr (has_uvStride<T>::value)        return f.uvStride();
+    else if constexpr (has_strideUV<T>::value)   return f.strideUV();
+    else                                         return f.width();
+}
+
+template <class PlaneT>
+static inline const uchar* planePtr(const PlaneT& p) {
+    if constexpr (std::is_same_v<std::decay_t<PlaneT>, QByteArray>) {
+        return reinterpret_cast<const uchar*>(p.constData());
+    } else {
+        return reinterpret_cast<const uchar*>(p);
+    }
+}
+
+template <class Apply>
+static QImage nv12ToRgb888(const Nv12Frame& f, Apply&& apply)
+{
+    const int W = f.width();
+    const int H = f.height();
+    if (W <= 0 || H <= 0)
+        return QImage();
+
+    const int yStride  = getYStride(f);
+    const int uvStride = getUVStride(f);
+
+    const uchar* Yp  = planePtr(f.yPlane());
+    const uchar* UVp = planePtr(f.uvPlane());
+
+    QImage out(W, H, QImage::Format_RGB888);
+    if (out.isNull())
+        return out;
+
+    for (int y = 0; y < H; ++y) {
+        uchar* dst = out.scanLine(y);
+        const uchar* yRow  = Yp  + y * yStride;
+        const uchar* uvRow = UVp + (y >> 1) * uvStride;
+
+        int x = 0;
+        for (; x + 1 < W; x += 2) {
+            const int Y0 = int(yRow[x+0]);
+            const int Y1 = int(yRow[x+1]);
+
+            const int uIdx = (x >> 1) * 2;
+            const int U = int(uvRow[uIdx+0]) - 128;
+            const int V = int(uvRow[uIdx+1]) - 128;
+
+            auto yuv2rgb = [](int Y, int Uc, int Vc, int& r, int& g, int& b) {
+                const int C = Y - 16;
+                const int D = Uc;
+                const int E = Vc;
+                int Rt = (298*C + 409*E + 128) >> 8;
+                int Gt = (298*C - 100*D - 208*E + 128) >> 8;
+                int Bt = (298*C + 516*D + 128) >> 8;
+                r = std::max(0, std::min(255, Rt));
+                g = std::max(0, std::min(255, Gt));
+                b = std::max(0, std::min(255, Bt));
+            };
+
+            int r, g, b;
+            yuv2rgb(Y0, U, V, r, g, b);
+            apply(r, g, b);
+            dst[3*x + 0] = static_cast<uchar>(r);
+            dst[3*x + 1] = static_cast<uchar>(g);
+            dst[3*x + 2] = static_cast<uchar>(b);
+
+            yuv2rgb(Y1, U, V, r, g, b);
+            apply(r, g, b);
+            dst[3*(x+1) + 0] = static_cast<uchar>(r);
+            dst[3*(x+1) + 1] = static_cast<uchar>(g);
+            dst[3*(x+1) + 2] = static_cast<uchar>(b);
+        }
+
+        if (x < W) {
+            const int Y0 = int(yRow[x]);
+            const int uIdx = (x >> 1) * 2;
+            const int U = int(uvRow[uIdx+0]) - 128;
+            const int V = int(uvRow[uIdx+1]) - 128;
+
+            auto yuv2rgb = [](int Y, int Uc, int Vc, int& r, int& g, int& b) {
+                const int C = Y - 16;
+                const int D = Uc;
+                const int E = Vc;
+                int Rt = (298*C + 409*E + 128) >> 8;
+                int Gt = (298*C - 100*D - 208*E + 128) >> 8;
+                int Bt = (298*C + 516*D + 128) >> 8;
+                r = std::max(0, std::min(255, Rt));
+                g = std::max(0, std::min(255, Gt));
+                b = std::max(0, std::min(255, Bt));
+            };
+
+            int r, g, b;
+            yuv2rgb(Y0, U, V, r, g, b);
+            apply(r, g, b);
+            dst[3*x + 0] = static_cast<uchar>(r);
+            dst[3*x + 1] = static_cast<uchar>(g);
+            dst[3*x + 2] = static_cast<uchar>(b);
+        }
+    }
+
+    return out;
+}
+
+static void applyColorControls(int& r, int& g, int& b, const ExportController::PipelineSettings& s)
+{
+    const double gainR = s.r / 128.0;
+    const double gainG = s.g / 128.0;
+    const double gainB = s.b / 128.0;
+
+    double R = std::max(0.0, std::min(255.0, r * gainR));
+    double G = std::max(0.0, std::min(255.0, g * gainG));
+    double B = std::max(0.0, std::min(255.0, b * gainB));
+
+    const double br = (s.brightness - 50) / 50.0;
+    const double ct = (s.contrast   / 50.0);
+    const double st = (s.saturation / 50.0);
+
+    const double Y = 0.299*R + 0.587*G + 0.114*B;
+    double U = -0.147*R - 0.289*G + 0.436*B;
+    double V =  0.615*R - 0.515*G - 0.100*B;
+
+    U *= st;
+    V *= st;
+
+    double Rt = Y + 1.140*V;
+    double Gt = Y - 0.395*U - 0.581*V;
+    double Bt = Y + 2.032*U;
+
+    Rt = (Rt - 128.0)*ct + 128.0 + 255.0*br;
+    Gt = (Gt - 128.0)*ct + 128.0 + 255.0*br;
+    Bt = (Bt - 128.0)*ct + 128.0 + 255.0*br;
+
+    r = std::max(0, std::min(255, int(std::lround(Rt))));
+    g = std::max(0, std::min(255, int(std::lround(Gt))));
+    b = std::max(0, std::min(255, int(std::lround(Bt))));
+}
+
+static QJsonObject pipelineSettingsToJson(const ExportController::PipelineSettings& s)
+{
+    return QJsonObject{
+        {QStringLiteral("r"), s.r},
+        {QStringLiteral("g"), s.g},
+        {QStringLiteral("b"), s.b},
+        {QStringLiteral("brightness"), s.brightness},
+        {QStringLiteral("contrast"), s.contrast},
+        {QStringLiteral("saturation"), s.saturation},
+    };
+}
 
 static QString sanitizeFileComponent(const QString& value)
 {
@@ -195,18 +403,6 @@ static QString primitiveTypeToString(PrimitiveType type)
         return QStringLiteral("text");
     }
     return QStringLiteral("unknown");
-}
-
-static QJsonObject imagePipelineSettingsToJson(const ImagePipeline::Settings& s)
-{
-    return QJsonObject{
-        {QStringLiteral("r"), s.r},
-        {QStringLiteral("g"), s.g},
-        {QStringLiteral("b"), s.b},
-        {QStringLiteral("brightness"), s.brightness},
-        {QStringLiteral("contrast"), s.contrast},
-        {QStringLiteral("saturation"), s.saturation}
-    };
 }
 
 } // namespace
@@ -1119,12 +1315,9 @@ void ExportController::start(const QString& cameraId,
 
     if (m_exportImagePipeline) {
         if (m_pipeline) {
-            m_exportPipelineSettings = m_pipeline->snapshot();
+            m_exportPipelineSettings = pipelineSettingsFromObject(m_pipeline);
         } else {
-            ImagePipeline fallback;
-            if (!m_cameraId.isEmpty())
-                fallback.setCameraId(m_cameraId);
-            m_exportPipelineSettings = fallback.snapshot();
+            m_exportPipelineSettings = sanitizePipelineSettings(PipelineSettings{});
         }
     }
 
@@ -1522,7 +1715,7 @@ bool ExportController::writeSidecarMetadataJson(const QString& chunkPath,
     if (m_exportImagePipeline) {
         if (m_exportPipelineSettings.has_value()) {
             root.insert(QStringLiteral("image_pipeline_settings"),
-                        imagePipelineSettingsToJson(*m_exportPipelineSettings));
+                        pipelineSettingsToJson(*m_exportPipelineSettings));
         } else {
             root.insert(QStringLiteral("image_pipeline_settings"), QJsonValue::Null);
         }
@@ -1753,9 +1946,9 @@ void ExportController::maybeUpdatePreview(const QByteArray& segment)
         return;
 
     const QString cameraId = m_cameraId;
-    std::optional<ImagePipeline::Settings> pipelineSettings;
+    std::optional<PipelineSettings> pipelineSettings;
     if (m_pipeline)
-        pipelineSettings = m_pipeline->snapshot();
+        pipelineSettings = pipelineSettingsFromObject(m_pipeline);
 
     const quint64 generationId = m_exportGenerationId;
     m_previewFuture = QtConcurrent::run([segment, cameraId, pipelineSettings, generationId]() -> PreviewResult {
@@ -1770,13 +1963,12 @@ void ExportController::maybeUpdatePreview(const QByteArray& segment)
         if (!first.frame.isValid())
             return result;
 
-        ImagePipeline pipeline;
-        if (!cameraId.isEmpty())
-            pipeline.setCameraId(cameraId);
-        if (pipelineSettings.has_value())
-            pipeline.setFromSnapshot(*pipelineSettings);
-
-        const QImage img = pipeline.toImage(first.frame);
+        PipelineSettings settings = pipelineSettings.has_value()
+                                        ? sanitizePipelineSettings(*pipelineSettings)
+                                        : sanitizePipelineSettings(PipelineSettings{});
+        const QImage img = nv12ToRgb888(first.frame, [&](int& r, int& g, int& b) {
+            applyColorControls(r, g, b, settings);
+        });
         if (img.isNull())
             return result;
 

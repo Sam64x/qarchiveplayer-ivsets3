@@ -18,7 +18,7 @@
 #include <memory>
 #include <chrono>
 
-#include "ImagePipeline.h"
+#include <QObject>
 
 class StreamingRemuxer;
 struct ChunkState;
@@ -80,10 +80,10 @@ public:
     Q_PROPERTY(int    maxChunkDurationMinutes READ maxChunkDurationMinutes WRITE setMaxChunkDurationMinutes NOTIFY maxChunkDurationMinutesChanged)
     Q_PROPERTY(qint64 maxChunkFileSizeBytes   READ maxChunkFileSizeBytes   WRITE setMaxChunkFileSizeBytes   NOTIFY maxChunkFileSizeBytesChanged)
     Q_PROPERTY(WebSocketClient* client    READ client              WRITE setClient          NOTIFY clientChanged)
-    Q_PROPERTY(ImagePipeline* imagePipeline READ imagePipeline     WRITE setImagePipeline   NOTIFY imagePipelineChanged)
+    Q_PROPERTY(QObject* imagePipeline READ imagePipeline WRITE setImagePipeline NOTIFY imagePipelineChanged)
     Q_PROPERTY(QString firstFramePreview  READ firstFramePreview   NOTIFY firstFramePreviewChanged)
 
-    Q_INVOKABLE void setImagePipeline(ImagePipeline* pipeline)
+    Q_INVOKABLE void setImagePipeline(QObject* pipeline)
     {
         if (m_pipeline == pipeline)
             return;
@@ -109,7 +109,7 @@ public:
     bool   exportImagePipeline() const { return m_exportImagePipeline; }
     WebSocketClient* client() const { return m_client; }
     void setClient(WebSocketClient* c);
-    ImagePipeline* imagePipeline() const { return m_pipeline; }
+    QObject* imagePipeline() const { return m_pipeline; }
     int maxChunkDurationMinutes() const { return m_maxChunkDurationMinutes; }
     Q_INVOKABLE void setMaxChunkDurationMinutes(int minutes);
     qint64 maxChunkFileSizeBytes() const { return m_maxChunkFileSizeBytes; }
@@ -269,7 +269,7 @@ private:
     QString   m_outputPath;
     int       m_fps {0};
 
-    ImagePipeline* m_pipeline {nullptr};
+    QObject* m_pipeline {nullptr};
 
     std::atomic<bool> m_active {false};
     int    m_inflight {0};
@@ -313,7 +313,15 @@ private:
     quint64   m_exportGenerationId {0};
     bool      m_finishEmitted {false};
 
-    std::optional<ImagePipeline::Settings> m_exportPipelineSettings;
+    struct PipelineSettings {
+        int r = 128;
+        int g = 128;
+        int b = 128;
+        int brightness = 50;
+        int contrast = 50;
+        int saturation = 50;
+    };
+    std::optional<PipelineSettings> m_exportPipelineSettings;
 
     ExportFilePattern m_pattern;
     QString           m_finalOutputPath;

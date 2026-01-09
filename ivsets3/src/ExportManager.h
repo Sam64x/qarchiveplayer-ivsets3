@@ -5,9 +5,7 @@
 
 #include "ExportListModel.h"
 
-class AppInfo;
 class ExportController;
-class ImagePipeline;
 
 class ExportManager : public QObject
 {
@@ -20,7 +18,7 @@ public:
     ExportListModel* activeExportsModel() const;
     bool showExportsPanel() const;
 
-    void setAppInfo(AppInfo* appInfo);
+    void setAppInfo(QObject* appInfo);
 
     Q_INVOKABLE void startExport(const QString& cameraId,
                                  const QDateTime& fromLocal,
@@ -33,7 +31,7 @@ public:
                                  bool exportPrimitives,
                                  bool exportCameraInformation,
                                  bool exportImagePipeline,
-                                 ImagePipeline* imagePipeline);
+                                 QObject* imagePipeline);
     Q_INVOKABLE void removeExport(int index);
 
 signals:
@@ -46,5 +44,5 @@ private:
 
     ExportListModel* m_model {nullptr};
     bool m_showExportsPanel {false};
-    AppInfo* m_appInfo {nullptr};
+    QObject* m_appInfo {nullptr};
 };
