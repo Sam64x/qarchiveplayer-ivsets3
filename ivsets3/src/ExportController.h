@@ -67,6 +67,15 @@ public:
     explicit ExportController(QObject* parent = nullptr);
     ~ExportController() override;
 
+    struct PipelineSettings {
+        int r = 128;
+        int g = 128;
+        int b = 128;
+        int brightness = 50;
+        int contrast = 50;
+        int saturation = 50;
+    };
+
     enum Status { Idle = 0, Uploading = 1, Done = 2, Error = 3 };
     Q_ENUM(Status)
 
@@ -313,14 +322,6 @@ private:
     quint64   m_exportGenerationId {0};
     bool      m_finishEmitted {false};
 
-    struct PipelineSettings {
-        int r = 128;
-        int g = 128;
-        int b = 128;
-        int brightness = 50;
-        int contrast = 50;
-        int saturation = 50;
-    };
     std::optional<PipelineSettings> m_exportPipelineSettings;
 
     ExportFilePattern m_pattern;
