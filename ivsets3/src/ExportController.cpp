@@ -2549,14 +2549,13 @@ void ExportController::stopConsumerThread()
         });
         return;
     }
-
-    QMutexLocker locker(&m_stateMutex, QMutexLocker::AdoptLock);
     ControllerState& st = controllerState();
     if (st.remuxer) {
         auto remuxer = st.remuxer;
         st.remuxer.reset();
         cancelRemuxerAsync(remuxer);
     }
+    m_stateMutex.unlock();
 }
 
 void ExportController::onBinaryMessage(const QByteArray& bin)

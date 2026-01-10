@@ -50,6 +50,8 @@ file(GLOB_RECURSE PROJECT_SRC
     other/qmldir
 )
 
+list(FILTER PROJECT_SRC EXCLUDE REGEX "src/Export(Controller|ListModel|Manager)\\.(cpp|h)$")
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
