@@ -135,6 +135,7 @@ public slots:
     void onMuxProgress(int pct, quint64 genId);
     void onMuxFinished(bool ok, const QString& err, quint64 genId);
     void onPreviewReady();
+    void onConnectTimeout();
 
 signals:
     void clientChanged();
@@ -280,6 +281,7 @@ private:
     int       m_fps {0};
 
     QPointer<QObject> m_pipeline;
+    QTimer* m_connectTimeoutTimer {nullptr};
 
     std::atomic<bool> m_active {false};
     int    m_inflight {0};
