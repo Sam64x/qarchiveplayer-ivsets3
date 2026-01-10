@@ -1216,7 +1216,7 @@ void IVSets3Plugin::registerTypes(const char* uri) {
     qmlRegisterType<TreeModel>(uri, 1, 0, "TreeModel");
     qmlRegisterType<IVMainArea>(uri, 1, 0, "IVMainArea");
 
-    qmlRegisterSingletonType<ExportManager>("ExportComponents", 1, 0, "ExportManager",
+    qmlRegisterSingletonType<ExportManager>(uri, 1, 0, "ExportManager",
                                             exportManagerProvider);
 }
 //реализуем данную функцию для отписки от всех зависимостей(core, log-1 и т.д)

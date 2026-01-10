@@ -4,7 +4,7 @@ import QtQuick.Layouts 1.11
 import QtQuick.Dialogs 1.3
 
 import ArchiveComponents 1.0
-import ExportComponents 1.0
+import iv.sets.sets3 1.0
 import iv.colors 1.0
 import iv.calendar 1.0
 import iv.singletonLang 1.0
