@@ -60,6 +60,11 @@ bool ExportManager::showExportsPanel() const
     return m_showExportsPanel;
 }
 
+QObject* ExportManager::appInfo() const
+{
+    return m_appInfo;
+}
+
 void ExportManager::setAppInfo(QObject* appInfo)
 {
     if (m_appInfo == appInfo)
@@ -67,6 +72,8 @@ void ExportManager::setAppInfo(QObject* appInfo)
     if (m_appInfo && m_wsUrlConnection)
         QObject::disconnect(m_wsUrlConnection);
     m_appInfo = appInfo;
+    emit appInfoChanged();
+    requestWsUrlUpdate();
 }
 
 void ExportManager::startExport(const QString& cameraId,
@@ -124,14 +131,7 @@ void ExportManager::startExport(const QString& cameraId,
                 this,
                 SLOT(handleWsUrlReady()));
         }
-        if (m_appInfo) {
-            const QString key2 = m_appInfo->property("archiveKey2").toString();
-            QMetaObject::invokeMethod(
-                m_appInfo,
-                "refreshWsUrlForKey2",
-                Qt::QueuedConnection,
-                Q_ARG(QString, key2));
-        }
+        requestWsUrlUpdate();
         return;
     }
 
@@ -257,6 +257,19 @@ QUrl ExportManager::resolveWsUrl() const
         return wsUrlValue.toUrl();
 
     return QUrl(wsUrlValue.toString());
+}
+
+void ExportManager::requestWsUrlUpdate()
+{
+    if (!m_appInfo)
+        return;
+
+    const QString key2 = m_appInfo->property("archiveKey2").toString();
+    QMetaObject::invokeMethod(
+        m_appInfo,
+        "refreshWsUrlForKey2",
+        Qt::QueuedConnection,
+        Q_ARG(QString, key2));
 }
 
 void ExportManager::removeExport(int index)

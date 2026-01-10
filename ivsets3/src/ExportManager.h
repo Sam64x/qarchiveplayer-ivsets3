@@ -15,11 +15,13 @@ class ExportManager : public QObject
     Q_OBJECT
     Q_PROPERTY(ExportListModel* activeExportsModel READ activeExportsModel CONSTANT)
     Q_PROPERTY(bool showExportsPanel READ showExportsPanel NOTIFY showExportsPanelChanged)
+    Q_PROPERTY(QObject* appInfo READ appInfo WRITE setAppInfo NOTIFY appInfoChanged)
 public:
     explicit ExportManager(QObject* parent = nullptr);
 
     ExportListModel* activeExportsModel() const;
     bool showExportsPanel() const;
+    QObject* appInfo() const;
 
     void setAppInfo(QObject* appInfo);
 
@@ -39,6 +41,7 @@ public:
 
 signals:
     void showExportsPanelChanged();
+    void appInfoChanged();
 
 private slots:
     void handleWsUrlReady();
@@ -61,6 +64,7 @@ private:
     };
 
     QUrl resolveWsUrl() const;
+    void requestWsUrlUpdate();
 
     void setShowExportsPanel(bool show);
     void updatePreview(ExportController* controller);

@@ -56,6 +56,10 @@ C.IVButtonControl {
 
     readonly property int contentMargins: 8
 
+    function syncExportManager() {
+        if (ExportManager && appInfo)
+            ExportManager.appInfo = appInfo
+    }
 
     function normalizePath(path) {
         if (!path)
@@ -137,6 +141,8 @@ C.IVButtonControl {
         else
             exportMenu.open()
     }
+
+    Component.onCompleted: syncExportManager()
 
 
     C.IVContextMenuControl {
