@@ -2,13 +2,11 @@
 
 #include <QObject>
 #include <QDateTime>
-#include <QMetaObject>
-#include <QUrl>
-#include <QVector>
-
+#include "ExportConnectionProvider.h"
 #include "ExportListModel.h"
 
 class ExportController;
+class WebSocketClient;
 
 class ExportManager : public QObject
 {
@@ -41,34 +39,15 @@ signals:
     void showExportsPanelChanged();
 
 private slots:
-    void handleWsUrlReady();
+    void handleExportControllerReady(int modelRow, ExportController* controller, WebSocketClient* client);
 
 private:
-    struct PendingExport {
-        QString cameraId;
-        QDateTime fromLocal;
-        QDateTime toLocal;
-        QString archiveId;
-        QString outputPath;
-        QString format;
-        int modelRow {-1};
-        int maxChunkDurationMinutes {0};
-        qint64 maxChunkFileSizeBytes {0};
-        bool exportPrimitives {false};
-        bool exportCameraInformation {false};
-        bool exportImagePipeline {false};
-        QObject* imagePipeline {nullptr};
-    };
-
-    QUrl resolveWsUrl() const;
-
     void setShowExportsPanel(bool show);
     void updatePreview(ExportController* controller);
     void updateSizeBytes(ExportController* controller);
 
     ExportListModel* m_model {nullptr};
+    ExportConnectionProvider* m_connectionProvider {nullptr};
     bool m_showExportsPanel {false};
     QObject* m_appInfo {nullptr};
-    QVector<PendingExport> m_pendingExports;
-    QMetaObject::Connection m_wsUrlConnection;
 };
