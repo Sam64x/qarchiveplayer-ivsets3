@@ -37,6 +37,9 @@ C.IVButtonControl {
     property var iv_arc_slider_new
     property var timeFieldLayoutRef
 
+    property int exportStatus: ExportService.status
+    property string exportError: ExportService.lastError
+
     readonly property real rootWidth: rootRef.width
     readonly property real rootHeight: rootRef.height
 
@@ -85,7 +88,7 @@ C.IVButtonControl {
     }
 
     function canStartExport() {
-        if (!ExportManager || !ExportManager.startExport)
+        if (!ExportService || !ExportService.startExport)
             return false
         if (!root.cameraId || !root.archiveId)
             return false
@@ -114,11 +117,41 @@ C.IVButtonControl {
             return
 
         Qt.callLater(function() {
-            ExportManager.startExport(root.cameraId, layout.fromTime, layout.toTime, root.archiveId,
+            ExportService.startExport(root.cameraId, layout.fromTime, layout.toTime, root.archiveId,
                                       outputPath, root.selectedFormat, maxChunkDurationMinutes,
                                       maxChunkFileSizeBytes, exportPrimitives, exportCameraInformation,
                                       exportImagePipeline, root.imagePipeline)
         })
+    }
+
+    readonly property string exportStatusText: {
+        switch (exportStatus) {
+        case ExportService.Queued:
+            return Language.getTranslate("Queued", "В очереди")
+        case ExportService.Connecting:
+            return Language.getTranslate("Connecting...", "Подключение...")
+        case ExportService.Running:
+            return Language.getTranslate("Running", "В процессе")
+        case ExportService.Failed:
+            return Language.getTranslate("Failed", "Ошибка")
+        default:
+            return ""
+        }
+    }
+
+    Component.onCompleted: {
+        exportStatus = ExportService.status
+        exportError = ExportService.lastError
+    }
+
+    Connections {
+        target: ExportService
+        function onStatusChanged(status) {
+            exportStatus = status
+        }
+        function onLastErrorChanged(error) {
+            exportError = error
+        }
     }
 
     width: 24
@@ -904,6 +937,29 @@ C.IVButtonControl {
                     onClicked: {
                         runExport()
                         exportMenu.close()
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    visible: exportStatus !== ExportService.Idle || exportError.length > 0
+
+                    Text {
+                        text: exportStatusText
+                        visible: exportStatus !== ExportService.Idle
+                        color: exportStatus === ExportService.Failed
+                               ? IVColors.get("Colors/Text new/TxError")
+                               : IVColors.get("Colors/Text new/TxSecondaryThemed")
+                        font: IVColors.getFont("Label")
+                    }
+
+                    Text {
+                        text: exportError
+                        visible: exportError.length > 0
+                        wrapMode: Text.WordWrap
+                        color: IVColors.get("Colors/Text new/TxError")
+                        font: IVColors.getFont("Label")
                     }
                 }
             }

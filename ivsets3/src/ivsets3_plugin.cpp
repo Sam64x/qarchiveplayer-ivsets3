@@ -7,12 +7,14 @@
 #include "archive/filter/treeitem.h"
 #include "sourceTree.h"
 #include "ExportManager.h"
+#include "ExportService.h"
 
 #include <QObject>
 #include <QFile>
 #include <QDir>
 #include <QQmlEngine>
 #include <QJSEngine>
+#include <QVariant>
 #include <qqml.h>
 #include <iv_mem2.h>
 #include <iv_autoloader.h>
@@ -67,16 +69,24 @@ namespace {
 QObject* exportManagerProvider(QQmlEngine* engine, QJSEngine* scriptEngine)
 {
     Q_UNUSED(scriptEngine);
+    QObject* existing = engine->property("exportManager").value<QObject*>();
+    if (existing)
+        return existing;
+
     auto* exportManager = new ExportManager(engine);
-    QObject* appInfo = engine->property("appInfo").value<QObject*>();
-    if (!appInfo && engine->rootContext()) {
-        const QVariant contextProperty = engine->rootContext()->contextProperty("appInfo");
-        if (contextProperty.canConvert<QObject*>())
-            appInfo = contextProperty.value<QObject*>();
-    }
-    if (appInfo)
-        exportManager->setAppInfo(appInfo);
+    engine->setProperty("exportManager", QVariant::fromValue(exportManager));
     return exportManager;
+}
+
+QObject* exportServiceProvider(QQmlEngine* engine, QJSEngine* scriptEngine)
+{
+    Q_UNUSED(scriptEngine);
+    auto* exportService = new ExportService(engine);
+    QObject* managerObj = engine->property("exportManager").value<QObject*>();
+    if (!managerObj)
+        managerObj = exportManagerProvider(engine, scriptEngine);
+    exportService->setExportManager(qobject_cast<ExportManager*>(managerObj));
+    return exportService;
 }
 } // namespace
 void save_sets(QString type,char* json)
@@ -1218,6 +1228,8 @@ void IVSets3Plugin::registerTypes(const char* uri) {
 
     qmlRegisterSingletonType<ExportManager>(uri, 1, 0, "ExportManager",
                                             exportManagerProvider);
+    qmlRegisterSingletonType<ExportService>(uri, 1, 0, "ExportService",
+                                            exportServiceProvider);
 }
 //реализуем данную функцию для отписки от всех зависимостей(core, log-1 и т.д)
 booexport bool pre_dll_free(const char*)
