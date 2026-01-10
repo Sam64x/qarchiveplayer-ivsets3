@@ -35,6 +35,7 @@ C.IVButtonControl {
 
     property var rootRef
     property var iv_arc_slider_new
+    property var timeFieldLayoutRef
 
     readonly property real rootWidth: rootRef.width
     readonly property real rootHeight: rootRef.height
@@ -84,7 +85,8 @@ C.IVButtonControl {
             return false
         if (!root.cameraId || !root.archiveId)
             return false
-        if (!timeFieldLayout.fromTime || !timeFieldLayout.toTime)
+        var layout = root.timeFieldLayoutRef
+        if (!layout || !layout.fromTime || !layout.toTime)
             return false
         return resolveExportPath(root.selectedPath || appInfo.exportSaveDirectory).length > 0
     }
@@ -99,9 +101,12 @@ C.IVButtonControl {
         var exportCameraInformation = root.exportCameraInformation
         var exportImagePipeline = root.exportImagePipeline && root.imagePipeline
         var outputPath = resolveExportPath(root.selectedPath || appInfo.exportSaveDirectory)
+        var layout = root.timeFieldLayoutRef
+        if (!layout)
+            return
 
         Qt.callLater(function() {
-            ExportManager.startExport(root.cameraId, timeFieldLayout.fromTime, timeFieldLayout.toTime, root.archiveId,
+            ExportManager.startExport(root.cameraId, layout.fromTime, layout.toTime, root.archiveId,
                                       outputPath, root.selectedFormat, maxChunkDurationMinutes,
                                       maxChunkFileSizeBytes, exportPrimitives, exportCameraInformation,
                                       exportImagePipeline, root.imagePipeline)
@@ -743,6 +748,10 @@ C.IVButtonControl {
 
                     Layout.fillWidth: true
                     spacing: 4
+
+                    Component.onCompleted: {
+                        root.timeFieldLayoutRef = timeFieldLayout
+                    }
 
                     property bool suppressFieldSync: false
 
