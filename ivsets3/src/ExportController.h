@@ -12,6 +12,7 @@
 #include <QSet>
 #include <QUrl>
 #include <QFutureWatcher>
+#include <QPointer>
 #include <QMutex>
 #include <optional>
 #include <atomic>
@@ -118,7 +119,7 @@ public:
     bool   exportImagePipeline() const { return m_exportImagePipeline; }
     WebSocketClient* client() const { return m_client; }
     void setClient(WebSocketClient* c);
-    QObject* imagePipeline() const { return m_pipeline; }
+    QObject* imagePipeline() const { return m_pipeline.data(); }
     int maxChunkDurationMinutes() const { return m_maxChunkDurationMinutes; }
     Q_INVOKABLE void setMaxChunkDurationMinutes(int minutes);
     qint64 maxChunkFileSizeBytes() const { return m_maxChunkFileSizeBytes; }
@@ -278,7 +279,7 @@ private:
     QString   m_outputPath;
     int       m_fps {0};
 
-    QObject* m_pipeline {nullptr};
+    QPointer<QObject> m_pipeline;
 
     std::atomic<bool> m_active {false};
     int    m_inflight {0};

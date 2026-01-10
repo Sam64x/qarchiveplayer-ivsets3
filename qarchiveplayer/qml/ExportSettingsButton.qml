@@ -80,6 +80,10 @@ C.IVButtonControl {
         return normalizePath(normalized)
     }
 
+    function isValidDate(value) {
+        return value instanceof Date && !isNaN(value.getTime())
+    }
+
     function canStartExport() {
         if (!ExportManager || !ExportManager.startExport)
             return false
@@ -87,6 +91,8 @@ C.IVButtonControl {
             return false
         var layout = root.timeFieldLayoutRef
         if (!layout || !layout.fromTime || !layout.toTime)
+            return false
+        if (!isValidDate(layout.fromTime) || !isValidDate(layout.toTime))
             return false
         return resolveExportPath(root.selectedPath || appInfo.exportSaveDirectory).length > 0
     }
@@ -103,6 +109,8 @@ C.IVButtonControl {
         var outputPath = resolveExportPath(root.selectedPath || appInfo.exportSaveDirectory)
         var layout = root.timeFieldLayoutRef
         if (!layout)
+            return
+        if (!isValidDate(layout.fromTime) || !isValidDate(layout.toTime))
             return
 
         Qt.callLater(function() {
