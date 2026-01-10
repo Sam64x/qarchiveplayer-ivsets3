@@ -310,7 +310,7 @@ QJsonObject IVCustomSets::getTypePreset(QString type, QString propertyName, QStr
     else
     {
         QString errMsg = typePresetFile.errorString();
-        qDebug()<< "getTypePreset : File is not opened = " << errMsg ;
+        // qDebug()<< "getTypePreset : File is not opened = " << errMsg ;
     }
 
 
@@ -386,7 +386,7 @@ int IVCustomSets::deleteSet(QString setName)
                     else
                     {
                         QString errMsg = localSetsFile.errorString();
-                        qDebug()<< "deleteSet : File is not opened = " << errMsg ;
+                        // qDebug()<< "deleteSet : File is not opened = " << errMsg ;
                     }
                 }
             }
@@ -396,7 +396,7 @@ int IVCustomSets::deleteSet(QString setName)
     else
     {
         QString errMsg = localSetsFile.errorString();
-        qDebug()<< "deleteSet : File is not opened = " << errMsg ;
+        // qDebug()<< "deleteSet : File is not opened = " << errMsg ;
     }
     return 0;
 }
@@ -462,7 +462,7 @@ int IVCustomSets::deleteSet2(QString setName, QString setId)
                     else
                     {
                         QString errMsg = remoteSetFile.errorString();
-                        qDebug()<< "deleteSet : File is not opened = " << errMsg ;
+                        // qDebug()<< "deleteSet : File is not opened = " << errMsg ;
                     }
                 }
             }
@@ -472,7 +472,7 @@ int IVCustomSets::deleteSet2(QString setName, QString setId)
     else
     {
         QString errMsg = remoteSetFile.errorString();
-        qDebug()<< "deleteSet : File is not opened = " << errMsg ;
+        // qDebug()<< "deleteSet : File is not opened = " << errMsg ;
     }
     return 0;
 }
@@ -484,7 +484,7 @@ QString IVCustomSets::getZoneTypes()
     QFile file(pp);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-        qDebug()<<"zone_types is not defined" << pp;
+        // qDebug()<<"zone_types is not defined" << pp;
         return "[]";
     }
     //QTextStream in(&file);
@@ -566,7 +566,7 @@ QString IVCustomSets::getZonesRemote(QString setName)
 
     if (!remoteSetFile.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-        qDebug()<<"getZonesRemote error open file " << remotePath;
+        // qDebug()<<"getZonesRemote error open file " << remotePath;
         return "{}";
     }
 //    QTextStream in(&remoteSetFile);
@@ -631,7 +631,7 @@ QString IVCustomSets::getZonesCommon(QString setName,QString setId)
 
     if (!remoteSetFile.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-        qDebug()<<"getZonesRemote error open file " << remotePath;
+        // qDebug()<<"getZonesRemote error open file " << remotePath;
         return "{}";
     }
 //    QTextStream in(&remoteSetFile);
@@ -1016,7 +1016,7 @@ QStringList IVCustomSets::getLocalSetsList()
     else
     {
         QString errMsg = localSetsFile.errorString();
-        qDebug()<< "getLocalSetsList : File is not opened = " << errMsg ;
+        // qDebug()<< "getLocalSetsList : File is not opened = " << errMsg ;
     }
 
 
@@ -1062,7 +1062,7 @@ QStringList IVCustomSets::getRemoteSetsList()
     else
     {
         QString errMsg = remoteSetsFile.errorString();
-        qDebug()<< "getLocalSetsList : File is not opened = " << errMsg ;
+        // qDebug()<< "getLocalSetsList : File is not opened = " << errMsg ;
     }
     return resutl;
 }
@@ -1108,7 +1108,7 @@ QVariantList IVCustomSets::getSetsList()
     else
     {
         QString errMsg = remoteSetsFile.errorString();
-        qDebug()<< "getSetsList : File is not opened = " << errMsg ;
+        // qDebug()<< "getSetsList : File is not opened = " << errMsg ;
     }
     return result;
 }
@@ -1134,7 +1134,7 @@ QString IVCustomSets::getCameras()
     else
     {
         QString errMsg = camerasFile.errorString();
-        qDebug()<< "getLocalSetsList : File is not opened = " << errMsg ;
+        // qDebug()<< "getLocalSetsList : File is not opened = " << errMsg ;
     }
     return _result;
 }
@@ -1291,7 +1291,7 @@ void IVCustomSets::saveSet( QString setName,QString newSetName, QString setJson)
                     }
                     else
                     {
-                        qDebug()<<"FILE local_sets not opened===================";
+                        // qDebug()<<"FILE local_sets not opened===================";
                     }
                 }
             }
@@ -1323,7 +1323,7 @@ void IVCustomSets::saveSet( QString setName,QString newSetName, QString setJson)
     else
     {
         QString errMsg = localSetsFile.errorString();
-        qDebug()<< "saveSet : File is not opened = " << errMsg ;
+        // qDebug()<< "saveSet : File is not opened = " << errMsg ;
     }
 }
 void IVCustomSets::saveSet2(QString setName, QString setId, QString newSetName, QString setJson)
@@ -1388,7 +1388,7 @@ void IVCustomSets::saveSet2(QString setName, QString setId, QString newSetName, 
                 char* _setId = (*jConfig)[i1]("setId");
                 int _isUser = (*jConfig)[i1]("isuser");
 
-                qDebug() << "Set" << i1 << ":" << _setName << "id:" << _setId << "isuser:" << _isUser;
+                // qDebug() << "Set" << i1 << ":" << _setName << "id:" << _setId << "isuser:" << _isUser;
 
                 if(!strcmp(_setName, oldSetName) && !strcmp(_setId, setIdC))
                 {
@@ -1396,11 +1396,11 @@ void IVCustomSets::saveSet2(QString setName, QString setId, QString newSetName, 
                     if(_isUser == 0)
                     {
                         isServerSet = true;
-                        qDebug() << "→ Found ORIGINAL SERVER set at index" << foundIndex;
+                        // qDebug() << "→ Found ORIGINAL SERVER set at index" << foundIndex;
                     }
                     else
                     {
-                        qDebug() << "→ Found LOCAL set (or copy) at index" << foundIndex;
+                        // qDebug() << "→ Found LOCAL set (or copy) at index" << foundIndex;
                     }
                     break;
                 }
@@ -1408,39 +1408,39 @@ void IVCustomSets::saveSet2(QString setName, QString setId, QString newSetName, 
 
             myajl_val setNewData = mjson_parse1(setData);
             if(!setNewData) {
-                qDebug() << "Failed to parse setJson!";
+                // qDebug() << "Failed to parse setJson!";
                 mjson_free(jConfig);
                 return;
             }
             if(!(*setNewData).IsObject()) {
-                qDebug() << "setNewData is not an object!";
+                // qDebug() << "setNewData is not an object!";
                 mjson_free(jConfig);
                 return;
             }
-            qDebug() << "setNewData parsed successfully";
+            // qDebug() << "setNewData parsed successfully";
 
             if(isServerSet && foundIndex != -1)
             {
                 (*setNewData)("isuser") = 1; // Помечаем как локальный
-                qDebug() << "Set isuser to 1";
+                // qDebug() << "Set isuser to 1";
 
                 (*setNewData)("setName") = newSetName_;
-                qDebug() << "  New name:" << newSetName;
+                // qDebug() << "  New name:" << newSetName;
 
                 QString newSetId = QString("%1_copy_%2").arg(setId).arg(QDateTime::currentMSecsSinceEpoch());
                 QByteArray newSetIdBa = newSetId.toUtf8();
                 char* newSetIdC = newSetIdBa.data();
                 (*setNewData)("setId") = newSetIdC;
-                qDebug() << "  New ID for copy:" << newSetId;
+                // qDebug() << "  New ID for copy:" << newSetId;
 
                 char* finalCopyData = mjson_generate1(setNewData);
-                qDebug() << "Final copy data:" << finalCopyData;
+                // qDebug() << "Final copy data:" << finalCopyData;
                 mjson_string_free(finalCopyData);
 
                 (*jConfig).Add(setNewData);
-                qDebug() << "→ Copy ADDED to config";
+                // qDebug() << "→ Copy ADDED to config";
 
-                qDebug() << "Config now has" << (*jConfig).GetNumElems() << "sets (was" << jSize << ")";
+                // qDebug() << "Config now has" << (*jConfig).GetNumElems() << "sets (was" << jSize << ")";
             }
             else if(foundIndex != -1)
             {
@@ -1457,28 +1457,28 @@ void IVCustomSets::saveSet2(QString setName, QString setId, QString newSetName, 
             }
 
             char* newSets = mjson_generate1(jConfig);
-            qDebug() << "New config to save:" << newSets;
+            // qDebug() << "New config to save:" << newSets;
 
             if(QString(newSets).contains(newSetName)) {
-                qDebug() << "New config contains copy '" << newSetName << "'";
+                // qDebug() << "New config contains copy '" << newSetName << "'";
             } else {
-                qDebug() << "New config does NOT contain copy '" << newSetName << "'";
+                // qDebug() << "New config does NOT contain copy '" << newSetName << "'";
             }
 
             if(localSetsFile.open(QIODevice::WriteOnly | QIODevice::Truncate))
             {
                 int bytesWritten = localSetsFile.write(newSets);
                 localSetsFile.close();
-                qDebug() << "→ File saved, bytes written:" << bytesWritten;
+                // qDebug() << "→ File saved, bytes written:" << bytesWritten;
 
                 QFile checkFile(localPath);
                 if(checkFile.open(QIODevice::ReadOnly)) {
                     QByteArray savedContent = checkFile.readAll();
                     checkFile.close();
                     if(savedContent.contains(newSetName.toUtf8())) {
-                        qDebug() << "File contains copy after save!";
+                        // qDebug() << "File contains copy after save!";
                     } else {
-                        qDebug() << "File does NOT contain copy after save!";
+                        // qDebug() << "File does NOT contain copy after save!";
                     }
                 }
 
@@ -1488,14 +1488,14 @@ void IVCustomSets::saveSet2(QString setName, QString setId, QString newSetName, 
                 }
                 else
                 {
-                    qDebug() << "→ Skipping server send (server set copy)";
+                    // qDebug() << "→ Skipping server send (server set copy)";
                 }
 
                 mjson_string_free(newSets);
             }
             else
             {
-                qDebug() << "Could not open file for writing";
+                // qDebug() << "Could not open file for writing";
             }
         }
         mjson_free(jConfig);
@@ -1503,7 +1503,7 @@ void IVCustomSets::saveSet2(QString setName, QString setId, QString newSetName, 
     else
     {
         QString errMsg = localSetsFile.errorString();
-        qDebug()<< "saveSet : File is not opened = " << errMsg ;
+        // qDebug()<< "saveSet : File is not opened = " << errMsg ;
     }
 }
 void IVCustomSets::on_track_client_info(const void* udata, const param_t* p)
@@ -1541,7 +1541,7 @@ void IVCustomSets::on_track_client_info(const void* udata, const param_t* p)
         QString _login = login;
         _this->setCurrentUser(_login);
         //emit _this->currentUserChanged(_login);
-        qDebug()<<"CUSTOM_SET USER CHANGED = " << _this->_currentUser;
+        // qDebug()<<"CUSTOM_SET USER CHANGED = " << _this->_currentUser;
     }
 }
 void IVCustomSets::initWs()
@@ -1570,7 +1570,7 @@ void IVCustomSets::saveOnServer(QString user, QString folder, QString fileName, 
     if(!isNeedWs)
     {
         //CrushhhMsg("WS NOT INITED");
-        qDebug()<< "WS NOT INITED!!!!!!!!!";
+        // qDebug()<< "WS NOT INITED!!!!!!!!!";
         //return "WS NOT INITED!!!!!!!!!";
     }
     myajl_val jConfig = 0;
@@ -1617,7 +1617,7 @@ void IVCustomSets::saveOnServer(QString user, QString folder, QString fileName, 
     }
     else
     {
-        qDebug()<< "save to server cmd error";
+        // qDebug()<< "save to server cmd error";
     }
     mjson_free(jConfig);
 }
@@ -1627,7 +1627,7 @@ void IVCustomSets::saveOnServer2(QString data)
     if(!isNeedWs)
     {
         //CrushhhMsg("WS NOT INITED");
-        qDebug()<< "WS NOT INITED!!!!!!!!!";
+        // qDebug()<< "WS NOT INITED!!!!!!!!!";
         //return "WS NOT INITED!!!!!!!!!";
     }
     //распарсить тут набор
@@ -1671,7 +1671,7 @@ void IVCustomSets::saveOnServer2(QString data)
                         }
                         else
                         {
-                            qDebug()<<"saveonserver2 undefined type";
+                            // qDebug()<<"saveonserver2 undefined type";
                         }
                         (*zones)[i1]("params") = newParams;
                     }
@@ -1682,7 +1682,7 @@ void IVCustomSets::saveOnServer2(QString data)
     }
     else
     {
-        qDebug()<< "SAVE SET ON SERVER ERROR PARSE SET";
+        // qDebug()<< "SAVE SET ON SERVER ERROR PARSE SET";
         return;
     }
     //распарсить тут набор

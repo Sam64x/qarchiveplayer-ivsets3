@@ -25,7 +25,7 @@ TreeItem::TreeItem(QObject *parent) : QObject(parent)
 TreeItem::~TreeItem()
 {
     St2_FUNCT_St2(200);
-    qDebug() << "~TreeItem" << this << getProp("name_");
+    // qDebug() << "~TreeItem" << this << getProp("name_");
     //for (auto i : m_childItems) delete i;
     m_childItems.clear();
     emit childItemsChanged();

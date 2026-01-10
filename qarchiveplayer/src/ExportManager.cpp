@@ -18,11 +18,6 @@ ExportListModel* ExportManager::activeExportsModel() const
     return m_model;
 }
 
-bool ExportManager::showExportsPanel() const
-{
-    return m_showExportsPanel;
-}
-
 void ExportManager::setAppInfo(AppInfo* appInfo)
 {
     m_appInfo = appInfo;
@@ -96,7 +91,6 @@ void ExportManager::startExport(const QString& cameraId,
     });
 
     controller->startExportVideo(cameraId, fromLocal, toLocal, archiveId, outputPath, format);
-    setShowExportsPanel(true);
 }
 
 void ExportManager::removeExport(int index)
@@ -117,16 +111,6 @@ void ExportManager::removeExport(int index)
 
     m_model->removeItem(index);
 
-    if (m_model->rowCount() == 0)
-        setShowExportsPanel(false);
-}
-
-void ExportManager::setShowExportsPanel(bool show)
-{
-    if (m_showExportsPanel == show)
-        return;
-    m_showExportsPanel = show;
-    emit showExportsPanelChanged();
 }
 
 void ExportManager::updatePreview(ExportController* controller)

@@ -152,7 +152,6 @@ Rectangle
 
                 if (opened) root.globalSignalsObject.hideLeftMenu()
                 if (windows.length > maxWinCount-1) {
-                    //console.log("exportProgress windows count > 0")
                     // перемещаем фокус на уже созданное окно
                     //windows[maxWinCount-1].requestActivate()
                     return
@@ -162,7 +161,6 @@ Rectangle
 //                var info = {}
 //                info.title = "Видеосемантика"
 //                createWindow(createSemaWndButt, path, false, info)
-                //console.error(standartTemplates.value);
                 root.Window.window.ivComponent.command('WindowsCreator', 'windows:add', {'template':"standart", 'width':1000, 'height':700,
                                                                        'minimumWidth':50, 'minimumHeight':50});
             }
@@ -206,7 +204,6 @@ Rectangle
             onClicked: {
                 if (opened) root.globalSignalsObject.hideLeftMenu()
                 if (windows.length > maxWinCount-1) {
-//                    console.log("exportProgress windows count > 0")
 //                    // перемещаем фокус на уже созданное окно
 //                    windows[maxWinCount-1].requestActivate()
                     return
@@ -261,7 +258,6 @@ Rectangle
             onClicked: {
                 if (opened) root.globalSignalsObject.hideLeftMenu()
                 if (windows.length > 0) {
-                    console.log("exportProgress windows count > 0")
                     // перемещаем фокус на уже созданное окно
                     windows[0].requestActivate()
                     return
@@ -282,7 +278,6 @@ Rectangle
             onClicked: {
                 if (opened) root.globalSignalsObject.hideLeftMenu()
                 if (windows.length > 0) {
-                    console.log("exportProgress windows count > 0")
                     // перемещаем фокус на уже созданное окно
                     windows[0].requestActivate()
                     return
@@ -316,7 +311,6 @@ Rectangle
             onClicked: {
                 if (opened) root.globalSignalsObject.hideLeftMenu()
                 if (windows.length > 0) {
-                    console.log("exportProgress windows count > 0")
                     // перемещаем фокус на уже созданное окно
                     windows[0].requestActivate()
                     return
@@ -341,7 +335,6 @@ Rectangle
                 if (opened) root.globalSignalsObject.hideLeftMenu()
                 if (winCount > 0) {
                     if (windows.length > 0) {
-                        console.log("exportProgress windows count > 0")
                         // перемещаем фокус на уже созданное окно
                         windows[0].requestActivate()
                     }
@@ -456,26 +449,20 @@ Rectangle
                 if (info !== undefined) win.params = info
                 win.path = path
                 sender.windows.push(win)
-                console.log("createWindow", sender, sender.windows, "params:", comp.params)
                 win.Component.onDestruction.connect(function() {
                     sender.windows.splice(sender.windows.indexOf(win), 1)
-                    console.log("onDestruction connect", sender, sender.windows)
                 })
             }
-            else console.log("ssssssss =", comp.errorString())
         }
         else {
             comp = Qt.createComponent(path)
             if (comp.status === Component.Ready) {
                 win = comp.createObject(root)
                 sender.windows.push(win)
-                console.log("createWindow", sender, sender.windows)
                 win.onClosing.connect(function() {
                     sender.windows.splice(sender.windows.indexOf(win), 1)
-                    console.log("onClosing connect", sender, sender.windows)
                 })
             }
-            else console.log("ssssssss =", comp.errorString())
         }
         win.show();
     }

@@ -3,7 +3,7 @@ import QtQuick 2.11
 import QtQuick.Controls 2.4
 import QtQuick.Layouts 1.11
 
-import ExportComponents 1.0
+import ArchiveComponents 1.0
 import iv.singletonLang 1.0
 import iv.controls 1.0 as C
 import iv.colors 1.0
@@ -37,7 +37,7 @@ C.IVButtonControl {
        id: artiveExportMenu
        bgColor: IVColors.get("Colors/Background new/BgContextMenuThemed")
        horizontalPadding: 0
-       visible: ExportManager.showExportsPanel && ExportManager.activeExportsModel.count > 0
+       visible: opened && ExportManager.activeExportsModel.count > 0
 
        readonly property real popupWidth: Math.min(artiveExportMenu.implicitWidth, 444)
        readonly property real controlWidth: popupWidth + artiveExportMenu.leftPadding + artiveExportMenu.rightPadding

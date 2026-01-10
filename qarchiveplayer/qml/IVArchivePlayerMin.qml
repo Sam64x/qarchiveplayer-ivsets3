@@ -26,6 +26,12 @@ import iv.controls 1.0 as C
 Item {
     id: root
 
+    property var globalComponent: null
+    property bool __registeredInCommonArchive: false
+
+    property alias idarchive_player: idarchive_player
+    property alias archiveStreamer: archiveStreamer
+
     function getFrameTime() {
         if (archiveStreamer)
             return archiveStreamer.currentTime;
@@ -321,8 +327,8 @@ Item {
             var dt = Date.fromLocaleString(Qt.locale(), s, "dd.MM.yyyy hh:mm:ss.zzz")
             var dtPlus5 = new Date(dt.getTime() + 1500)
             _suppressTimeUpdates = true
-            calendarButton.calendar.chosenDate = Qt.formatDate(dt, "dd.MM.yyyy")
-            calendarButton.calendar.chosenTime = Qt.formatTime(dt, "hh:mm:ss")
+            archiveControls.calendarButton.calendar.chosenDate = Qt.formatDate(dt, "dd.MM.yyyy")
+            archiveControls.calendarButton.calendar.chosenTime = Qt.formatTime(dt, "hh:mm:ss")
             root.archiveTime = dt
             iv_arc_slider_new.currentDate = dt
             _suppressTimeUpdates = false
@@ -332,6 +338,7 @@ Item {
     onArchiveBackTimeChanged: _coalesceBackendTs.restart()
     onArchiveBackDateChanged: _coalesceBackendTs.restart()
 
+    property bool isCommonPanel: false
     property var archiveTime
     property bool needToUpdateArchive: true
     property bool archiveIsPlaying: !archiveStreamer.paused
@@ -354,7 +361,7 @@ Item {
 
     function updateTimeFromCalendar() {
         if (_suppressTimeUpdates) return
-        var chosenDateTime = calendarButton.calendar.chosenDate + " " + calendarButton.calendar.chosenTime
+        var chosenDateTime = archiveControls.calendarButton.calendar.chosenDate + " " + archiveControls.calendarButton.calendar.chosenTime
         var time = Date.fromLocaleString(Qt.locale(), chosenDateTime, "dd.MM.yyyy hh:mm:ss")
         _suppressTimeUpdates = true
         iv_arc_slider_new.currentDate = time
@@ -373,8 +380,8 @@ Item {
         if (_suppressTimeUpdates) return
         var time = iv_arc_slider_new.currentDate
         _suppressTimeUpdates = true
-        calendarButton.calendar.chosenDate = Qt.formatDate(time, "dd.MM.yyyy")
-        calendarButton.calendar.chosenTime = Qt.formatTime(time, "hh:mm:ss")
+        archiveControls.calendarButton.calendar.chosenDate = Qt.formatDate(time, "dd.MM.yyyy")
+        archiveControls.calendarButton.calendar.chosenTime = Qt.formatTime(time, "hh:mm:ss")
         root.archiveTime = time
         _suppressTimeUpdates = false
 
@@ -635,11 +642,6 @@ Item {
                         if (mouse.button & Qt.RightButton) {
                             contextMenu.x = mouse.x
                             contextMenu.y = mouse.y
-                            console.log("common_panel = ", root.common_panel)
-                            console.log("is_multiscreen = ", root.is_multiscreen)
-                            console.log("isFullscreen = ", root.isFullscreen)
-                            console.log("isSetsMode = ", root.isSetsMode)
-                            console.log("effectiveSetsMode", root.effectiveSetsMode)
                             contextMenu.open()
                             mouse.accept = true
                         }
@@ -897,12 +899,12 @@ Item {
             id: wndControlPanel
             z: 5
             anchors.fill: parent
-            opacity: (!root.isSmallMode() || mainMouseArea.containsMouse || root.common_panel) ? 1.0 : 0.0
+            opacity: ((0 === root.getCamCommonPanelModeUseSetPanel_Deb() && !root.isSmallMode()) || mainMouseArea.containsMouse || root.common_panel) ? 1.0 : 0.0
 
             ColumnLayout {
                 id: cameraInfoBlock
 
-                readonly property bool isTopRight: (settingButtons.posAlignment & (Qt.AlignTop | Qt.AlignRight)) === (Qt.AlignTop | Qt.AlignRight)
+                readonly property bool isTopRight: (archiveControls.settingButtons.posAlignment & (Qt.AlignTop | Qt.AlignRight)) === (Qt.AlignTop | Qt.AlignRight)
 
                 z: mainMouseArea.z + 1
 
@@ -912,12 +914,12 @@ Item {
                 anchors.topMargin: (_archiveMarker.visible && isTopRight) ? 24 : 0
 
                 ColumnLayout {
-                    Layout.alignment: settingButtons.posAlignment
+                    Layout.alignment: archiveControls.settingButtons.posAlignment
                     spacing: 0
 
                     Label {
                         text: root.cameraId
-                        Layout.alignment: settingButtons.posAlignment
+                        Layout.alignment: archiveControls.settingButtons.posAlignment
                         font: IVColors.getFont("Label accent")
                         color: IVColors.get("Colors/Text new/TxContrast")
                         leftPadding: 4
@@ -930,11 +932,11 @@ Item {
 
                     RowLayout {
                         spacing: 0
-                        Layout.alignment: settingButtons.posAlignment
+                        Layout.alignment: archiveControls.settingButtons.posAlignment
 
                         Label {
                             text: archiveStreamer.currentDate || ""
-                            Layout.alignment: settingButtons.posAlignment
+                            Layout.alignment: archiveControls.settingButtons.posAlignment
                             font: IVColors.getFont("Label accent")
                             leftPadding: 4
                             rightPadding: 4
@@ -946,7 +948,7 @@ Item {
                         }
                         Label {
                             text: archiveStreamer.currentTime || ""
-                            Layout.alignment: settingButtons.posAlignment
+                            Layout.alignment: archiveControls.settingButtons.posAlignment
                             font: IVColors.getFont("Label accent")
                             leftPadding: 4
                             rightPadding: 4
@@ -960,11 +962,11 @@ Item {
 
                     RowLayout {
                         spacing: 0
-                        Layout.alignment: settingButtons.posAlignment
+                        Layout.alignment: archiveControls.settingButtons.posAlignment
 
                         Label {
                             text: archiveStreamer.cameraResolution || ""
-                            Layout.alignment: settingButtons.posAlignment
+                            Layout.alignment: archiveControls.settingButtons.posAlignment
                             font: IVColors.getFont("Label accent")
                             leftPadding: 4
                             rightPadding: 4
@@ -976,7 +978,7 @@ Item {
                         }
                         Label {
                             text: archiveStreamer.cameraResolution ? Math.round(Number(archiveStreamer.currentFPS)) + " к/c" : ""
-                            Layout.alignment: settingButtons.posAlignment
+                            Layout.alignment: archiveControls.settingButtons.posAlignment
                             font: IVColors.getFont("Label accent")
                             leftPadding: 4
                             rightPadding: 4
@@ -995,9 +997,9 @@ Item {
 
                 property real spacing: 4 * root.isize
                 z: cameraInfoBlock.z + 1
-                width: centerBlock.width + 2 * spacing
+                width: archiveControls.width + 2 * spacing
                 height: 32 * root.isize
-                visible: root.width > centerBlock.implicitWidth
+                visible: root.width > archiveControls.implicitWidth
 
                 anchors {
                     bottom: iv_arc_slider_new.top
@@ -1008,104 +1010,37 @@ Item {
                 color: IVColors.get("Colors/Background new/BgFormOverVideo")
                 radius: 8*root.isize
 
-                RowLayout {
-                    id: centerBlock
+                ArchiveControls {
+                    id: archiveControls
 
                     z: mainMouseArea.z + 2
+                    height: parent.height - parent.spacing*2
+                    spacing: parent.spacing
 
                     anchors {
                         centerIn: parent
                         margins: parent.spacing
                     }
-                    spacing: parent.spacing
-                    height: parent.height - parent.spacing*2
 
-                    IntervalScaleButton {
-                        id: intervalScale
-                        m_i_curr_scale: root.m_i_curr_scale
-                        onScaleChosen: {
-                            root.m_i_curr_scale = index
-                        }
+                    archiveStreamer: archiveStreamer
+                    iv_arc_slider_new: iv_arc_slider_new
+                    imagePipeline: imagePipeline
+                    m_i_curr_scale: root.m_i_curr_scale
+                    needToUpdateArchive: root.needToUpdateArchive
+                    archiveId: root.archiveId
+                    rootRef: root
+                    cameraId: root.cameraId
+                    isIntervalMode: root.isIntervalMode
+                    archiveTime: root.archiveTime
+                    updateTimeFromSlider: root.updateTimeFromSlider
+                    updateTimeFromCalendar: root.updateTimeFromCalendar
+                    funcSwitchSelectIntervalMode: root.funcSwitchSelectIntervalMode
+
+                    onScaleChosen: {
+                        root.m_i_curr_scale = index
                     }
-
-                    LabeledCalendarButton {
-                        id: calendarButton
-                    }
-
-                    PlayerControls {
-                        id: videoPlayerControls
-                        archiveTime: root.archiveTime
-                        archiveId: root.archiveId
-                        cameraId: root.cameraId
-                        needToUpdateArchive: root.needToUpdateArchive
-                        onClearPendingUpdate: root.needToUpdateArchive = false
-                        archiveStreamer: archiveStreamer
-                    }
-
-                    FrameRewindButtons {
-                        id: stepButtons
-                        archiveStreamer: archiveStreamer
-                    }
-
-                    IVSeparator {}
-
-                    FrameTimeButton {
-                        iv_arc_slider_new: iv_arc_slider_new
-                    }
-
-                    EventButtons {
-                        id: iv_butt_spb_events_skip
-                        archiveStreamer: archiveStreamer
-                        iv_arc_slider_new: iv_arc_slider_new
-                        updateTimeFromSlider: root.updateTimeFromSlider
-                    }
-
-                    ScreenshotButton {}
-
-                    SettingsButton {
-                        id: settingButtons
-                        rootRef: root
-                    }
-
-                    Rectangle {
-                        height: parent.height
-                        width: height
-                        radius: 4*root.isize
-                        color: IVColors.get("Colors/Background new/BgEvent")
-                        visible: select_interval_ButtonPane_new.mainVisible &&
-                                 !root.common_panel &&
-                                 root.isIntervalMode && !archiveStreamer.exporting
-
-                        ExportSettingsButton {
-                            id: exportSettings
-                            anchors.fill: parent
-                            archiveId: root.archiveId
-                            cameraId: root.cameraId
-                            rootRef: root
-                            iv_arc_slider_new: iv_arc_slider_new
-                            imagePipeline: imagePipeline
-                        }
-                    }
-
-                    Rectangle {
-                        height: parent.height
-                        width: height
-                        radius: 4*root.isize
-                        color: IVColors.get("Colors/Background new/BgEvent")
-                        visible: select_interval_ButtonPane_new.mainVisible &&
-                                 !root.common_panel &&
-                                 root.isIntervalMode && !archiveStreamer.exporting
-                        C.IVButtonControl {
-                            id: select_interval_ButtonPane_new
-                            property bool mainVisible: true
-                            anchors.fill: parent
-                            source: "new_images/x-close"
-                            size: C.IVButtonControl.Size.Small
-                            type: C.IVButtonControl.Type.Tertiary
-                            toolTipText: Language.getTranslate("Exit from interval selection","Выйти из режима выбора интервала")
-                            enabled: true
-                            onClicked: root.funcSwitchSelectIntervalMode()
-                        }
+                    onClearPendingUpdate: {
+                        root.needToUpdateArchive = false
                     }
                 }
             }
@@ -1125,9 +1060,9 @@ Item {
                 key2: root.key2
                 previewMargin: iv_arc_menu_new.height
                 isMultiscreen: root.is_multiscreen
-                isCommonPanel: root.common_panel
-                showEvents: [-1,2].indexOf(iv_butt_spb_events_skip.type) > -1
-                showBookmarks: [-1,6].indexOf(iv_butt_spb_events_skip.type) > -1
+                isCommonPanel: root.isCommonPanel
+                showEvents: [-1,2].indexOf(archiveControls.iv_butt_spb_events_skip.type) > -1
+                showBookmarks: [-1,6].indexOf(archiveControls.iv_butt_spb_events_skip.type) > -1
                 intervalBeforeIndex: root.exportIntervalBeforeIndex
                 intervalAfterIndex: root.exportIntervalAfterIndex
                 currentScale: root.m_i_curr_scale
@@ -1156,7 +1091,7 @@ Item {
                             var fTime = root.getFrameTime()
                             if (fTime > 10) iv_arc_slider_new.currentDate = new Date(fTime)
                             else {
-                                var dateTime = calendarButton.calendar.chosenDate + " " + calendarButton.calendar.chosenTime
+                                var dateTime = archiveControls.calendarButton.calendar.chosenDate + " " + archiveControls.calendarButton.calendar.chosenTime
                                 var parts = dateTime.split(/[. :]/)
                                 var dateObject = new Date(parts[2], parts[1] - 1, parts[0], parts[3], parts[4], parts[5])
                                 iv_arc_slider_new.currentDate = dateObject

@@ -129,7 +129,6 @@ IVContextMenu {
                         right: parent.right
                     }
                     onClicked: {
-                        console.trace()
                     }
                 }
             }
@@ -223,16 +222,15 @@ IVContextMenu {
                             onClicked: {
                                 switch (type) {
                                 case IVRecordButton.Type.Recording:
-                                    console.log("Stop recording");
                                     exportFictive.stop()
                                     type = IVRecordButton.Type.Open;
                                     break
                                 case IVRecordButton.Type.Download:
-                                    console.log("Download file"); break
+                                    break
                                 case IVRecordButton.Type.Open:
-                                    console.log("Open file"); break
+                                    break
                                 case IVRecordButton.Type.NoSpace:
-                                    console.log("Error download, no space"); break
+                                    break
                                 }
                             }
                             Component.onCompleted: {
@@ -269,7 +267,6 @@ IVContextMenu {
                         margins: 8 * root.isize
                     }
                     onClicked: {
-                        console.trace()
                     }
                 }
             }

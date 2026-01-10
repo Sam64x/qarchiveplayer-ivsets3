@@ -18,6 +18,7 @@ C.IVButtonControl {
 
     readonly property real rootWidth: rootRef.width
     readonly property real rootHeight: rootRef.height
+    property var imagePipeline: rootRef && rootRef.imagePipeline ? rootRef.imagePipeline : null
 
     implicitHeight: 24
     implicitWidth: 24
@@ -26,6 +27,7 @@ C.IVButtonControl {
     source: "new_images/settings-04.svg"
     size: C.IVButtonControl.Size.Small
     type: C.IVButtonControl.Type.Secondary
+    enabled: imagePipeline !== null
     toolTipText: Language.getTranslate("Settings","Настройки")
     toolTipVisible: !settingsMenu.opened && toolTipText.length > 0 && hovered
 
@@ -544,6 +546,7 @@ C.IVButtonControl {
                                                     }
 
                                                     property bool hovered: eventMarea.containsMouse
+
                                                     color: hovered
                                                          ? IVColors.get("Colors/Background new/BgBtnSecondaryThemed")
                                                          : "transparent"
@@ -691,12 +694,12 @@ C.IVButtonControl {
     QtObject {
         id: backend
 
-        property int brightness: imagePipeline.brightness
-        property int contrast:   imagePipeline.contrast
-        property int saturation: imagePipeline.saturation
-        property int red:        imagePipeline.rgbR
-        property int green:      imagePipeline.rgbG
-        property int blue:       imagePipeline.rgbB
+        property int brightness: imagePipeline ? imagePipeline.brightness : 0
+        property int contrast:   imagePipeline ? imagePipeline.contrast   : 0
+        property int saturation: imagePipeline ? imagePipeline.saturation : 0
+        property int red:        imagePipeline ? imagePipeline.rgbR       : 0
+        property int green:      imagePipeline ? imagePipeline.rgbG       : 0
+        property int blue:       imagePipeline ? imagePipeline.rgbB       : 0
         property int orientationIndex: 0
 
         function flagsToIndex(flags) {
@@ -717,6 +720,9 @@ C.IVButtonControl {
         }
 
         function open() {
+            if (!imagePipeline)
+                return
+
             brightness = imagePipeline.brightness
             contrast   = imagePipeline.contrast
             saturation = imagePipeline.saturation
@@ -733,6 +739,9 @@ C.IVButtonControl {
         }
 
         function cancel() {
+            if (!imagePipeline)
+                return
+
             imagePipeline.brightness = backend.brightness
             imagePipeline.contrast   = backend.contrast
             imagePipeline.saturation = backend.saturation
@@ -751,6 +760,9 @@ C.IVButtonControl {
         }
 
         function apply() {
+            if (!imagePipeline)
+                return
+
             backend.orientationIndex = backend.flagsToIndex(ev_settings_butt.posAlignment)
 
             backend.brightness = draft.brightness

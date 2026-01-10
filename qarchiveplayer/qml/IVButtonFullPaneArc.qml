@@ -763,7 +763,6 @@ Rectangle
                         );
         }
         onError: {// вызывается в том случае, когда компонент не может быть создан
-            console.error('onError ' + error);
         }
     }
 }

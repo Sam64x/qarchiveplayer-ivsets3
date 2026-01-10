@@ -213,9 +213,6 @@ Item {
     property bool is_multiscreen: false
 
     //e
-    onArc_common_panelChanged: {
-        console.info("arc_common_panel = ", arc_common_panel)
-    }
 
     property real isize: interfaceSize.value !== "" ? parseFloat(
                                                           interfaceSize.value) : 1
@@ -278,10 +275,6 @@ Item {
     }
 
     onViewer_command_objChanged: {
-        console.info("onViewer_command_objChanged root.viewer_command_obj=",root.viewer_command_obj);
-        console.info("onViewer_command_objChanged root.viewer_command_obj.myGlobalComponent=",root.viewer_command_obj && root.viewer_command_obj.myGlobalComponent);
-        // console.info("onViewer_command_objChanged root.viewer_command_obj.myGlobalComponent.isOneCamInSet=",root.viewer_command_obj.myGlobalComponent.isOneCamInSet);
-
         if (root.viewer_command_obj != null && root.viewer_command_obj != undefined &&
                 root.viewer_command_obj.myGlobalComponent != null && root.viewer_command_obj.myGlobalComponent != undefined
                 && root.viewer_command_obj.myGlobalComponent.isOneCamInSet != undefined)
@@ -674,7 +667,6 @@ Item {
             _json["y"] = root.Window.window.y
             _json["width"] = root.width
             _json["height"] = root.height
-            //ch01002 console.info(JSON.stringify(_json));
             idLog3.warn(JSON.stringify(_json))
             test_archive_result.result = JSON.stringify(_json)
         }
@@ -886,7 +878,6 @@ Item {
     onCommon_panelChanged: {
         if (common_panel)
             key2 = "common_panel"
-        console.info("onCommon_panelChanged = ", common_panel)
     }
     onM_i_210929_debChanged: {
         idLog3.warn('<210927> 193')
@@ -925,7 +916,6 @@ Item {
 
     //ch90806 - это из формы выгрузки пришло е
     onM_s_exch_event_idChanged: {
-        //ch90723 console.info("AAAAAAAAAAAAAAAAAA",root.m_s_exch_event_id)
         idLog3.warn('<events>  m_s_exch_event_id ' + root.m_s_exch_event_id)
         root.m_s_start_event_id = root.m_s_exch_event_id
         root.m_i_select_interv_state = c_I_IS_CORRECT_INTERV
@@ -943,7 +933,6 @@ Item {
     }
 
     onKey2Changed: {
-        console.info("<<<<<<<<<<<<<<<<<<<<<<< onKey2Changed = ", root.key2)
         idLog3.warn('<common_pan> onKey2Changed beg key2 ' + root.key2 + ' vers ' + root.arc_vers)
         idLog3.warn("<slider_new> 54 root.key2 " + root.key2)
         //ch230906
@@ -1711,14 +1700,12 @@ Item {
         /*Shortcut {
           sequence: StandardKey.ZoomIn //"Ctrl+Plus"
           onActivated: {
-              console.info("========================== ArcSlider ZoomIn")
           }
       }
 
       Shortcut {
           sequence: StandardKey.ZoomOut //"Ctrl+Minus"
           onActivated: {
-              console.info("========================== ArcSlider ZoomIn")
           }
       }*/
         onExited: {
@@ -1983,7 +1970,6 @@ Item {
                             primitivesLoader.componentPrimitives.isRealtime = false
                         }
                         if (primitivesLoader.status === Loader.Error) {
-                            console.error("primitivesLoader error")
                         }
                         if (primitivesLoader.status === Loader.Null) {
 
@@ -2097,7 +2083,6 @@ Item {
                         } //if
                     } //onDoubleClicked
                     onClicked: {
-                        console.info("mousearea_CommonPanMode onClicked")
 
                         if (mouse.button & Qt.RightButton) {
                             root.callContextMenu907(mouseX, mouseY)
@@ -4031,19 +4016,6 @@ Item {
                                         }
 
                                         onClicked: {
-                                            console.info("interval_razmer onClicked parent.x = ",
-                                                         parent.x)
-                                            console.info("interval_razmer onClicked root.width = ",
-                                                         root.width)
-                                            console.info(
-                                                        "interval_razmer onClicked = ",
-                                                        (mapToItem(
-                                                             rectInterval_mashtab,
-                                                             ppUp.x, ppUp.y)).x)
-                                            console.info("interval_razmer onClicked = ",
-                                                         (mapToItem(root,
-                                                                    ppUp.x,
-                                                                    ppUp.y)).x)
                                             //if ( root.common_panel === false)
                                             //{
                                             if (!ppUp2.opened) {
@@ -4998,8 +4970,6 @@ Item {
                             imageSlider.visible = false;
                             if (qs_provider_param_lv.length > 0)
                             {
-                                console.info("********************************** 123 =", qs_provider_param_lv);
-                                console.info("********************************** 123 =", qs_provider_param_lv.length);
                                 //imageSlider.border.color = "transparent"
                                 imageSlider.x = root.width / 2 - imageSlider.width
                                         / 2 //qr_mouse_x_av - imageSlider.width / 2;
@@ -5246,7 +5216,6 @@ Item {
         }
 
         idLog3.warn("<slider_new> 55 root.key2 " + root.key2)
-        console.info("<<<<<<<<<<<<<<<< componentCompleted >>>>>>>>>>>>>>")
         if (root.is_export_media === 1) {
             if (root.key2 === '' || root.key2 === null
                     || root.key2 === undefined) {
@@ -5333,10 +5302,6 @@ Item {
         setMode904()
         var i_is_this_common_panel_lv = 0
 
-        console.info(
-                    "<<<<<<<<<<<<<<<< componentCompleted root.common_panel = ",
-                    root.common_panel)
-
         if (false === root.common_panel)
             i_is_this_common_panel_lv = 0
         else
@@ -5412,7 +5377,6 @@ Item {
         //ch90527 , s_controls_lv
         univreaderex.complete901(s_time_iv_lv, root.savedSetName)
 
-        console.info("================================== complete901 ============================")
         if (0 === root.getCamCommonPanelMode()) {
             //ср90704
             if (false === root.common_panel) {
@@ -5688,8 +5652,6 @@ Item {
     function setMode904() {
         var i_automatic_lv = 0;
         //root.key2 = '138'
-        console.info("setMode904() root.key2 = ", root.key2)
-        console.info("setMode904() root.common_panel = ", root.common_panel)
         var i_is_correct_parent_finded_lv = 0
         var i_is_this_common_panel_lv = 0
         if (false === root.common_panel)
@@ -5793,12 +5755,6 @@ Item {
                     + ' i_is_correct_parent_finded_lv ' + i_is_correct_parent_finded_lv
                     + " getIdCamerasGroup() " + univreaderex.getIdCamerasGroup(
                         ))
-        console.info("setMode904 i_is_this_common_panel_lv = ",
-                     i_is_this_common_panel_lv, " i_iv_vcli_setting_arc_lv = ",
-                     i_iv_vcli_setting_arc_lv,
-                     " i_is_correct_parent_finded_lv = ",
-                     i_is_correct_parent_finded_lv, " s_controls_lv = ",
-                     s_controls_lv)
         univreaderex.setCommonPanelMode(i_is_this_common_panel_lv,
                                         i_iv_vcli_setting_arc_lv,
                                         i_is_correct_parent_finded_lv,
@@ -5924,11 +5880,8 @@ Item {
 
         //deb ch91029 otsech
         var i_height_lv = root.height
-        console.info("commonPanelSetVisible wndControlPanel.height = ",
-                     wndControlPanel.height)
         var i_height_contr_panel_lv = wndControlPanel.height
         //ch00117
-        console.info("commonPanelSetVisible i_val_av = ", i_val_av)
         root.visible = (0 !== i_val_av)
         //e
         if (0 !== i_val_av) {
@@ -6210,7 +6163,6 @@ Item {
                 image_correct_Loader.create()
                 fullscreen_button.visible = true
             } else {
-                console.info("complete2 common_panel")
                 fullscreenRect.width = 1
                 fullscreenRect.visible = false
                 fullscreenButton_ButtonPane.visible = false
@@ -6655,7 +6607,6 @@ Item {
     Shortcut {
         sequence: StandardKey.ZoomIn
         onActivated: {
-            console.info("========================== ZoomIn")
         }
     }
 }

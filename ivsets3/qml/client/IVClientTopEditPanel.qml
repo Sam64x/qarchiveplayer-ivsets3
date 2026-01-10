@@ -240,9 +240,6 @@ Rectangle
                     }
                 }
             }
-            onCurrPresetChanged: {
-                console.log("setsPresetButton onCurrPresetChanged", currPreset)
-            }
         }
         IVSlider {
             id: rowsSlider

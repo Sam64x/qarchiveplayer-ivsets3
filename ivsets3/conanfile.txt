@@ -12,7 +12,5 @@ autoloader/[*]@ag/stable
 log/[*]@av/stable
 ewriter.client/[*]@av/stable
 IVConanTools/[*]@iv/stable
-avcore/[*]@ab/stable
-ffmpeg/5.1.3
 [generators]
 cmake

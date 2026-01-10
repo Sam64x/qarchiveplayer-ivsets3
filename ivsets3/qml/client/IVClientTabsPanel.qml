@@ -85,7 +85,6 @@ Rectangle
         }
         onEventMapChanged:
         {
-            console.error("JJJJJJJJJJJJJJJJJJJJJJJJJJJJJ" , mapName);
             root.globalSignalsObject.tabAdded4(mapName,"map","",key2);
         }
     }
@@ -99,7 +98,6 @@ Rectangle
         onTriggered:
         {
             var opTabs = openedTabsSettings.value;
-            console.error("openedTabsSettings onValue changed",customSets.currentUser , openedTabsSettings.value);
             openedTabsModel.clear();
             try
             {
@@ -125,15 +123,12 @@ Rectangle
                     var isFound = false;
                     var activeTabName = activeTabSettings.value;
                     root.globalSignalsObject.clearView();
-                    console.error("AAAAAAAAAAAAACTIVE TAB1 = ", activeTabName);
                     for(var i1=0;i1<openedTabsModel.count;i1++)
                     {
                         var tabItem = openedTabsModel.get(i1);
-                        console.error("AAAAAAAAAAAAACTIVE TAB1.1 = ", tabItem.name);
                         if(tabItem.name ===activeTabName )
                         {
                             tabsListView.currentIndex = i1;
-                            console.error("AAAAAAAAAAAAACTIVE TAB2 = ", i1 , tabItem.name,tabItem.tabId);
                             root.globalSignalsObject.tabSelected5(tabItem.name,tabItem.type,tabItem.tabId,tabItem.view);
                             isFound = true;
                             break;
@@ -153,7 +148,6 @@ Rectangle
             }
             catch(exception)
             {
-                console.error("IVTabsPanel123 exeption = ",exception);
             }
         }
     }
@@ -301,7 +295,6 @@ Rectangle
         }
         onSetSaved:
         {
-//            console.error("TABS PANEL onSetSaved",setname)
 //            if(setname!== "")
 //            {
 //                for(var i1=0;i1<openedTabsModel.count;i1++)
@@ -359,7 +352,6 @@ Rectangle
                 if(tabItem.name ===activeTabName )
                 {
                     tabsListView.currentIndex = i1;
-                    console.error("AAAAAAAAAAAAACTIVE TAB2 = ", i1 , tabItem.name);
                     //root.globalSignalsObject.tabSelected3(tabItem.name,tabItem.type,tabItem.tabId);
                 }
             }
@@ -459,7 +451,6 @@ Rectangle
 //        }
         onTabAdded4:
         {
-            console.error("FFFFFFFFFFFFFFF onTabAdded3 = ",tabname,type,id);
             var isFound = false;
             for(var i =0;i<openedTabsModel.count;i++ )
             {
@@ -472,17 +463,14 @@ Rectangle
                     return;
                 }
             }
-             console.error("onTabAdded----------------------111111111111111111",tabname,type,id)
 
             openedTabsModel.append({type: type,name:tabname,tabId:id});
-            console.error("onTabAdded22222----------------------111111111111111111",tabname,type,id)
             var trimResult4 = trimTabsToLimit(openedTabsModel.count-1);
             tabsListView.currentIndex = trimResult4.index;
             root.globalSignalsObject.tabSelected4(tabname,type,id,key2);
             //activeTabSettings.value = tabname;
             var tmpStr = getStringFromModel(openedTabsModel);
             openedTabsSettings.value = tmpStr;
-            console.error("onTabAdded22222----------------------111111111111111111",tabname,type,id,tmpStr)
             //for(var i =0;i<openedTabsModel.count;i++ )
             //{
                  //console.error("onTabAdded tabname = " , i, openedTabsModel.get(i).name , tmpStr);
@@ -493,7 +481,6 @@ Rectangle
         }
         onTabAdded5:
         {
-            console.error("FFFFFFFFFFFFFFF onTabAdded5 = ",tabname,type,id,viewType);
             var isFound = false;
             for(var i =0;i<openedTabsModel.count;i++ )
             {
@@ -504,7 +491,6 @@ Rectangle
                 {
                     var tt = openedTabsModel.get(i);
                     tabsListView.currentIndex = i;
-                    console.error("FFFFFFFFFFFFFFF onTabAdded555 = ",tt.view);
                     //tt.viewType = viewType;
                     tabsListView.currentItem.viewType = viewType;
                     //console.error("FFFFFFFFFFFFFFF onTabAdded666 = ",tt.viewType);
@@ -515,13 +501,10 @@ Rectangle
                     root.globalSignalsObject.tabSelected5(tabName_,type,id,viewType);
                     var tmpStr = getStringFromModel(openedTabsModel);
                     openedTabsSettings.value = tmpStr;
-                    console.error("FFFFFFFFFFFFFFF onTabAdded777 = ",tmpStr);
                     return;
                 }
             }
-            console.error("onTabAdded----------------------111111111111111111",tabname,type,id,viewType)
             openedTabsModel.append({type: type,name:tabname,tabId:id,view:viewType});
-            console.error("onTabAdded22222----------------------111111111111111111",tabname,type,id)
             var trimResult5 = trimTabsToLimit(openedTabsModel.count-1);
             tabsListView.currentIndex = trimResult5.index;
             var currentTab = openedTabsModel.get(tabsListView.currentIndex);
@@ -529,7 +512,6 @@ Rectangle
             activeTabSettings.value = currentTab.name;
             var tmpStr = getStringFromModel(openedTabsModel);
             openedTabsSettings.value = tmpStr;
-            console.error("onTabAdded22222----------------------111111111111111111",tabname,type,id,tmpStr)
             //for(var i =0;i<openedTabsModel.count;i++ )
             //{
                  //console.error("onTabAdded tabname = " , i, openedTabsModel.get(i).name , tmpStr);
@@ -923,7 +905,6 @@ Rectangle
 
                     }
 
-                    console.error("CLICKED ARCH = ",openedTabsModel.get(i).name,openedTabsModel.get(i).view , viewType);
                 }
                 if(tt !== null)
                 {
@@ -1139,11 +1120,6 @@ Rectangle
         }
 
         */
-
-        ActiveExportsButton {
-            rootRef: root
-        }
-
         Rectangle {
             id: dateTimeRect
             property int showDateW: (dateType.value === "true") ? 130*root.isize : 0
@@ -1753,12 +1729,10 @@ Rectangle
                     var b = root.Window.window.visibility === Window.FullScreen
                     if (a || b)
                     {
-                        console.error("TO WINDOWED")
                         root.Window.window.visibility = Window.Windowed
                     }
                     else
                     {
-                        console.error("TO MAXIMAZED")
                         root.Window.window.visibility = Window.Maximized
                     }
                 }

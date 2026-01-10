@@ -85,12 +85,10 @@ Rectangle
         onTabUniqIdChanged:
         {
             //globSignalsObject.tabUniqId = tabUniq;
-            console.error("globSignalsObject.tabUniqId = ", globSignalsObject.tabUniqId)
         }
         property string tabUniqId:""
         function getTabUniq()
         {
-            console.error("getTabUniq = ", globSignalsObject.tabUniqId)
             return globSignalsObject.tabUniqId;
         }
 
@@ -287,7 +285,6 @@ Rectangle
                     cliSetsAndCams.width = 500;
                 }
                 sourcesWidth.value = cliSetsAndCams.width.toString();
-                //console.error("sourcesWidth.value = ", sourcesWidth.value)
             }
         }
 
@@ -404,7 +401,6 @@ Rectangle
                 source: "new_images/Earth"
                 toolTipText: "Меню"
                 onClicked:{
-                    console.log("IVButton menuButton clicked")
                     var isEditor = globSignalsObject.getEditorStatus();
                     if (!isEditor)
                     {
@@ -470,7 +466,6 @@ Rectangle
         {
             if(archive.value === "true")
             {
-                console.error("COMMON ARCHIVE CREATE!!!!");
                 //mainLoader.create1();
             }
         }

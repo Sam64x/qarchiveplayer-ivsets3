@@ -28,7 +28,6 @@ Rectangle
         name:"sourcesList.currentView"
     }
     onOpenedChanged: {
-        console.log("IVClientSetsAndCamsBlock.qml opened", opened)
         if(opened)
         {
 //            if(sourcesWidth.value !== "")
@@ -37,8 +36,6 @@ Rectangle
 //                root.width=newWidth;
 //                return;
 //            }
-            //console.error("OPENED = ", root.expandWidth)
-            var _width = sourcesWidth.value!== ""?parseInt(sourcesWidth.value):0
             if(_width>=328 && _width<=500)
             {
                 root.expandWidth = _width;
@@ -71,12 +68,10 @@ Rectangle
         Component.onCompleted:
         {
             var valllllue = interfaceSize.value;
-            //console.error("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL = ",valllllue );
         }
         onValueChanged:
         {
             var valllllue = interfaceSize.value;
-            //console.error("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL2 = ",valllllue );
         }
     }
     property real isize: interfaceSize.value !== "" ? parseFloat(interfaceSize.value) : 1
@@ -137,7 +132,6 @@ Rectangle
         standardButtons: StandardButton.Yes | StandardButton.No
         onYes: {
             var setName = devices.get(itemPath).getProp("name_")
-            console.log("messageDialog onYes name:", setName)
             root.globSignalsObject.tabRemoved2(setName);
             customSets.deleteSet(setName);
             devices.remove(itemPath)
@@ -154,13 +148,11 @@ Rectangle
         onShowSetsAndCams:
         {
             sourcesOpened.value = "true";
-            //console.error("onShowSetsAndCams = ", root.opened );
             root.opened = true;
         }
         onHideSetsAndCams:
         {
             sourcesOpened.value = "false";
-            //console.error("onHideSetsAndCams = ", root.opened );
             root.opened = false
         }
         onTabEditedOn:
@@ -172,7 +164,6 @@ Rectangle
         }
         onTabEditedOff:
         {
-            //console.error("ON TAB EDITOR OFF IN CAMS BLOCK");
             root.isEditor = false;
             reloadTimer.start();
 
@@ -460,7 +451,6 @@ Rectangle
 //                    repeat: false
 //                    onTriggered:
 //                    {
-//                        //console.error("SEARCH SIGNAL!!!");
 //                        listLoader.sourcesList.searchSignal();
 //                    }
 //                }
@@ -473,7 +463,6 @@ Rectangle
                     repeat: false
                     onTriggered:
                     {
-                        console.error("SEARCH START!!!!!!!!" , searchField.text);
                         if(root.isEditor && listLoader.currIndex !==1 )
                         {
                             devicesCameras.search3(searchField.text);
@@ -581,7 +570,6 @@ Rectangle
                 running: false
                 onTriggered:
                 {
-                    //console.error("onCurrentUserChanged" , userName);
                     devicesFlat.remove();
                     devicesFact.remove();
                     devicesCustom.remove();
@@ -668,7 +656,6 @@ Rectangle
 //                }
                 function create1(ind)
                 {
-                    console.error("CREATE1 CALLED with index:", ind, "isEditor:", root.isEditor);
                     listLoader.currIndex = ind;
 
                     if(ind === 2)
@@ -853,9 +840,7 @@ Rectangle
                                 var x = 1, y = 1
                                 var dx = 8, dy = 8
                                 var cols = 32, rows = 32
-                                console.log("onClicked add", i, el.getProp("name_"))
                                 var item = customSets.getTypePreset(el.getProp("type"), "key2", "string", el.getProp("name_"));
-                                //console.error("JSON PRESET = ",JSON.stringify(item));
                                 var _zoneObj = {} // customSets.getZZZone(el.getProp("type"), el.getProp("name_"))
                                 _zoneObj["x"] = x
                                 _zoneObj["y"] = y
@@ -864,7 +849,6 @@ Rectangle
                                 _zoneObj["type"] = el.getProp("type")
                                 _zoneObj["params"] = item.params
                                 _zoneObj["qml_path"] = item.qml_path
-                                //console.error("CAMS TO SLOT onClicked =====================================",JSON.stringify(_zoneObj))
                                 root.globSignalsObject.zonesAdded("",JSON.stringify(_zoneObj));
                                 x += dx
                                 y += (x > 32 ? dy : 0)

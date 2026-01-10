@@ -34,7 +34,6 @@ ApplicationWindow  {
         p.minimumWidth = minimumWidth
         p.flags = flags
         p.title = title
-        console.log("New window p:", JSON.stringify(p))
     }
     onClosing: {
         content.source = ""
@@ -42,8 +41,5 @@ ApplicationWindow  {
     }
     Component.onCompleted: {
         //flags |= Qt.WindowStaysOnTopHint
-    }
-    Component.onDestruction: {
-        //console.log("Window", title, root, "onDestruction")
     }
 }

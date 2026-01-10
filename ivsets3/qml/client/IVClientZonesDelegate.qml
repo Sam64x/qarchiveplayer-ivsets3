@@ -19,7 +19,6 @@ Rectangle
     property var globSignalsObject: null
     onCurrentIndexChanged:
     {
-        console.error("onCurrentIndexChanged = ",currentIndex , "root.innerIndex = ",root.innerIndex);
         if(root.currentIndex == root.innerIndex)
         {
             root.color = "#3ad981";

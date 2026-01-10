@@ -28,17 +28,14 @@ ApplicationWindow
     function getZones( param1 )
     {
         var sZones = "";
-        console.error("getZones() param =",param1);
         try
         {
             root.strZones = JSON.stringify( setZone.myZones);
-            console.error("getZones = ",setZone.myZones)
 
             return root.strZones;
         }
         catch(exception)
         {
-            console.error("getZones exception = ",exception);
             return exception;
         }
 
@@ -72,7 +69,6 @@ ApplicationWindow
             }
             var doblOpac = parseFloat(opac);
             root.opacity = doblOpac;
-            console.error("OPACITY2 = ",doblOpac);
           }
       }
     }
@@ -93,24 +89,20 @@ ApplicationWindow
           }
           var doblOpac = parseFloat(opac);
           root.opacity = doblOpac;
-          console.error("OPACITY = ",doblOpac);
         }
     }
 
     onAsNewSetChanged:
     {
-        console.error("onAsNewSetChanged 1 ",root.asNewSet)
         setZone.asNewSet = root.asNewSet;
     }
     onIsEditorChanged:
     {
-        console.error("onIsEditorChanged 1 ",root.isEditor)
         setZone.isEditor = root.isEditor;
     }
     property string tvIrMode: "tvDay"
     onTvIrModeChanged:
     {
-        console.error("onTvIrModeChanged 1 ",root.tvIrMode)
         setZone.tvIrMode = root.tvIrMode;
     }
     MouseArea
@@ -152,7 +144,6 @@ ApplicationWindow
     {
         id:setZone
         anchors.fill: parent
-        //setName:root.setName
         z:3
         tvIrMode:"tvDay"
         isEditor:false
@@ -161,7 +152,6 @@ ApplicationWindow
     }
     onOutPropertiesChanged:
     {
-        console.error("root.outProperties = ", root.outProperties);
         try
         {
             var settingsObj = JSON.parse(root.outProperties);
@@ -223,7 +213,6 @@ ApplicationWindow
         }
         catch(exeption)
         {
-            console.error("PARSE EXEPTION = ",exeption);
         }
 
 
@@ -247,22 +236,12 @@ ApplicationWindow
         duration: root.aT
        // onStopped: root.start()
     }
-    onXChanged:
-    {
-        console.error("root.x = ",root.x);
-    }
-    onYChanged:
-    {
-        console.error("root.y = ",root.y);
-    }
     onSetNameChanged:
     {
-        console.error("SETNAME CHANGED!!! ",root.setName );
         setZone.setName = root.setName;
     }
     onCamNameChanged:
     {
-        console.error("camName CHANGED!!! ",root.camName );
         setZone.camName = root.camName;
     }
 }

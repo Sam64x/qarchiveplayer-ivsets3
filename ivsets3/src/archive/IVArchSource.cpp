@@ -238,7 +238,7 @@ void IVArchSource::requestFullness()
             {PARAM_PINT32,"is_local",&is_local},
             {0, 0, 0}
         };
-        qDebug() << "requestFullness" << name() << _cmd;
+        // qDebug() << "requestFullness" << name() << _cmd;
         iv::core::profile_data(_onDataPr, p2);
     }
 }

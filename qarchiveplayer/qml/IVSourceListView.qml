@@ -65,7 +65,6 @@ ListView {
                 contentColor: IVColors.get("Colors/Text new/TxTertiaryThemed")
                 type: C.IVButtonControl.Type.Flat
                 size: C.IVButtonControl.Size.Big
-
             }
         }
 

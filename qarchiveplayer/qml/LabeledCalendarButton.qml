@@ -10,6 +10,7 @@ import iv.singletonLang 1.0
 
 Row {
     property alias calendar: calendar
+    property var updateTimeFromCalendar
 
     spacing: 0
 
@@ -155,14 +156,14 @@ Row {
                     }
                     C.IVCalendar {
                         id: calendBody
-                        width: 390 * root.isize
+                        width: 390
                         selectable: false
                         currentDate: new Date(calendar.getTimestamp())
                         onCurrentDateChanged: {
                             calendar.chosenDate = Qt.formatDate(currentDate, "dd.MM.yyyy")
                             calendar.chosenTime = Qt.formatTime(currentDate, "hh:mm:ss")
                             dateInputField.text = Qt.formatDateTime(currentDate, "dd.MM.yyyy hh:mm:ss")
-                            if (!root.b_input_time_outside_cahange) updateTimeFromCalendar()
+                            if (updateTimeFromCalendar) updateTimeFromCalendar()
                         }
                         Connections {
                             target: calendar

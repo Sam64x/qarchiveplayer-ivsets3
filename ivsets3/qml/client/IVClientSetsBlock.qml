@@ -31,18 +31,14 @@ Rectangle
 
     Component.onCompleted:
     {
-        console.error("BBBBBBBBBBBBBBBBBBBBBBB THIS IS IVClientSetsBlock!");
         var setsList = customSets.getSetsList();
         var setsListArray = JSON.parse(setsList);
-        //console.error("setsList = ",setsList);
         for(var setName in setsListArray)
         {
-            //console.error("setName = ",setsListArray[setName]);
             setsModel.append({name:setsListArray[setName],local:true,isVisible:true});
         }
         var remoteSetsList = customSets.getRemoteSetsList();
         var remoteSetsListArray = JSON.parse(remoteSetsList);
-        //console.error("remoteSetsList = ",remoteSetsList);
         for(var setName2 in remoteSetsListArray)
         {
 
@@ -59,11 +55,9 @@ Rectangle
             setsModel.clear();
 
             var setsListArray = JSON.parse(setsList);
-            //console.error("setsList = ",setsList);
             for(var i in setsListArray)
             {
 
-                //console.error("setName = ",setsListArray[setName]);
                 setsModel.append({name:setsListArray[i],local:true,isVisible:true});
                 if(setsListArray[i] === newSetName)
                 {
@@ -72,7 +66,6 @@ Rectangle
             }
             var remoteSetsList = customSets.getRemoteSetsList();
             var remoteSetsListArray = JSON.parse(remoteSetsList);
-            //console.error("remoteSetsList = ",remoteSetsList);
             for(var setName2 in remoteSetsListArray)
             {
 
@@ -107,7 +100,6 @@ Rectangle
                 var setName = setsModel.get(i).name;
                 if(!setsModel.get(i).local)
                 {
-                    //console.error("NOT LOCAL SET CHANGED = ", setName);
                     if(setName.indexOf(searchText) === -1)
                     {
                         setsModel.setProperty(i,"isVisible",false);
@@ -126,14 +118,12 @@ Rectangle
                          var zoness = zonesObj["zones"];
                         for(var j = 0;j < zoness.length;j++)
                         {
-                            //console.error("TYPE ======================================= ",zoness[j].type);
                             if( zoness[j].type === "camera")
                             {
                                 var isContains  = zoness[j].params.key2.indexOf(searchText);
 
                                 if(isContains !== -1)
                                 {
-                                    //console.error("CAMERA FOUND",zoness[j].params.key2)
                                     isFound = true;
                                     break;
                                 }
@@ -143,7 +133,6 @@ Rectangle
                                  var isContains2  = zoness[j].type.indexOf(searchText);
                                 if(isContains2!== -1)
                                 {
-                                    //console.error("NOT CAMERA FOUND",zoness[j].params.key2)
                                     isFound = true;
                                     break;
                                 }
@@ -158,11 +147,9 @@ Rectangle
                     }
                     catch(exception)
                     {
-                        //console.error("IVClientSetsBlock search error = ",exception );
                     }
                     if(!isFound)
                     {
-                        //console.error("NOT FOUND ", setName);
                         setsModel.setProperty(i,"isVisible",false);
                     }
                     //setsModel.setProperty(i,"isVisible",false);
@@ -177,7 +164,6 @@ Rectangle
 
 //        onNewSetAdded:
 //        {
-//            console.error("aaaa plus clicked!!!");
 
 
 //            var setName = "Набор "+(setsModel.count+1);
@@ -446,7 +432,6 @@ Rectangle
                         globSignalsObject:root.globSignalsObject
                         onDelClicked:
                         {
-                            //console.error("set clicked!!!! index = ",index);
                             setsListView.currentIndex = index;
                             if(hideNewSets.value === "false");
                             {
@@ -455,7 +440,6 @@ Rectangle
                         }
                         onAddCamsClicked:
                         {
-                             console.error("onAddCamsClicked index = ",index);
                              setsRect.visible = true;
                              camsRect.visible = true;
                         }
@@ -501,7 +485,6 @@ Rectangle
                         hoverEnabled: true
                         onClicked:
                         {
-                            //console.error("aaaa plus clicked!!!");
                             root.globSignalsObject.newSetAdded("");
                         }
                         onEntered:
@@ -546,7 +529,6 @@ Rectangle
                         hoverEnabled: true
                         onClicked:
                         {
-                            //console.error("aaaa plus clicked!!!");
                             root.globSignalsObject.setRemoved("");
                             //root.globSignalsObject.tabRemoved("",-1);
                         }

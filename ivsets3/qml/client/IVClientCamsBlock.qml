@@ -43,11 +43,9 @@ Rectangle
         running: true
         onTriggered:
         {
-            //console.error("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh 222222222222222222");
             var cams = customSets.getCameras();
             var devices = customSets.getZoneTypes();
             var maps = customSets.getMapsList();
-            //console.error("CAMS = ",cams)
             //camsModel.append({key2:"1"});
             var camsArray = [];
             var devicesArray = [];
@@ -57,12 +55,8 @@ Rectangle
                 camsArray = JSON.parse(cams);
                 devicesArray = JSON.parse(devices);
                 mapsArray = JSON.parse(maps);
-                //console.error("cams = ", cams);
-                //console.error("devices = ", devices);
-                //console.error("maps = ", maps);
                 for(var i2 in devicesArray)
                 {
-                    //console.error("AAAAA =====================",JSON.stringify(devicesArray[i2].params));
                     if(devicesArray[i2].type === "MapViewer" || devicesArray[i2].type === "camera" )
                         continue;
                     camsModel.append({params:devicesArray[i2].params,key2:devicesArray[i2].type ,type: devicesArray[i2].type, qmlPath: devicesArray[i2].qml_path,isVisible:true});
@@ -71,7 +65,6 @@ Rectangle
 
                 for(var i4 in mapsArray)
                 {
-                    //console.error("AAAAA masp  =====================",JSON.stringify(mapsArray[i4].params));
                     params1["jsonDataFileName"] = mapsArray[i4];
                     //var splitName = mapsArray[i4].split(".");
                     //camsModel.append({params:params1,key2:splitName[0] ,type: "MapViewer", qmlPath: "qtplugins/iv/mapviewer/qml/QMapViewer.qml",isVisible:true});
@@ -81,7 +74,6 @@ Rectangle
                 //params["qmlPath"] = ;
                 params2["running"] = true;
                 params2["video"] = "#000_FULLSCREEN";
-                //console.error("AAAAA =====================222222222",JSON.stringify(camsArray));
                 for(var i3 in camsArray)
                 {
                     params2["key2"] = camsArray[i3];
@@ -91,7 +83,6 @@ Rectangle
             }
             catch(exception)
             {
-                console.error("IVCAMSBLOCK PARSE CAMS ERROR = ", exception);
             }
         }
     }
@@ -113,7 +104,6 @@ Rectangle
         }
         onSearch:
         {
-            //console.error("search in cams block st = ", searchText);
             var modelCount = camsModel.count;
             if(searchText === "")
             {
@@ -137,7 +127,6 @@ Rectangle
 
                 if(key2.indexOf(searchText) === -1 )
                 {
-                    //console.error("search in cams block key2 = ", key2);
                     camsModel.setProperty(i,"isVisible",false);
                 }
                 else

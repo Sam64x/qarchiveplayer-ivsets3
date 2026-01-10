@@ -65,7 +65,6 @@ Rectangle
             if(root.isSetsHidden)
             {
                 dragRect.y = 27;
-                //console.error("sets hidded ,cams hidded")
 
             }
             else
@@ -80,7 +79,6 @@ Rectangle
             if(root.isSetsHidden)
             {
                 dragRect.y = 27;
-                //console.error("sets hidded ,cams showed")
 
             }
             else
@@ -462,7 +460,6 @@ Rectangle
                     hoverEnabled: true
                     onClicked:
                     {
-                        //console.error("aaaa plus clicked!!!");
                         root.globSignalsObject.newSetAdded("");
                     }
                     onEntered:
@@ -507,7 +504,6 @@ Rectangle
                     hoverEnabled: true
                     onClicked:
                     {
-                        //console.error("aaaa plus clicked!!!");
                         root.globSignalsObject.setRemoved("");
                         //root.globSignalsObject.tabRemoved("",-1);
                     }

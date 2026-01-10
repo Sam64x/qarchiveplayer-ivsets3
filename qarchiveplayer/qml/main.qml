@@ -256,7 +256,6 @@ Window {
                 //}
                 //else
                 //{
-                console.info("******** start ********")
                     //grid.anchors.fill = commRect;
                     ////grid.cellHeight = Qt.binding(function(){ return  commRect.height/root.semaProperties.lineCount});
                     ////grid.cellWidth = ((commRect.height/root.semaProperties.lineCount)/root.semaProperties.yRatio)*root.semaProperties.xRatio
@@ -481,7 +480,6 @@ Window {
                             //        })
                             colorModel.insert(0, {name:counter.toString(), portrait: Qt.rgba(Math.random(), Math.random(), Math.random()).toString(), "col1":c});
                             counter++;
-                            console.error("insert to model")
                         //};
 
                     }
@@ -504,7 +502,6 @@ Window {
                             c = colorModel.get(colorModel.count-1).col1+1;
                             //c=0;
                         }
-                        console.info("rigth append c =", c)
                         //var _rows1 = 1;//root.semaProperties.lineCount;
                         //for(var r=0;r<_rows1;r++)
                         //{
@@ -521,7 +518,6 @@ Window {
                             //           "row1":r//,
                                        //"evtid":evtid
                             //       })
-                            console.info("rigth append")
                             colorModel.append({name:counter.toString(), portrait: Qt.rgba(Math.random(), Math.random(), Math.random()).toString(), "col1":c});
                             counter++;
                         //};
@@ -539,7 +535,6 @@ Window {
                             //c1=1;
                             if(c1!==c0-c)
                             {
-                                console.log("error1152 ",c1,c0-c,c0,c);
                                 return;
                             }
                         }
@@ -714,14 +709,6 @@ Window {
                     }
                     onContentXChanged:
                     {
-                        console.info("--------------- onContentXChanged contentX", grid.contentX);
-                        console.info("--------------- onContentXChanged prevContentX", grid.prevContentX);
-                        console.info("--------------- grid.contentWidth = ",grid.contentWidth);
-                        console.info("--------------- grid.originX = ",grid.originX);
-                        console.info("--------------- grid.width = ", grid.width);
-                        //console.info("--------------- colorModel.count = ", colorModel.count);
-                        //console.info("--------------- grid.currentIndex = ", grid.currentIndex);
-                        //console.info("--------------- indexAt = ", grid.indexAt(grid.width/2, grid.height/2));
                         if(grid.contentWidth<grid.width+3000)
                             return;
                         var min1= colorModel.get(0).col1;//sema.getOld()-2000000;
@@ -732,7 +719,6 @@ Window {
 
                         if(grid.contentX<=grid.originX+1000)
                         {
-                            console.info("--------------- onContentXChanged 1");
                             //idLog.trace(" move l contentX="+grid.contentX+" width="+grid.width
                             //            +" s1="+s1+" < s2="+s2+" originX"+grid.originX
                             //            +" contentWidth="+grid.contentWidth+ " s3"+s3);
@@ -756,15 +742,12 @@ Window {
                         }
                         if(s1+1000>s2)
                         {
-                            console.info("--------------- onContentXChanged 2");
                             //idLog.trace(" move rcontentX="+grid.contentX+" width="+grid.width
                             //            +" s1="+s1+" < s2="+s2+" originX"+grid.originX
                             //            +" contentWidth="+grid.contentWidth+ " s3"+s3);
 
                             var col2=colorModel.get(colorModel.count-1).col1;
                             //var col2 = 1;
-                            console.info("--------------- col2 = ", col2);
-                            console.info("--------------- min1 = ", min1);
                             if(col2>min1)
                             {
                               //idLog.trace("<position> onContentXChanged add right");
@@ -794,15 +777,6 @@ Window {
                             //center_x = grid.originX - grid.width / 2;
                             item_x = grid.itemAt( grid.contentX + grid.width / 2, grid.y + grid.height / 2 )
                             //item_x1 = (grid.contentX + grid.originX) * (grid.height / grid.contentHeight)
-                        }
-
-                        if (prevContentX < contentX)
-                        {
-                            console.info("play right");
-                        }
-                        else
-                        {
-                            console.info("play left")
                         }
 
                         //var pipec = center.mapToItem(item_x, grid.width/2, grid.height/2)
@@ -858,7 +832,6 @@ Window {
                             height: grid.height
                             color: portrait
                             onVisibleChanged:{
-                                console.info("visible = ", visible)
                             }
                             Text {
                                 text: name
@@ -875,7 +848,6 @@ Window {
                                 hoverEnabled: true
 
                                 onReleased: {
-                                    console.info("MouseArea onReleased pipec = ");
                                     //var pipec = mapToItem(item_x, grid.contentX+grid.width/2, grid.y+grid.height/2)
                                     //console.info("MouseArea onReleased pipec = ", pipec);
                                 }
@@ -887,14 +859,11 @@ Window {
                                 }
 
                                 onPressAndHoldIntervalChanged: {
-                                    console.info("MouseArea onPressAndHoldIntervalChanged pipec = ");
                                 }
                                 onPressAndHold: {
-                                    console.info("MouseArea onPressAndHoldIntervalChanged pipec = ");
                                 }
 
                                 onEntered: {
-                                    console.info("MouseArea onEntered pipec = ");
                                 }
                             }
                         }
@@ -906,9 +875,6 @@ Window {
                         grid.currentIndex = 3;
                         //contentX = originX
 
-                        console.info("grid width = ", grid.width);
-                        console.info("grid height = ", grid.height);
-                        console.info("random color = ", Qt.rgba(Math.random(), Math.random(), Math.random()).toString());
 
                         colorModel.append({name:"Январь", portrait: Qt.rgba(Math.random(), Math.random(), Math.random()).toString(), "col1":0});
                         colorModel.append({name:"Февраль", portrait: Qt.rgba(Math.random(), Math.random(), Math.random()).toString(), "col1":1});
@@ -922,7 +888,6 @@ Window {
                         delta_contentX = contentX;
                         //timer_play.start();
 
-                        console.info("contentX = ", contentX)
                     }
 
                     function getVisibleIndexRange() {

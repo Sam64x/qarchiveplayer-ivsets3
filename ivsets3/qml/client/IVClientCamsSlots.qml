@@ -79,7 +79,6 @@ Rectangle
                     continue;
                 }
             }
-            //console.error("autoSetAll gggggggggggggggggggggggggggggggggggggggggggg res = ",zonesmodel.count , root.isAutoMode)
             if(zonesmodel.count !== 0 && root.isAutoMode === true)
             {
                 root.addEmptySlot();
@@ -156,7 +155,6 @@ Rectangle
     {
         if(root.currentPresset === 1)
         {
-            //console.error("root.currentPresset === 1")
             var itemObj = {};
              var i2 = 0;
              var i3 = 0;
@@ -169,7 +167,6 @@ Rectangle
                 {
                     if(slotsModel.count>i1)
                     {
-                        //console.error("root.currentPresset === 1")
                         var slotItem = slotsModel.get(i1);
                         //if(slotItem.isEmpty === false)
                        // {
@@ -177,7 +174,6 @@ Rectangle
                             slotItem.y=1;
                             slotItem.dx=8;
                             slotItem.dy=8;
-                            //console.error("root.currentPresset === 1 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX = ",i2*8 +1,JSON.stringify(slotItem))
                             slotsModel.setProperty(i1,"x",i2*8 +1);
                             slotsModel.setProperty(i1,"y",1);
                             slotsModel.setProperty(i1,"dx",8);
@@ -194,7 +190,6 @@ Rectangle
                            newParams2.qml_path=slotItem.qml_path;
                            //zonesmodel.append(newParams);
                            slotsModel.set(index,newParams2);
-                           //console.error("entPresset === 1 XXXXXXX = ",JSON.stringify(newParams2));
                            root.globSignalsObject.zoneChanged(i1,newParams2);
 
                             i2++;
@@ -244,7 +239,6 @@ Rectangle
                            newParams2.qml_path=slotItem.qml_path;
                           // zonesmodel.append(newParams);
                            slotsModel.set(index,newParams2);
-                           //console.error("entPresset === 1 XXXXXXX = ",JSON.stringify(newParams2));
                            root.globSignalsObject.zoneChanged(i1,newParams2);
                            i3++;
                            continue;
@@ -293,7 +287,6 @@ Rectangle
                            newParams2.qml_path=slotItem.qml_path;
                            //zonesmodel.append(newParams);
                            slotsModel.set(index,newParams2);
-                           //console.error("entPresset === 1 XXXXXXX = ",JSON.stringify(newParams2));
                            root.globSignalsObject.zoneChanged(i1,newParams2);
                             i4++;
                             continue;
@@ -342,7 +335,6 @@ Rectangle
                            newParams2.qml_path=slotItem.qml_path;
                            //zonesmodel.append(newParams);
                            slotsModel.set(index,newParams2);
-                           //console.error("entPresset === 1 XXXXXXX = ",JSON.stringify(newParams2));
                            root.globSignalsObject.zoneChanged(i1,newParams2);
                             i5++;
                             continue;
@@ -607,7 +599,6 @@ Rectangle
                     var slotsObj = slotsModel.get(i);
                     if(slotsObj.isEmpty)
                     {
-                        //console.error("remove ",i)
                         slotsModel.remove(i);
                     }
                     else
@@ -762,7 +753,6 @@ Rectangle
 //                }
 //            }
         }
-        //console.error("GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG = ",JSON.stringify(zone));
         slotsModel.append(zone);
 
         //root.globSignalsObject.zonesAdded("",JSON.stringify(zoneObj));
@@ -811,7 +801,6 @@ Rectangle
                 key22 =zone.type;
             }
         }
-        //console.error("addCameraToSlot INDEX OF SLOT qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq = ",index,slotsModel.count,JSON.stringify(zone));
         for(var i1 = 0;i1< slotsModel.count;i1++)
         {
             if(index === i1)
@@ -820,12 +809,10 @@ Rectangle
                 {
                     slotsModel.set(i1,{isEmpty:false,key2:key22,x:zone.x,y:zone.y,dx:zone.dx,dy:zone.dy,type:zone.type,params:zone.params,qml_path:zone.qml_path})
                     root.globSignalsObject.zoneChanged(i1,zone);
-                    //console.error("addCameraToSlot qqqqqqqqqqqqqqqqqqqqqqqq empty zone found in model");
                     return;
                 }
             }
         }
-        //console.error("addCameraToSlot QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ empty zone NOT FOUND in model")
     }
     function addCameraEmptySlot(zone)
     {
@@ -845,7 +832,6 @@ Rectangle
                 key22 =zone.type;
             }
         }
-        //console.error("addCameraEmptySlot INDEX OF SLOT qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq = ",slotsModel.count , JSON.stringify(zone));
         for(var i1 = 0;i1< slotsModel.count;i1++)
         {
             var slotObj = slotsModel.get(i1);
@@ -857,11 +843,9 @@ Rectangle
                 zone.dy = slotObj.dy;
                 slotsModel.set(i1,{isEmpty:false,key2:key22,x:zone.x,y:zone.y,dx:zone.dx,dy:zone.dy,type:zone.type,params:zone.params,qml_path:zone.qml_path})
                 root.globSignalsObject.zoneChanged(i1,zone);
-                //console.error("addCameraEmptySlot qqqqqqqqqqqqqqqqqqqqqqqq empty zone found in model");
                 return true;
             }
         }
-        //console.error("addCameraEmptySlot QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ empty zone NOT FOUND in model")
         return false;
     }
     function addSlot(index,zone)
@@ -877,7 +861,6 @@ Rectangle
             {
                 key22 =zone.type;
             }
-            console.error("INDEX OF SLOT qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq = ",index,slotsModel.count);
             for(var i1 = 0;i1< slotsModel.count;i1++)
             {
                 if(slotsModel.get(i1).isEmpty === true && index === i1)
@@ -927,7 +910,6 @@ Rectangle
 //        }
         onZoneChangedFromMouse:
         {
-            //console.error("onZoneChangedFromMouse qqqqqqqqqqqqqq = ",JSON.stringify(zoneparams));
             //root.refreshZone(index, zoneparams)
         }
 
@@ -942,7 +924,6 @@ Rectangle
         onSetSelected:
         {
             root.setName = setname;
-            //console.error("onSetSelected qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq =",setname);
             //root.globSignalsObject.getZonesFromSet();
         }
         onZoneSelected:
@@ -986,7 +967,6 @@ Rectangle
 
         onZonesAddedFromSetName:
         {
-            //console.error("ffffffffffffffffffffffffffffffffffffffffffffffff = ",JSON.stringify(zoneparams));
             for(var i =0;i<zoneparams.length;i++)
             {
                 root.addEmptySlotWithZone(zoneparams[i]);
@@ -994,7 +974,6 @@ Rectangle
         }
         onSetPressetIndex:
         {
-            //console.error("ind of presset ===================================== ",indexOfPresset)
             root.currentPresset = indexOfPresset;
             root.setPresset(root.currentPresset);
         }
@@ -1002,10 +981,8 @@ Rectangle
         {
             root.getZonesFromSETS();
             var result1 = root.addCameraEmptySlot(zoneparams);
-            //console.error("onAddCamToSlot qaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa result = ",result1,JSON.stringify(zoneparams));
             if(result1 === false)
             {
-                //console.error("onAddCamToSlot22222222 qaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa result = ",result1,JSON.stringify(zoneparams));
                 root.addEmptySlot();
                 root.addCameraEmptySlot(zoneparams);
             }
@@ -1159,7 +1136,6 @@ Rectangle
                         newParams2.qml_path="";
                         zonesmodel.append(newParams);
                         slotsModel.set(index,newParams2);
-                        //console.error("onSlotClear pppppppppppppppppppppppp = ",JSON.stringify(newParams2));
                         root.globSignalsObject.zoneChanged(index,newParams2);
 
                         //slotsModel.setProperty(index,"isEmpty",true);
@@ -1221,7 +1197,6 @@ Rectangle
             var result = root.addCameraEmptySlot(messageDialog.zoneparams);
             if(!result&& messageDialog.indexInModel !== -1)
             {
-                //console.error("messageDialog qqqqqqqqqqqqqqqqqqq = SLOT NOT ADDED AND CAMERA NOT ADDED",JSON.stringify(zoneparams),indexInModel);
             }
             else
             {

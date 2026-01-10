@@ -41,7 +41,6 @@ Rectangle {
          // root.isBrush = isBrush;
          // root.isLight = isLight;
          // root.isQuery = isQuery;
-          //console.error("CAMERA is PTZ = ",root.isPTZ)
          // if (!root.isZoom && !root.isPanTilt)
               //root.isControl = false;
          // else
@@ -127,7 +126,6 @@ Rectangle {
                     _zoneObj["type"] = root.type;
                     _zoneObj["params"] = root.params;
                     _zoneObj["qml_path"] = root.qmlPath;
-                    //console.error("CAMS TO SLOT =====================================",JSON.stringify(_zoneObj))
                     root.globSignalsObject.addCamToSlot(_zoneObj);
                 }
                 else
@@ -140,13 +138,11 @@ Rectangle {
                     _zoneObj["type"] = root.type;
                     _zoneObj["params"] = root.params;
                     _zoneObj["qml_path"] = root.qmlPath;
-                    //console.error("CAMS TO PREVIEW =====================================",JSON.stringify(_zoneObj))
                     root.globSignalsObject.addCamToPreview(_zoneObj);
                 }
             }
             else
             {
-               // console.error("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv - root.globSignalsObject.tabAddedOnceCam");
                 root.globSignalsObject.tabAddedOnceCam(root.key2,0,root.type,root.params,root.qmlPath);
             }
             mouse.accepted = true;

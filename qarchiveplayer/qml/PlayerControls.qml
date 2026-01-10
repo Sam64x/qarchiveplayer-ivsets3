@@ -13,11 +13,15 @@ Row {
     property var archiveStreamer
     property real playbackSpeed: 1.0
     property int  direction: 0
-    property bool archiveIsPlaying: !archiveStreamer.paused
+    property bool archiveIsPlaying: archiveStreamer ? !archiveStreamer.paused : false
     property var  archiveTime
     property bool needToUpdateArchive: true
     property string cameraId
     property string archiveId
+
+    readonly property bool hasArchiveTargets: archiveStreamer && (archiveStreamer.hasPlayers !== undefined
+                                                    ? archiveStreamer.hasPlayers
+                                                    : (!!root.cameraId && !!root.archiveId))
 
     signal clearPendingUpdate()
 
@@ -92,7 +96,7 @@ Row {
         type: C.IVButtonControl.Type.Secondary
         checkable: true
         checked: root.direction < 0
-        enabled: (root.playbackSpeed > 0) && !!root.cameraId && !!root.archiveId
+        enabled: (root.playbackSpeed > 0) && root.hasArchiveTargets
         source: "new_images/" + (checked ? "pause" : "play")
         toolTipText: checked
                      ? Language.getTranslate("Pause", "Пауза")
@@ -274,7 +278,7 @@ Row {
         checkable: true
 
         checked: root.direction > 0
-        enabled: (root.playbackSpeed > 0) && !!root.cameraId && !!root.archiveId
+        enabled: (root.playbackSpeed > 0) && root.hasArchiveTargets
 
         source: "new_images/" + (checked ? "pause" : "play")
         toolTipText: checked

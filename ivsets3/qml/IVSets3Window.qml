@@ -32,7 +32,6 @@ ApplicationWindow
 
     onOutPropertiesChanged:
     {
-        console.error("root.outProperties = ", root.outProperties);
         var settingsObj = JSON.parse(root.outProperties);
         var x__ = settingsObj["x"];
         var y__ = settingsObj["y"];
@@ -40,7 +39,6 @@ ApplicationWindow
         var height__ = settingsObj["height"];
         var topmost_ = settingsObj["topmost"];
         var vis = settingsObj["visible"];
-        //console.error("vis = ", vis);
         if(topmost_)
         {
             root.flags = Qt.WindowStaysOnTopHint;
@@ -48,7 +46,6 @@ ApplicationWindow
         if(vis)
         {
             //root.visible = true;
-            console.error("visible = true ");
         }
         else
         {

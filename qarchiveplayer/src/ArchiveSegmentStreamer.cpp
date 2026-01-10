@@ -2848,9 +2848,9 @@ bool ArchiveSegmentStreamer::screenshot(const QString& pathOrDir, int quality)
 
     const bool ok = img.save(outPath, "JPG", quality);
     if (ok) {
-        qDebug() << "screenshot saved dir:" << outPath;
+        // qDebug() << "screenshot saved dir:" << outPath;
     } else {
-        qDebug() << "screenshot save failed path:" << outPath;
+        // qDebug() << "screenshot save failed path:" << outPath;
     }
     emit screenshotSaved(outPath, ok, ok ? QString() : QStringLiteral("Ошибка сохранения"));
     return ok;

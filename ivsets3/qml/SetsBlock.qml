@@ -25,10 +25,7 @@ Rectangle
     {
         var setsList = customSets.getSetsList();
         var setsListArray = JSON.parse(setsList);
-        console.error("setsList = ",setsList);
-        for(var setName in setsListArray)
         {
-            console.error("setName = ",setsListArray[setName]);
             setsModel.append({name:setsListArray[setName]});
         }
     }
@@ -42,11 +39,9 @@ Rectangle
             setsModel.clear();
 
             var setsListArray = JSON.parse(setsList);
-            console.error("setsList = ",setsList);
             for(var i in setsListArray)
             {
 
-                //console.error("setName = ",setsListArray[setName]);
                 setsModel.append({name:setsListArray[i]});
                 if(setsListArray[i] === newSetName)
                 {
@@ -127,7 +122,6 @@ Rectangle
                     hoverEnabled: true
                     onClicked:
                     {
-                        console.error("aaaa plus clicked!!!");
                         var setName = "Набор "+(setsModel.count+1);
                         setsModel.append({name:setName});
                         setsListView.currentIndex = setsModel.count-1;
@@ -186,7 +180,6 @@ Rectangle
                             }
                         }
 
-                        console.error("aaaa minus clicked!!!");
                     }
                     onEntered:
                     {
@@ -298,13 +291,11 @@ Rectangle
                         currentIndex:setsListView.currentIndex
                         onDelClicked:
                         {
-                            console.error("set clicked!!!! index = ",index);
                             setsListView.currentIndex = index;
                             root.globSignalsObject.setSelected(setsModel.get(index).name);
                         }
                         onAddCamsClicked:
                         {
-                            console.error("onAddCamsClicked index = ",index);
                             setsRect.visible = false;
                             camsRect.visible = true;
                         }

@@ -28,11 +28,11 @@ void IVMainArea::responseEvents(const void* udata, const param_t* p)
         IVMainArea* ctx = (IVMainArea*)owner;
         if ((char*)owner_data == myOwner)
         {
-            if (json != nullptr && json != "Timeout")
+            if (json != nullptr && json != QStringLiteral("Timeout"))
             {
                 QJsonDocument doc = QJsonDocument::fromJson(json);
                 QJsonArray events = doc.array()[0].toObject().value("rows").toArray();
-                qDebug() << "Получено" << events.size() << "событий";
+                // qDebug() << "Получено" << events.size() << "событий";
                 ctx->setEventsToSources(events);
             }
         }
@@ -70,7 +70,7 @@ void IVMainArea::requestEvents()
         QJsonObject camsObj;
         QJsonArray camsGroup;
         camsObj.insert("op","or");
-        for (auto cam : _sources){
+        for (auto cam : std::as_const(_sources)){
             QJsonObject camObj;
             camObj.insert("col", "evtdevkey2");
             camObj.insert("op", "=");
@@ -85,7 +85,7 @@ void IVMainArea::requestEvents()
             QJsonArray eventsArr;
             eventsObj.insert("col", "evttypeid");
             eventsObj.insert("op", includeEventsMode ? "=" : "!=");
-            for (auto ev : eventsGroup){
+            for (const auto &ev : std::as_const(eventsGroup)){
                 qint64 id = ev.toLongLong();
                 eventsArr.push_back(id);
             }
@@ -105,7 +105,7 @@ void IVMainArea::requestEvents()
     params_js.insert("index_page", 0);
 
     QJsonArray camsGroup;
-    for (auto cam : _sources){
+    for (auto cam : std::as_const(_sources)) {
         camsGroup.append(cam->name());
     }
     QDateTime s = _start.toUTC();
@@ -117,7 +117,7 @@ void IVMainArea::requestEvents()
     params_js.insert("fields", QJsonArray({"evttypeid","evttime", "evtdevkey2", "ettname", "evtid", "evtcomment"}));
 
     QJsonArray eventsArr;
-    for (auto ev : eventsGroup){
+    for (const auto &ev : std::as_const(eventsGroup)){
         qint64 id = ev.toLongLong();
         eventsArr.push_back(id);
     }
@@ -147,7 +147,7 @@ void IVMainArea::requestEvents()
 void IVMainArea::updateEventsGroup(bool mode, QStringList events)
 {
     St2_FUNCT_St2(300);
-    qDebug() << "IVMainArea::updateEventsGroup";
+    // qDebug() << "IVMainArea::updateEventsGroup";
     includeEventsMode = mode;
     eventsGroup = events;
     requestEvents();
@@ -158,7 +158,7 @@ void IVMainArea::setIntervalToSources()
     St2_FUNCT_St2(400);
     if (!start().isValid() || start().isNull()) return;
     if (!end().isValid()|| end().isNull()) return;
-    for (auto i : _sources) {
+    for (auto i : std::as_const(_sources)) {
         if (i->interval() != QPair(start(),end())){
             i->setInterval(QPair(start(), end()));
         }
@@ -175,7 +175,7 @@ void IVMainArea::setEventsToSources(QJsonArray evts)
         QJsonObject event, evtObj = evt.toObject();
         QString format = "yyyy-MM-dd hh:mm:ss.zzz";
         QDateTime startTime = QDateTime::fromString(evtObj.value("evttime").toString(), format);
-        startTime.addSecs(QDateTime::currentDateTime().offsetFromUtc());
+        startTime = startTime.addSecs(QDateTime::currentDateTime().offsetFromUtc());
         int timeDuration = 60;
         int64_t allMS = _end.toMSecsSinceEpoch() - _start.toMSecsSinceEpoch();
         int64_t startMS = startTime.toMSecsSinceEpoch() - _start.toMSecsSinceEpoch();
@@ -192,21 +192,21 @@ void IVMainArea::setEventsToSources(QJsonArray evts)
 
         long long typeId = evtObj.value("evttypeid").toVariant().toLongLong();
         QVector<long long> bmTypes{60047, 60046, 60045, 60044};
-        qDebug() << "Event" << event;
+        // qDebug() << "Event" << event;
         if (bmTypes.contains(typeId)) _bookmarks.append(event);
         else _events.append(event);
     }
     emit eventsChanged();
     emit bookmarksChanged();
-    for (auto i : _sources)
+    for (auto i : std::as_const(_sources))
     {
         QJsonArray srcEvt, srcBm;
-        for (auto j : _events) {
+        for (const auto &j : std::as_const(_events)) {
             QJsonObject obj = j.toObject();
             if (obj.value("source").toString() == i->name())
                 srcEvt.append(obj);
         }
-        for (auto j : _bookmarks) {
+        for (const auto &j : std::as_const(_bookmarks)) {
             QJsonObject obj = j.toObject();
             if (obj.value("source").toString() == i->name())
                 srcBm.append(obj);
@@ -229,7 +229,7 @@ void IVMainArea::getCamsList()
     if (file.open(QIODevice::ReadOnly)){
         QJsonDocument jsonDoc = QJsonDocument::fromJson(file.readAll());
         QJsonArray camsArr = jsonDoc.array();
-        for (auto i : camsArr){
+        for (const auto &i : std::as_const(camsArr)){
             _allSourcesList.push_back(i.toString());
         }
         emit allSourcesListChanged();
@@ -276,10 +276,10 @@ const QList<QObject*> IVMainArea::sourcesAsObj() const
 void IVMainArea::addSources(QStringList names) {
     St2_FUNCT_St2(1000);
     bool updated = false;
-    for (auto newSource : names)
+    for (const auto &newSource : names)
     {
         bool finded = false;
-        for (auto src : _sources) {
+        for (auto src : std::as_const(_sources)) {
             if (src->name() == newSource) {
                 finded = true;
                 break;
@@ -301,9 +301,9 @@ void IVMainArea::removeSources(QStringList names)
 {
     St2_FUNCT_St2(1100);
     bool updated = false;
-    for (auto delSrc : names)
+    for (const auto &delSrc : names)
     {
-        for (auto src : _sources) {
+        for (auto src : std::as_const(_sources)) {
             if (src->name() == delSrc) {
                 _sources.removeOne(src);
                 delete src;

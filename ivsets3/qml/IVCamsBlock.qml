@@ -43,7 +43,6 @@ Rectangle
         onTriggered:
         {
             var cams = customSets.getCameras();
-            //console.error("CAMS = ",cams)
             //camsModel.append({key2:"1"});
             var camsArray = [];
             try
@@ -56,7 +55,6 @@ Rectangle
             }
             catch(exception)
             {
-                console.error("IVCAMSBLOCK PARSE CAMS ERROR = ", exception);
             }
         }
     }

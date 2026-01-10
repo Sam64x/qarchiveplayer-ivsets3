@@ -37,13 +37,11 @@ Rectangle
             root.zoneTypes = JSON.parse(_zTypes);
             for(var paramName in root.zoneTypes)
             {
-                console.error("paramName = ",paramName," value = ",JSON.stringify(root.zoneTypes[paramName]));
                 addZonesModel.append({type:root.zoneTypes[paramName].type,params:JSON.stringify(root.zoneTypes[paramName].params),qml_path:root.zoneTypes[paramName].qml_path});
             }
         }
         catch(exception)
         {
-            console.error("Right panelBlock parse zones error =",exception);
         }
     }
 
@@ -75,7 +73,6 @@ Rectangle
         onZoneSelected:
         {
             //zoneparams
-            console.error("zoneparams = ",zoneparams)
             availZonesModel.clear();
             root.zoneParams = JSON.parse(zoneparams);
             root.currZoneIndex =  index;
@@ -83,7 +80,6 @@ Rectangle
             {
                // for(var ii in root.zoneParams)
               //  {
-                    //console.error("ii =",ii, " value =",root.zoneParams[ii]);
 //                    if(ii !== "params")
 //                    {
 //                        //availZonesModel.append({name:ii,value:root.zoneParams[ii]});
@@ -92,7 +88,6 @@ Rectangle
 //                    {
                         for(var yy in root.zoneParams.params)
                         {
-                            console.error("yy =",yy, " value =",root.zoneParams.params[yy]);
                             availZonesModel.append({name:yy,value:root.zoneParams.params[yy]});
                         }
                     //}
@@ -101,10 +96,6 @@ Rectangle
 
 
 
-            }
-            else
-            {
-                console.error("zone params not found");
             }
         }
     }
@@ -317,8 +308,6 @@ Rectangle
                 textRole: "type"
                 onCurrentIndexChanged:
                 {
-                    //console.error(typesCombo.currentIndex)
-                    //console.error("23232323",addZonesModel.get(currentIndex).params);
                     try
                     {
                         if(addZonesModel.get(currentIndex).params)
@@ -329,7 +318,6 @@ Rectangle
                             {
                                 for(var propName in prms)
                                 {
-                                   // console.error("zzzz = ",propName,prms[propName]);
                                     paramsModel.append({key:propName,value:prms[propName].toString()});
                                 }
                             }
@@ -338,7 +326,6 @@ Rectangle
                     }
                     catch(excp)
                     {
-                        console.error("excp = ",excp);
                     }
                 }
             }
@@ -436,7 +423,6 @@ Rectangle
                 }
                 _zoneObj["params"] = params;
                 _zoneObj["qml_path"] =qml_path;
-                console.error(JSON.stringify(_zoneObj))
                 var _zz_ = JSON.stringify(_zoneObj);
                 root.globSignalsObject.zonesAdded("",_zz_);
                 //setsZone.addZone(_zoneObj);
@@ -565,7 +551,6 @@ Rectangle
             for(var i=0;i<availZonesModel.count;i++)
             {
                 var elem = availZonesModel.get(i);
-                console.error("save zone params name = ",elem.name, " value =",elem.value)
                 pars[elem.name] = elem.value;
             }
 

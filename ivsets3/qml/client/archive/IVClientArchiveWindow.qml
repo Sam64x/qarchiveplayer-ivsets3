@@ -1438,7 +1438,6 @@ Rectangle {
                         property string searchText: ""
                         interval: 300
                         onTriggered: {
-                            console.log("Пока что поиск не работает")
                         }
                     }
 //                    Connections {
@@ -1522,7 +1521,6 @@ Rectangle {
                                         name: "new_images/" + (modelData.isFavorite ? "star-filled" : "star-01")
                                     }
                                     onClicked:{
-                                        console.log("Function to set is favorite")
                                     }
                                 }
                             }
@@ -1747,7 +1745,6 @@ Rectangle {
                         //item.anchors.fill = dateTimeLoader;
                     }
                     if (dateTimeLoader.status === Loader.Error) {
-                        console.error("dateTimeLoader error");
                     }
                 }
                 Component.onCompleted: {

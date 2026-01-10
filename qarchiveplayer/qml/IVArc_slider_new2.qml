@@ -51,6 +51,13 @@ Item {
     property bool isNeedUpdateEvents: true
     property var eventsFilter: []
 
+    property alias timelineModelView: timelineModel
+    property bool sliderFullHeight: false
+
+    readonly property real sliderVisualX: sliderRect.x + sliderRect.width/2
+    readonly property real sliderVisualWidth: sliderRect.implicitWidth
+    readonly property real sliderVisualHeight: sliderRect.implicitHeight
+
     signal updateCalendarDT
     signal doubleClicked
     signal scaleRequested(int scale)
@@ -154,13 +161,15 @@ Item {
         interval: 2000
         repeat: true
         onTriggered: {
-            root.archivePlayer.getFullness(
-                timelineModel.get(0)["start"],
-                timelineModel.get(timelineModel.count-1)["end"],
-                root.key2,
-                root.timeline_model
-            );
-            updateFnJson();
+            if (root.archivePlayer) {
+                root.archivePlayer.getFullness(
+                    timelineModel.get(0)["start"],
+                    timelineModel.get(timelineModel.count-1)["end"],
+                    root.key2,
+                    root.timeline_model
+                );
+                updateFnJson();
+            }
         }
     }
 
@@ -275,8 +284,10 @@ Item {
 
     Timer {
         id: flickTimer
+
         property bool toRight: false
         property int maxInterval: 100
+
         repeat: true
         onTriggered: {
             var isNowDate = root.viewportOffset() + timeline.width >= timeToX(nowDateTime)
@@ -295,7 +306,6 @@ Item {
         }
     }
 
-    // блок считывания настроек клиента
     IvVcliSetting {
         id: animSet
         name: 'interface.animations'
@@ -305,7 +315,7 @@ Item {
     IvVcliSetting {
         id: preview_scale
         name: 'archive.preview_scale'
-        property var val: (parseInt(value)+100)/100
+        property int val: (parseInt(value)+100)/100
     }
 
     IvVcliSetting {
@@ -322,17 +332,22 @@ Item {
 
     Rectangle {
         id:main
+
         anchors.fill: parent
         color: "transparent"
         clip: true
+
         MouseArea {
             id: marea
-            acceptedButtons: Qt.LeftButton
-            anchors.fill: parent
-            hoverEnabled: true
-            enabled: true
+
             property bool canWheel: true && root.ready
+
+            anchors.fill: parent
+            enabled: !isCommonPanel
+            acceptedButtons: isCommonPanel ? Qt.NoButton : Qt.LeftButton
+            hoverEnabled: !isCommonPanel
             propagateComposedEvents: true
+
             onWheel: {
                 var mapMouseX = mapToItem(timeline.contentItem,mouseX,mouseY).x-timeline.originX
                 var zoomToTime = root.xToTime(mapMouseX)
@@ -357,18 +372,22 @@ Item {
 
             ListView {
                 id: timeline
+
                 anchors.fill: parent
                 clip: true
+
                 model: ListModel {
                     id: timelineModel
-                    property int countElems: 7;
+                    property int countElems: 7
                 }
-                // cacheBuffer: contentWidth*0.25
+
+                enabled: !isCommonPanel
                 orientation: Qt.Horizontal
                 boundsBehavior: ListView.StopAtBounds
                 delegate: idDelegate
                 currentIndex: -1
                 interactive: root.ready
+
                 onDraggingChanged: {
                     if (dragging) marea.canWheel = false && root.ready
                     else marea.canWheel = true && root.ready
@@ -436,7 +455,6 @@ Item {
                 }
 
                 onContentWidthChanged: {
-                    //if (contentWidth === 0)contentWidth = root.delegWidth * timelineModel.countElems
                     if (timeline.count > 0 && root.isScaleChange){
                         if (root.ready){
                             var mousePos = timeline.mapMouseToContent/timeline.prevWidth
@@ -459,10 +477,13 @@ Item {
                 }
                 Timer{
                     id: refreshTimer
+
                     interval: 35
                     triggeredOnStart: false
+
                     property var today
                     property var mousePos
+
                     onTriggered: {
                         if (root.canAutoMove) timeline.contentX = root.timeToX(root.currentDate) - timeline.width/2 + timeline.originX
                         else timeline.contentX = root.timeToX(refreshTimer.today) - refreshTimer.mousePos + timeline.originX
@@ -481,15 +502,18 @@ Item {
                 Rectangle {
                     anchors.top: parent.top
                     anchors.left: parent.left
+                    visible: !isCommonPanel
                     width: childrenRect.width
                     height: childrenRect.height
                     color: IVColors.get("Colors/Background new/BgFormOverVideo")
 
                     Text {
                         id: dateTxt
+
                         color: IVColors.get("Colors/Text new/TxContrast")
                         font: IVColors.getFont("Button middle")
                         text: getLowDateText(root.timeline_model)
+
                         function getLowDateText(view)
                         {
                             var indAtCX = timeline.indexAt(timeline.contentX,0)
@@ -527,17 +551,18 @@ Item {
                 }
             }
 
-            Rectangle {
+            Item {
                 id: container
+
+                z: 50
                 anchors.top: parent.top
                 height: 2*parent.height/5
                 width: parent.width
-                color: "transparent"
-                visible: !archiveStreamer.exporting
-                z: 50
+                visible: !isCommonPanel && !archiveStreamer.exporting
 
                 Rectangle {
                     id: futureRect
+
                     color: "white"
                     opacity: 0.2
                     anchors.top: parent.top
@@ -549,6 +574,7 @@ Item {
 
                 Rectangle {
                     id: translucentSliderRect
+
                     color: IVColors.get("Colors/Background new/BgModalInverse")
                     visible: previewDate.visible && !root.setInterval
                     height: marea.height
@@ -561,16 +587,20 @@ Item {
                     id: sliderRect
 
                     anchors.top: parent.top
-                    anchors.topMargin: 5*parent.height/2 - height
+                    anchors.bottom: root.sliderFullHeight ? parent.bottom : undefined
+                    anchors.topMargin: root.sliderFullHeight ? 0 : 5*parent.height/2 - height
 
                     implicitWidth: 16 + 4
                     implicitHeight: 28 + 4
+                    height: root.sliderFullHeight ? parent.height : implicitHeight
 
                     Rectangle {
                         id: sliderTracer
+
                         anchors.top: parent.top
                         anchors.topMargin: 4
                         anchors.horizontalCenter: parent.horizontalCenter
+
                         implicitWidth: 16
                         implicitHeight: 16
                         radius: width/2
@@ -597,8 +627,9 @@ Item {
                         id: sliderHandleArea
 
                         anchors.fill: parent
-                        hoverEnabled: true
-                        acceptedButtons: Qt.LeftButton
+                        enabled: !isCommonPanel
+                        hoverEnabled: !isCommonPanel
+                        acceptedButtons: isCommonPanel ? Qt.NoButton : Qt.LeftButton
 
                         drag.target: parent
                         drag.axis: Drag.XAxis
@@ -617,7 +648,6 @@ Item {
                             }
                             root.canAutoMove = false
                         }
-
 
                         onReleased: {
                             root.currentDate = root.xToTime(sliderRect.getX())
@@ -649,7 +679,7 @@ Item {
                     color: IVColors.get("Colors/Background new/BgEvent")
                     opacity: 0.4
 
-                    Rectangle{
+                    Rectangle {
                         x: parent.width/2-1
                         y: parent.height
                         color: IVColors.get("Colors/Background new/BgEvent")
@@ -681,17 +711,19 @@ Item {
 
                 Rectangle {
                     id: firstSeparator
+
                     width: 1
+                    z: sliderRect.z + 1
                     height: parent.height*4 - firstBound.height
                     anchors.horizontalCenter: firstBound.horizontalCenter
                     anchors.top: firstBound.bottom
                     visible: containerArea.firstSet
                     color: IVColors.get("Colors/Background new/BgEvent")
-                    z: sliderRect.z + 1
                 }
 
                 Rectangle {
                     id: betweenBounds
+
                     visible: containerArea.secondVisible
                     x: Math.min(firstBound.x+firstBound.width/2, secondBound.x+secondBound.width/2)
                     width: Math.max(
@@ -704,6 +736,7 @@ Item {
 
                 Rectangle {
                     id: belowBounds
+
                     visible: containerArea.secondVisible
                     width: betweenBounds.width
                     height: parent.height*4 - betweenBounds.height
@@ -716,15 +749,18 @@ Item {
 
                 Rectangle {
                     id: secondBound
+
                     visible: containerArea.secondVisible
                     width: 7
                     height: 16
                     radius: 4
                     color: IVColors.get("Colors/Background new/BgEvent")
+
                     function setX(xPos){
                         var correction = root.viewportOffset()
                         x = xPos - width/2 - correction
                     }
+
                     function getX(){
                         var correction = root.viewportOffset()
                         return x + width/2 + correction
@@ -744,9 +780,12 @@ Item {
 
                 MouseArea {
                     id: containerArea
+
                     anchors.fill: parent
-                    hoverEnabled: true
-                    acceptedButtons: Qt.LeftButton
+                    enabled: !isCommonPanel
+                    hoverEnabled: !isCommonPanel
+                    acceptedButtons: isCommonPanel ? Qt.NoButton : Qt.LeftButton
+
                     property bool firstSet: false
                     property bool secondSet: false
                     property bool secondVisible: false
@@ -950,7 +989,7 @@ Item {
                     onReleased: {
                         var correction = root.viewportOffset()
                         var mappedX = mouseX + correction
-                        if (setInterval && firstSet && !secondSet){//EG
+                        if (setInterval && firstSet && !secondSet){
                             secondSet=true
                             secondVisible=true
 
@@ -1174,7 +1213,10 @@ Item {
 
                 MouseArea {
                     anchors.fill: parent
-                    hoverEnabled: true
+
+                    enabled: !isCommonPanel
+                    acceptedButtons: isCommonPanel ? Qt.NoButton : Qt.LeftButton
+                    hoverEnabled: !isCommonPanel
                     cursorShape: timeline.dragging ? Qt.ClosedHandCursor :
                                  containsMouse ? Qt.OpenHandCursor :
                                                  Qt.ArrowCursor
@@ -1220,6 +1262,7 @@ Item {
                         property string eventColor: "rgba(53, 165, 92, 0.6)"
                         property real radius: 4
 
+                        visible: !isCommonPanel
                         height: 16
                         width: parent.width
                         anchors.top: parent.bottom
@@ -1264,10 +1307,10 @@ Item {
                         id: eventsLayer
 
                         anchors.fill: parent
-                        visible: root.showEvents
+                        visible: !isCommonPanel && root.showEvents
 
                         function updateEventsModel() {
-                            eventsListView.model = root.showEvents ? content.evModel : null
+                            eventsListView.model = !isCommonPanel && root.showEvents ? content.evModel : null
                         }
 
                         Component.onCompleted: updateEventsModel()
@@ -1302,6 +1345,8 @@ Item {
 
                                 MouseArea {
                                     id: eventArea
+
+                                    enabled: !isCommonPanel
                                     parent: eventsLayer
                                     hoverEnabled: true
                                     opacity: 0
@@ -1368,7 +1413,7 @@ Item {
 
                         ListView {
                             id: eventsListView
-
+                            visible: !isCommonPanel
                             anchors.fill: parent
                             interactive: false
                             orientation: ListView.Horizontal
@@ -1394,7 +1439,7 @@ Item {
                             property int hideElems: -1
                             Rectangle {
                                 id: valueTP
-                                width: valueBar.width/valueBar.count_
+                                 width: valueBar.count_ > 0 ? valueBar.width/valueBar.count_ : 0
                                 height: valueBar.height
                                 color: "transparent"
                                 property real textWidth: tpText.contentWidth
@@ -1440,7 +1485,11 @@ Item {
                                     tpRepeater.elementsCount = parent.children.length-1
                                 }
                             }
-                            function getHideElems(){
+                            function getHideElems() {
+                                if (valueBar.count_ === 0) {
+                                    tpRepeater.hideElems = -1
+                                    return
+                                }
                                 var currWidth = width / valueBar.count_
                                 var minTextWidth = currWidth
                                 for (var i = 0; i < valueBar.count_; i++){
@@ -1700,10 +1749,9 @@ Item {
     }
 
     function getEvents(start, end, skipTime) {
-        root.archivePlayer.getEvents(start,end,
-                                     skipTime,
-                                     root.key2,
-                                     root.timeline_model);
+        if (root.archivePlayer) {
+            root.archivePlayer.getEvents(start, end, skipTime, root.key2, root.timeline_model);
+        }
     }
     function requestEvents(){
         var a = !root.isCommonPanel
@@ -1728,7 +1776,7 @@ Item {
         }
         refreshTimer.today = today
 
-        if  (root.timeline_model == 2) {// масштаб неделя
+        if  (root.timeline_model == 2) {
             today = new Date(new Date(today).setDate(today.getDate()-today.getDay()+1))
         }
         timelineModel.clear()
@@ -1757,6 +1805,12 @@ Item {
         var first = containerArea.bounds.first
         var second = containerArea.bounds.second
         return {"left":Math.min(first, second), "right": Math.max(first, second)}
+    }
+    function getViewBounds(){
+        var offset = viewportOffset()
+        var width = timeline.width
+
+        return {"left": xToTime(offset), "right": xToTime(offset + width)}
     }
     function setBounds(first, second){
         var now = root.nowDateTime || new Date()
@@ -1911,6 +1965,7 @@ Item {
             return new_date;
         }
     }
+
     function xToTime(posX){
         var indexAtPos = Math.floor(posX / root.delegWidth)
 
@@ -1936,6 +1991,7 @@ Item {
         res = Math.floor(start + (allTime * posAtDeleg))
         return new Date(res)
     }
+
     function timeToX(date){
         if (timelineModel.count < 1) return -1
         var start = timelineModel.get(0)["start"].getTime()

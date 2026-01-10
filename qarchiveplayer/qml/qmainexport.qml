@@ -161,12 +161,8 @@ ApplicationWindow {
                     export_mediaLoader.componentExportMedia = export_mediaLoader.item;
                     mainRect.comp = export_mediaLoader.componentExportMedia;
 
-                    console.info("................. wnd.key2 = ", wnd.key2);
-
                     mainRect.safeSetProperty(export_mediaLoader.componentExportMedia, 'key2',
                                              Qt.binding(function(){return wnd.key2;}));
-
-                    console.info("................. wnd.from = ", wnd.from);
 
                     mainRect.safeSetProperty(export_mediaLoader.componentExportMedia, 'from',
                                              Qt.binding(function(){return wnd.from;}));
@@ -213,7 +209,6 @@ ApplicationWindow {
                 }
                 if(export_mediaLoader.status === Loader.Error)
                 {
-                    console.error("primitivesLoader error");
                 }
                 if(export_mediaLoader.status === Loader.Null)
                 {

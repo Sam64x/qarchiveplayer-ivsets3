@@ -129,7 +129,7 @@ WorkerScript.onMessage = function(msg) {
     if (msg.type === "loadFullness" || msg.type === "loadEvents"){
         if (msg.model.count !== prevCount && dateCheckSum !== prevCheckSum)
         {
-            console.log(msg.type, "UPDATE MODEL !!!")
+            // console.log(msg.type, "UPDATE MODEL !!!")
             WorkerScript.sendMessage({'dateCheckSum': dateCheckSum, "type":msg.type})
             WorkerScript.sendMessage({'ready': true, "type":msg.type})
             msg.model.sync()

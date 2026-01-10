@@ -23,18 +23,16 @@ Rectangle
 
             var zoneTypes = JSON.parse(_zTypes);
             for(var paramName in zoneTypes)
-            { console.error("Right panelBlock parse zones error =",zoneTypes[paramName].qml_path);
+            {
                 comboModel.append({type:zoneTypes[paramName].type,params:JSON.stringify(zoneTypes[paramName].params),qml_path:zoneTypes[paramName].qml_path});
             }
         }
         catch(exception)
         {
-            console.error("Right panelBlock parse zones error =",exception);
         }
     }
     onGlobalSignalsObjectChanged:
     {
-        console.error("Z============================",root.globalSignalsObject)
         globSigConnection.target = root.globalSignalsObject;
     }
 
@@ -45,8 +43,6 @@ Rectangle
         onZoneSelected:
         {
             //zoneparams
-            console.error("zoneparams = 1")
-            console.error("zoneparams = ",zoneparams)
             root.zoneIndex = index;
             //availZonesModel.clear();
             var zoneParams = JSON.parse(zoneparams);
@@ -58,7 +54,6 @@ Rectangle
                     if(zoneParams.type === comboModel.get(i).type )
                     {
                         comboModel.set(i,{type:zoneParams.type,params:JSON.stringify(zoneParams.params),qml_path:zoneParams.qml_path});
-                        console.error("vv+++++++++++++ = ",comboModel.get(i).params)
                         typeCombo.currentIndex = -1;
                         typeCombo.currentIndex = i;
                         break;
@@ -67,7 +62,6 @@ Rectangle
             }
             else
             {
-                console.error("zone params not found");
             }
         }
     }
@@ -143,14 +137,12 @@ Rectangle
                 {
                     //console.error(typesCombo.currentIndex)
                     paramsModel.clear();
-                    console.error("23232323qqqqqqqqqqqq",currentIndex ,comboModel.count);
                     var item2 = comboModel.get(currentIndex);
                     //
                     if(comboModel.get(currentIndex).params === undefined)
                     {
                         return;
                     }
-                    console.error("23232323",comboModel.get(currentIndex).params);
                     try
                     {
                         if(comboModel.get(currentIndex).params)
@@ -160,7 +152,6 @@ Rectangle
                             {
                                 for(var propName in prms)
                                 {
-                                   // console.error("zzzz = ",propName,prms[propName]);
                                     paramsModel.append({key:propName,value:prms[propName].toString()});
                                 }
                             }
@@ -169,7 +160,6 @@ Rectangle
                     }
                     catch(excp)
                     {
-                        console.error("excp = ",excp);
                     }
                 }
             }
@@ -283,9 +273,7 @@ Rectangle
                 }
                 props["params"] = nParams;
                 props["qml_path"] = comboModel.get(typeCombo.currentIndex).qml_path;
-                console.error("AAAAATTTTTTTTTTTTTTTT",props["params"],props["qml_path"],props["type"])
                 //props["params"] = comboModel.get(typeCombo.currentIndex).params;
-                console.error(JSON.stringify(props.params));
                 root.globalSignalsObject.zoneChanged(root.zoneIndex,props);
             }
         }

@@ -106,7 +106,6 @@ Rectangle
             id: idarchive_player
 
             onDrawPreviewQML: {
-                console.info("onDrawPreviewQML {");
                 var pt_mapped_pos_lv = null;
 
                 if (rootRect_ArcSliderControl.isInSliderZone()) {
@@ -118,10 +117,6 @@ Rectangle
                         m_imageSlider_asc.x = m_root_asc.width / 2 - m_imageSlider_asc.width / 2;
                         m_imageSlider_asc.y = qr_mouse_y_av - ((m_imageSlider_asc.height - 4) * 1.75);
 
-                        console.info("onDrawPreviewQML qs_provider_param_lv=",qs_provider_param_lv);
-                        console.info("onDrawPreviewQML m_imageSlider_asc.x=",m_imageSlider_asc.x);
-                        console.info("onDrawPreviewQML m_imageSlider_asc.y=",m_imageSlider_asc.y);
-
                         image.source=qs_provider_param_lv;
                         image.visible=true;
                         m_imageSlider_asc.visible = true;
@@ -132,7 +127,6 @@ Rectangle
                     }
                     m_timer_finish_preview.start()
                 }
-                console.info("onDrawPreviewQML }")
             }
 
             Component.onCompleted: {
@@ -1805,10 +1799,6 @@ Rectangle
             var seconds_in_pixels = delta_time / sliderBackGroundWidth();
             var time = beg + (mouseX * seconds_in_pixels);
 
-            console.info("showPreview delta_time=",delta_time);
-            console.info("showPreview sliderBackGroundWidth()=",sliderBackGroundWidth());
-            console.info("showPreview time=",time);
-            console.info("showPreview qr_slider_coord_lv=",qr_slider_coord_lv);
             if (!m_root_asc.is_multiscreen && m_root_asc.key2 != "common_panel") {
                 if (m_root_asc.display_camera_previews === true)
                 {

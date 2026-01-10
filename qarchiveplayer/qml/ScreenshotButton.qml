@@ -18,7 +18,7 @@ C.IVButtonControl {
         return path
     }
 
-    property string screenshotPath: Language.getTranslate("The picture is saved in", "Снимок сохранён в:") + appInfo.snapshotSaveDirectory
+    property string screenshotToolTip: Language.getTranslate("The picture is saved in", "Снимок сохранён в:") + normalizePath(appInfo.snapshotSaveDirectory)
     property bool screenshotDone: false
 
     implicitHeight: 24
@@ -26,7 +26,7 @@ C.IVButtonControl {
     size: C.IVButtonControl.Size.Small
     type: C.IVButtonControl.Type.Secondary
     source: "new_images/screenshot"
-    toolTipText: screenshotDone ? normalizePath(screenshotPath) : Language.getTranslate("Photo Camera", "Фотокамера")
+    toolTipText: screenshotDone ? screenshotToolTip : Language.getTranslate("Photo Camera", "Фотокамера")
     onClicked: {
         archiveStreamer.screenshot(appInfo.snapshotSaveDirectory)
         screenshotDone = true

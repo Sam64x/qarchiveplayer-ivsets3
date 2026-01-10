@@ -501,7 +501,6 @@ Rectangle
                                 hoverEnabled: true
                                 onClicked:
                                 {
-                                    //console.error("PRESSET CLICKED = ",name)
                                     //if(name === "presset1")
                                    // {
                                         root.globSignalsObject.setPressetIndex(index);

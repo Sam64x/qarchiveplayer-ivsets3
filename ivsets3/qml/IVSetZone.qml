@@ -48,7 +48,6 @@ Connections
    // target:root.globSignalsObject
     onSetAdded:
     {
-        //console.error("ivsezone onSetAdded setname = ",setname);
         root.setName = setname;
     }
     onSetSelected:
@@ -57,7 +56,6 @@ Connections
     }
     onSetSaved:
     {
-        //console.error("ivsezone onSetSaved setname = ",setname , "old set name = ",root.setName);
         if(setname === "")
         {
             root.saveSet(root.setName)
@@ -88,7 +86,6 @@ Connections
 //        var _index = index;
 //        if(pars)
 //        {
-//            console.error("onZoneChanged = ", JSON.stringify(pars));
 //            root.zoneChanged2(_index,pars);
 
 //        }
@@ -359,14 +356,12 @@ onRowsChanged:
  function saveSet(newSetName)
  {
      var setStr = JSON.stringify(root.myZones);
-     //console.error("1111111111 = ",root.setName,newSetName,setStr);
 
      customSets.saveSet(root.setName,newSetName,setStr);
  }
  function deleteSet(setName)
  {
      var setStr = JSON.stringify(root.myZones);
-     //console.error(root.setName);
      if(root.setName !=="")
         customSets.deleteSet(root.setName);
      if(setName)
@@ -415,16 +410,12 @@ onRowsChanged:
 function deleteZone(index)
 {
     root.isSetChanged = true;
-    //console.error("delete index = ",index);
-    //console.error("root.myZones.length = ",root.myZones["zones"].length);
-    //console.error("root.zones.length = ", root.zones.length);
     if(index>=0 && index <root.myZones["zones"].length)
     {
         for( var i = 0; i < root.myZones["zones"].length; i++)
         {
             if ( i === index)
             {
-                //console.error("index found",index);
                 root.zones[i].destroy();
                 root.zones.splice(i, 1);
                 root.myZones["zones"].splice(i, 1);
@@ -435,15 +426,11 @@ function deleteZone(index)
   function deleteZone2(comp)
   {
     root.isSetChanged = true;
-    //console.error("delete comp = ",comp);
-    //console.error("root.myZones.length = ",root.myZones["zones"].length);
-    //console.error("root.zones.length = ", root.zones.length);
 
     for( var i = 0; i < root.myZones["zones"].length; i++)
     {
         if ( comp === root.zones[i])
         {
-            //console.error("comp found",i);
             root.zones[i].destroy();
             root.zones.splice(i, 1);
             root.myZones["zones"].splice(i, 1);
@@ -457,7 +444,6 @@ function getCurrIndex(comp)
     {
         if ( comp === root.zones[i])
         {
-            //console.error("comp found",i);
             index = i;
         }
     }
@@ -466,16 +452,12 @@ function getCurrIndex(comp)
   function zoneChanged2(index,params)
   {
       root.isSetChanged = true;
-      //console.error("delete comp = ",comp);
-      //console.error("root.myZones.length = ",root.myZones["zones"].length);
-      //console.error("root.zones.length = ", root.zones.length);
 
         for( var i = 0; i < root.myZones["zones"].length; i++)
         {
             if ( index === i)
             {
 
-                  //console.error("comp found",i);
                   root.zones[i].params = params;
                   root.myZones["zones"][i].params = params;
                   root.zones[i].refresh2(params);
@@ -575,7 +557,6 @@ function getCurrIndex(comp)
       {
           if(comp === root.zones[i1])
           {
-              //console.error("comp FOUND")
               break;
           }
       }
@@ -589,10 +570,6 @@ function getCurrIndex(comp)
           root.myZones["zones"][i1].y = _newY+1;
           root.myZones["zones"][i1].dx = _newDx;
           root.myZones["zones"][i1].dy = _newDy;
-          //console.error("comp new x",_newX);
-          //console.error("comp new y",_newY);
-          //console.error("comp new dx",_newDx ,comp.width,_width);
-          //console.error("comp new dy",_newDy);
           comp.x = _newX*_width;
           comp.y = _newY*_height;
           comp.width = _newDx*_width;
@@ -607,7 +584,6 @@ function m_resize()
     var _zzones2 = root.myZones["zones"];
     var _width =((pluginsGrid.width / (pluginsGrid.columns?pluginsGrid.columns:1)) ) ;//- pluginsGrid.columnSpacing;
     var _height = ((pluginsGrid.height / (pluginsGrid.rows?pluginsGrid.rows:1)) ) ;//- pluginsGrid.rowSpacing;
-    //console.error("_width = ",_width)
     for(var i = 0;i<_zzones.length;i++)
     {
         _zzones[i].y = (_zzones2[i].y-1)*_height;
@@ -648,7 +624,6 @@ Timer
             root.myZones["cols"] = root.cols;
             root.myZones["rows"] = root.rows;
             root.myZones["zones"] = [];
-            console.error("parse zones error ",exception);
         }
         root.cols = root.myZones["cols"];
         root.rows = root.myZones["rows"];
@@ -660,7 +635,6 @@ Timer
             var _zone  = selectionComponent.createObject(pluginsGrid, {});
             _zone.params=_zzones[i].params;
             _zone.z = 10;
-            //console.error("create zone ",JSON.stringify(_zzones[i].params));
             //_zone.innerIndex = i;
             _zone.y = (_zzones[i].y-1)*_height;
             _zone.x = (_zzones[i].x-1)*_width;
@@ -676,7 +650,6 @@ Timer
 }
   onSetNameChanged:
   {
-    console.error("onSetNameChanged = ",root.setName);
     isNotEditorTime.start();
   }
   onCamNameChanged:
@@ -687,7 +660,6 @@ Timer
       var _zone  = selectionComponent.createObject(pluginsGrid, {});
       _zone.params={"key2":root.camName,"quality":"#000_FULLSCREEN"};
       _zone.z = 10;
-     // console.error("create zone ",JSON.stringify(_zzones[i].params));
       //_zone.innerIndex = i;
       _zone.y = 0;
       _zone.x = 0;
@@ -743,7 +715,6 @@ Timer
                   var _height = (pluginsGrid.height / (pluginsGrid.rows?pluginsGrid.rows:1))  ;//- pluginsGrid.rowSpacing;
                   ctx.lineWidth = 1;
                   ctx.fillStyle = "white";
-                  console.error("_height = ",_height);
                   for(var x = 0;x<cols;x++)
                   {
                       for(var y =0;y<rows;y++)
@@ -776,11 +747,9 @@ Timer
                  {
                      for (var propertyName in params)
                      {
-                         console.error("ttt ",propertyName ,selComp.params[propertyName] );
                         innerComponentLoader.item[propertyName] = Qt.binding(function(){ return selComp.params[propertyName]});
                      }
                  }
-                console.error("refresh2 qmlpath= ",innerComponentLoader.source);
              }
 
 
@@ -816,7 +785,6 @@ Timer
                  if(qml_path !=="")
                  {
                      innerComponentLoader.source ="";
-                      console.error("AAAAAAAAAAAAAAAAAA ", 'file:///' +applicationDirPath+"/"+qml_path);
                      innerComponentLoader.source =  'file:///' +applicationDirPath+"/"+qml_path;
                  }
                  else
@@ -834,7 +802,6 @@ Timer
                      {
                          if(root.zones[i] === selComp)
                          {
-                             console.error("focused comp found");
                             // root.myZones["zones"][i]["focused"] = true;
                          }
                          else
@@ -914,7 +881,6 @@ Timer
                              {
                                  for (var propertyName in selComp.params)
                                  {
-                                     console.error("ttt ",propertyName ,selComp.params[propertyName] );
                                     innerComponentLoader.item[propertyName] = Qt.binding(function(){ return selComp.params[propertyName]});
                                  }
                              }
@@ -974,7 +940,6 @@ Timer
                              if(selComp.x>0)
                              {
                                  selComp.width = selComp.width - mouseX
-                                 console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                                  if(selComp.width < 50)
                                  {
                                      selComp.width = 50
@@ -989,7 +954,6 @@ Timer
                                 if(mouseX>0)
                                 {
                                     selComp.width = selComp.width - mouseX
-                                    //console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                                     selComp.x = selComp.x + mouseX;
                                     if(selComp.width < 50)
                                         selComp.width = 50;
@@ -1000,7 +964,6 @@ Timer
                      }
                      onReleased:
                      {
-                         console.error("onReleased left")
                          root.newPosotions(selComp);
                          selComp.forceActiveFocus();
                      }
@@ -1026,7 +989,6 @@ Timer
                              if(pluginsGrid.width>selComp.x+selComp.width)
                              {
                                  selComp.width = selComp.width + mouseX
-                                 console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                                  if(selComp.width < 50)
                                      selComp.width = 50
                                  selComp.forceActiveFocus();
@@ -1036,7 +998,6 @@ Timer
                                  if(mouseX < selComp.x+selComp.width)
                                  {
                                      selComp.width = selComp.width + mouseX
-                                     console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                                      if(selComp.width < 50)
                                          selComp.width = 50
                                      selComp.forceActiveFocus();
@@ -1046,7 +1007,6 @@ Timer
                      }
                      onReleased:
                      {
-                         console.error("onReleased right")
                          root.newPosotions(selComp);
                          selComp.forceActiveFocus();
                      }
@@ -1086,7 +1046,6 @@ Timer
                      }
                      onReleased:
                      {
-                         console.error("onReleased top")
                          root.newPosotions(selComp);
                          selComp.forceActiveFocus();
                      }
@@ -1125,7 +1084,6 @@ Timer
                      }
                      onReleased:
                      {
-                         console.error("onReleased bottom")
                          root.newPosotions(selComp);
                          selComp.forceActiveFocus();
                      }

@@ -17,7 +17,6 @@ Rectangle
     property string qmlfile: "/qtplugins/iv/sets/sets3/IVClientSetsZone.qml"
     onQmlfileChanged:
     {
-        console.log("qrqwrwqrqwr qmlfile", qmlfile)
         mainLoader.create1();
     }
 

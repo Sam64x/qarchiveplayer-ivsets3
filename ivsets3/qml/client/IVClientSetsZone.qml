@@ -9,6 +9,7 @@ import iv.sets.sets3 1.0
 import iv.colors 1.0
 import iv.controls 1.0
 import iv.mapviewer 1.0
+import iv.viewers.archiveplayer 1.0 as ArchivePlayer
 Rectangle
 {
   id: root
@@ -45,6 +46,16 @@ Rectangle
   property bool isFullscreen: false
   property bool running: true
   property bool isSets: true
+  IvVcliSetting
+  {
+      id: interfaceSize
+      name: 'interface.size'
+  }
+
+  property real isize: interfaceSize.value !== "" ? parseFloat(interfaceSize.value) : 1
+  property int commonArchiveHeight: commonArchiveStrip.visible ? (!root.isRealtime && mainLoader.componentMain && mainLoader.componentMain.height > 0)
+                                    ? mainLoader.componentMain.height
+                                    : (!root.isRealtime ? commonArchiveStrip.height : 0) : 40
   property string tvIrMode: "tvDay"
   property var mainColor: IVColors.get("Colors/Background new/BgFormPrimaryThemed")
   property var separatorColor: IVColors.get("Colors/Stroke new/StSeparatorThemed")
@@ -61,6 +72,44 @@ Rectangle
   IvVcliSetting {
       id: eventsMaps
       name: 'settings.openMapFromEvents'
+  }
+  QtObject {
+      id: commonArchiveManager
+
+      property var commonArchivePlayers: []
+      property var commonArchiveStrip: null
+
+      function notifyCommonArchiveStrip() {
+          if (commonArchiveManager.commonArchiveStrip) {
+              commonArchiveManager.commonArchiveStrip.players = commonArchiveManager.commonArchivePlayers;
+          }
+      }
+
+      function registerArchivePlayerMin(player) {
+          if (player === null || player === undefined)
+              return;
+
+          if (commonArchiveManager.commonArchivePlayers.indexOf(player) !== -1)
+              return;
+
+          var updated = commonArchiveManager.commonArchivePlayers.concat([player]);
+          commonArchiveManager.commonArchivePlayers = updated;
+          commonArchiveManager.notifyCommonArchiveStrip();
+      }
+
+      function unregisterArchivePlayerMin(player) {
+          if (player === null || player === undefined)
+              return;
+
+          var index = commonArchiveManager.commonArchivePlayers.indexOf(player);
+          if (index === -1)
+              return;
+
+          var updated = commonArchiveManager.commonArchivePlayers.slice();
+          updated.splice(index, 1);
+          commonArchiveManager.commonArchivePlayers = updated;
+          commonArchiveManager.notifyCommonArchiveStrip();
+      }
   }
   function qmltypeof(obj, className) {
     var str = obj.objectName;
@@ -146,7 +195,6 @@ Timer
   }
   onIsEditorChanged:
   {
-      console.log("onIsEditorChanged", isEditor)
       cellCanvas.requestPaint();
       root.forceActiveFocus();
   }
@@ -156,7 +204,6 @@ Timer
       //if(root.isPrintDebugLogs)
       {
           //console.error("onAsNewSetChanged 555 = ",root.myZones)
-          console.error("onAsNewSetChanged 555222 = ",root.asNewSet)
       }
       root.cols = root.myZones["cols"];
       root.rows = root.myZones["rows"];
@@ -186,7 +233,6 @@ Timer
           _zone.z = 10;
           _zone.params=_zzones[i].params;
           //if(root.isPrintDebugLogs)
-          console.error("create zone 3",JSON.stringify(_zzones[i].params));
           //_zone.innerIndex = i;
           _zone.y = (_zzones[i].y-1)*_height;
           _zone.x = (_zzones[i].x-1)*_width;
@@ -262,15 +308,12 @@ Timer
 
       onTabUniqIdChanged:
       {
-          console.error(" 250602 009 tabUniqId ", root.globSignalsObject.tabUniqId );
           if( root.globSignalsObject.tabUniqId !== "" )
           {
-              console.error(" 250602 010 tabUniqId ", root.globSignalsObject.tabUniqId );
               mainLoader.refresh();
           }
           else
           {
-              console.error(" 250602 011 ");
               mainLoader.destroy1();
           }
       }
@@ -406,10 +449,8 @@ Timer
     {
         //if(root.isPrintDebugLogs)
         var _isRealtime = (viewType==="realtime")
-        console.error("FFFFFFFFFFFFFFF onTabSelected3 = ",tabname,type,id,viewType,_isRealtime);
 //        if(tabname===root.setName && id=== root.setId && root.isRealtime == _isRealtime )
 //        {
-//            console.error("FFFFFFFFFFFFFFF onTabSelected5 return ");
 //            return;
 //        }
         root.setName = "";
@@ -439,7 +480,6 @@ Timer
             root.innerType = type;
             //root.startCreateObj(root.setName,root.setId)
             //if(root.isPrintDebugLogs)
-            console.error("FFFFFFFFFFFFFFF onTabSelected5 = ",tabname,root.setId,viewType);
             root.setName = tabname;
 
         }
@@ -551,7 +591,6 @@ Timer
             root.ratioX = 16;
             root.ratioY = 9;
             root.innerType = type
-            console.error("OPEN CAMERA type = ",type , root.innerType)
             var zoneObj = {};
             zoneObj["x"] = 1;
             zoneObj["y"] = 1;
@@ -1472,7 +1511,6 @@ Timer
           root.myZones["setName"] = root.setName;
           //root.myZones["setId"] = root.setId;
           root.myZones["zones"] = [];
-          console.error("addZone2 " , JSON.stringify(root.myZones));
       }
 
       //console.error("addZone root.isSetChanged = ", root.isSetChanged);
@@ -1587,7 +1625,6 @@ Timer
           {
               if ( i === index)
               {
-                  console.error("index found",index);
                   if(root.zones.length >0)
                   {
                       root.zones[i].destroy();
@@ -1601,15 +1638,11 @@ Timer
   function deleteZone2(comp)
   {
       root.isSetChanged = true;
-      console.error("delete comp = ",comp);
-      console.error("root.myZones.length = ",root.myZones["zones"].length);
-      console.error("root.zones.length = ", root.zones.length);
 
       for( var i = 0; i < root.myZones["zones"].length; i++)
       {
           if ( comp === root.zones[i])
           {
-              console.error("comp found",i);
               root.zones[i].destroy();
               root.zones.splice(i, 1);
               root.myZones["zones"].splice(i, 1);
@@ -1623,7 +1656,6 @@ Timer
       {
           if ( comp === root.zones[i])
           {
-              console.error("comp found",i);
               index = i;
           }
       }
@@ -1636,7 +1668,6 @@ Timer
       {
           if ( comp === root.zones[i].zoneObject)
           {
-              console.error("comp found",i);
               index = i;
           }
       }
@@ -1646,8 +1677,6 @@ Timer
   {
       //root.isSetChanged = true;
       //console.error("delete comp = ",comp);
-      console.error("root.myZones.length = ",root.myZones["zones"].length);
-      console.error("root.zones.length = ", root.zones.length);
       for( var i = 0; i < root.zones.length; i++)
       {
           if ( index === i)
@@ -1660,15 +1689,12 @@ Timer
   {
       //root.isSetChanged = true;
       //console.error("delete comp = ",comp);
-      console.error("root.myZones.length = ",root.myZones["zones"].length);
-      console.error("root.zones.length = ", root.zones.length);
       for( var i = 0; i < root.myZones["zones"].length; i++)
       {
           if ( index === i)
           {
               var _width =((pluginsGrid.width / (pluginsGrid.columns?pluginsGrid.columns:1)) ) ;//- pluginsGrid.columnSpacing;
               var _height = ((pluginsGrid.height / (pluginsGrid.rows?pluginsGrid.rows:1)) ) ;//- pluginsGrid.rowSpacing;
-              console.error("compAAAAAAAAAAAAAAAAAAAA found zoneChanged2",JSON.stringify(params));
               if(params !== null)
               {
                   root.zones[i].type = params.type;
@@ -1812,7 +1838,6 @@ Timer
       {
           if(comp === root.zones[i1])
           {
-              console.error("comp FOUND")
               break;
           }
       }
@@ -1845,7 +1870,6 @@ Timer
       {
           if(comp === root.zones[i1])
           {
-              console.error("comp FOUND")
               break;
           }
       }
@@ -1891,12 +1915,10 @@ Timer
 
   onSetNameChanged:
   {
-      console.error("onSetNameChanged = ",root.setName,root.setId);
 
           root.clearZones();
           var _zones = customSets.getZone2(root.setName,root.setId);
           var zonesObject = [];
-          console.error("123123123 _zones ", _zones, setName);
           try
           {
               zonesObject = JSON.parse(_zones);
@@ -1915,56 +1937,41 @@ Timer
               root.myZones["setName"] = root.setName;
               root.myZones["setId"] = root.setId;
               root.myZones["zones"] = [];
-              console.error("parse zones error ",exception,root.setName, _zones);
           }
           root.myZones["setName"] = root.setName;
           root.myZones["setId"] = root.setId;
           root.cols = root.myZones["cols"];
           root.rows = root.myZones["rows"];
-          console.error("onSetNameChanged root.myZones[cols] = ", root.myZones["cols"]);
-          console.error("onSetNameChanged root.myZones[rows] = ", root.myZones["rows"]);
           if(root.myZones["ratioX"] === null || root.myZones["ratioX"] === undefined)
           {
               root.ratioX = 16;
-              console.error("onSetNameChanged root.myZones[rows] root.ratioX = 16")
           }
           else
           {
               root.ratioX = root.myZones["ratioX"];
-              console.error("onSetNameChanged else root.myZones[rows] root.ratioX = ",root.ratioX)
           }
           if(root.myZones["ratioY"] === null || root.myZones["ratioY"] === undefined)
           {
               root.ratioY = 9;
-              console.error("onSetNameChanged else root.myZones[rows] root.ratioY = 9")
           }
           else
           {
               root.ratioY = root.myZones["ratioY"];
-              console.error("onSetNameChanged else root.myZones[rows] root.ratioY = ", root.ratioY)
           }
-          console.error("var _zzones = root.myZones 1")
           var _zzones = root.myZones["zones"];
-          console.error("var _zzones = root.myZones 2")
           var _width =((pluginsGrid.width / (pluginsGrid.columns?pluginsGrid.columns:1)) ) ;//- pluginsGrid.columnSpacing;
           var _height = ((pluginsGrid.height / (pluginsGrid.rows?pluginsGrid.rows:1)) ) ;//- pluginsGrid.rowSpacing;
-          console.error("var _zzones = root.myZones 3")
           for(var i = 0;i<_zzones.length;i++)
           {
-              console.error("var _zzones = root.myZones 4")
               var _zone  = selectionComponent.createObject(pluginsGrid, {compIndex:i+1});
               if( _zone.status !== Component.Ready )
               {
                   if( _zone.status === Component.Error )
                   {
-                      console.error("Error ddddddddddd:"+ _zone.errorString() );
                         return; // or maybe throw
                   }
               }
-              console.error("var _zzones = root.myZones 5")
               _zzones[i].isEmpty = _zzones[i].qml_path === "" ?true:false;
-              console.error("var _zzones = root.myZones 6")
-               console.error("_zzones[i].isEmpty = "+ _zzones[i].isEmpty );
               _zzones[i].innerIndex = root.zones.length+1;
               _zone.innerIndex = _zzones[i].innerIndex;
               if(!_zzones[i].isEmpty)
@@ -1985,7 +1992,6 @@ Timer
               _zone.dy = _zzones[i].dy;
 
 
-              console.error("create zone 1 ",JSON.stringify(_zzones[i]),JSON.stringify(_zzones[i].params),_zzones[i].type);
               //_zone.innerIndex = i;
               _zone.y = (_zzones[i].y-1)*_height;
               _zone.x = (_zzones[i].x-1)*_width;
@@ -2013,14 +2019,10 @@ Timer
 
               _zone.qml_path = _zzones[i].qml_path;
               _zone.isEmpty = _zzones[i].isEmpty;
-              console.error("onSetNameChanged create zone 1  = ",_zone.width , _zone.height , _zone.guid , _zone.qml_path , _zone.isEmpty);
 
               if(_zone.type === "detailcamera")
               {
-                  console.error("DETAL W = ",_zone.width)
-                  console.error("DETAL H = ",_zone.height)
               }
-              console.error("create zone 1 push zone to array");
               root.zones.push(_zone);
 
         }
@@ -2146,7 +2148,6 @@ Timer
                  {
                      if(root.zones[i] === selComp)
                      {
-                         console.error("focused comp found");
                          // root.myZones["zones"][i]["focused"] = true;
                      }
                      else
@@ -2275,13 +2276,6 @@ Timer
                  var pString = JSON.stringify(camsParams);
                  var index = root.getCurrIndex(selComp);
                  root.globSignalsObject.zoneSelected(index,pString);
-                 console.error("CLICKED ",index,pString);
-                 console.error("CLICKED ",JSON.stringify(root.myZones));
-
-
-
-
-
 
                 // var setStr =JSON.stringify(root.myZones);
                 //console.error("1111111111 = ",root.setName,setStr);
@@ -2328,17 +2322,14 @@ Timer
                  if(innerComponentLoader.status == Loader.Ready)
                  {
                      selComp.zoneObject = innerComponentLoader.item;
-                     console.error(" 250602 005 ");
                      if(integration_flag.value !== "SDK")
                      {
 
                          if ( selComp.zoneObject.tab_id !== undefined && root.globSignalsObject.tabUniqId !== undefined)
                          {
                            selComp.zoneObject.tab_id = root.globSignalsObject.tabUniqId;
-                           console.error(" 250602 006 tab_id " + selComp.zoneObject.tab_id );
                          }
                      }
-                     console.error(" 250602 007 ");
 
                      selComp.zoneObject.width = selComp.width;
                      selComp.zoneObject.height =selComp.height;
@@ -2346,23 +2337,31 @@ Timer
                      if(selComp.zoneObject.compIndex !== undefined)
                          selComp.zoneObject.compIndex = selComp.compIndex;
 
-                     console.error("SET GLOBAL COMPONENT2222 qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",selComp.type);
                      //selComp.zoneObject.globalComponent = root.globSignalsObject;
-                     if(selComp.zoneObject.globSignalsObject)
-                     {
-                        // console.error("SET GLOBAL COMPONENT2333333333 qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",selComp.zoneObject.globSignalsObject , root.globSignalsObject);
-                        selComp.zoneObject.globSignalsObject = Qt.binding(function(){ return root.globSignalsObject});
-                     }
+                    if(selComp.zoneObject.globSignalsObject)
+                    {
+                       // console.error("SET GLOBAL COMPONENT2333333333 qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",selComp.zoneObject.globSignalsObject , root.globSignalsObject);
+                       selComp.zoneObject.globSignalsObject = Qt.binding(function(){ return root.globSignalsObject});
+                    }
 
-                     if(selComp.zoneObject.hasOwnProperty("globalComponentObject"))
-                     {
-                          selComp.zoneObject.globalComponentObject = Qt.binding(function(){ return root.globSignalsObject});
+                    if(selComp.zoneObject.hasOwnProperty("globalComponent"))
+                    {
+                        selComp.zoneObject.globalComponent = Qt.binding(function(){ return commonArchiveManager});
+                    }
+
+                    if(selComp.zoneObject.hasOwnProperty("globalComponentObject"))
+                    {
+                         selComp.zoneObject.globalComponentObject = Qt.binding(function(){ return root.globSignalsObject});
                          //console.error("MAP FOUND");
                      }
                      if(selComp.zoneObject.hasOwnProperty("isRealtime"))
                      {
                           selComp.zoneObject.isRealtime = Qt.binding(function(){ return root.isRealtime});
-                         //console.error("MAP FOUND");
+                          //console.error("MAP FOUND");
+                     }
+                     if(selComp.zoneObject.hasOwnProperty("isSetsArchive"))
+                     {
+                         selComp.zoneObject.isSetsArchive = Qt.binding(function(){ return !root.isRealtime && root.isSets;});
                      }
 
                      if(selComp.params)
@@ -2378,11 +2377,9 @@ Timer
 
                                     selComp.isKey2Exist = prop1.value[0];
                                         selComp.bindinCameras= customSets.getBindingCameras(prop1.value[0]);
-                                     console.error("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL = ",JSON.stringify(selComp.bindinCameras))
                                          if(selComp.bindinCameras.length >0)
                                          {
                                              selComp.isMultiEnabled = true;
-                                             console.error("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL = " , selComp.bindinCameras.length)
 //                                             for(var i1= 0;i1<selComp.bindinCameras.length;i1++)
 //                                             {
 //                                                 console.error("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL = " , selComp.bindinCameras[i1])
@@ -2394,7 +2391,6 @@ Timer
 //                                             }
                                          }
 
-                                         console.error("params2222 type of = ",typeof selComp.zoneObject.hasOwnProperty(propertyName) , propertyName,prop1.value[0]);
                                          selComp.zoneObject[propertyName] = prop1.value[0];
                                  }
                                  else
@@ -2402,12 +2398,10 @@ Timer
 
                                      if(prop1.value.length >1)
                                      {
-                                         console.error("params1111 type of = ",typeof selComp.zoneObject.hasOwnProperty(propertyName) , propertyName,prop1.value[0]);
                                          selComp.zoneObject[propertyName] = prop1.value;
                                      }
                                      else
                                      {
-                                         console.error("params2222 type of = ",typeof selComp.zoneObject.hasOwnProperty(propertyName) , propertyName,prop1.value[0]);
                                          selComp.zoneObject[propertyName] = prop1.value[0];
                                      }
                                  }
@@ -2422,7 +2416,6 @@ Timer
 
                              if(prop1.type === "function")
                              {
-                                 console.error("params type function  = ",typeof selComp.zoneObject.hasOwnProperty(propertyName) , propertyName,prop1.value.length);
                                  var argsCount = prop1.value.length;
                                  if(argsCount === 0)
                                  {
@@ -2492,10 +2485,8 @@ Timer
          {
              if(params)
              {
-                 console.error("refresh2 1");
                  for (var propertyName in params)
                  {
-                     console.error("refresh2 3");
                      var prop1 = params[propertyName];
                      if(prop1.type === "var")
                      {
@@ -2506,11 +2497,9 @@ Timer
 
                             selComp.isKey2Exist = prop1.value[0];
                                 selComp.bindinCameras= customSets.getBindingCameras(prop1.value[0]);
-                             console.error("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL = ",JSON.stringify(selComp.bindinCameras))
                                  if(selComp.bindinCameras.length >0)
                                  {
                                      selComp.isMultiEnabled = true;
-                                     console.error("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL = " , selComp.bindinCameras.length)
 //                                             for(var i1= 0;i1<selComp.bindinCameras.length;i1++)
 //                                             {
 //                                                 console.error("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL = " , selComp.bindinCameras[i1])
@@ -2522,7 +2511,6 @@ Timer
 //                                             }
                                  }
 
-                                 console.error("params2222 type of = ",typeof selComp.zoneObject.hasOwnProperty(propertyName) , propertyName,prop1.value[0]);
                                  selComp.zoneObject[propertyName] = prop1.value[0];
                          }
                          else
@@ -2530,12 +2518,10 @@ Timer
 
                              if(prop1.value.length >1)
                              {
-                                 console.error("params1111 type of = ",typeof selComp.zoneObject.hasOwnProperty(propertyName) , propertyName,prop1.value[0]);
                                  selComp.zoneObject[propertyName] = prop1.value;
                              }
                              else
                              {
-                                 console.error("params2222 type of = ",typeof selComp.zoneObject.hasOwnProperty(propertyName) , propertyName,prop1.value[0]);
                                  selComp.zoneObject[propertyName] = prop1.value[0];
                              }
                          }
@@ -2552,7 +2538,6 @@ Timer
                      }
                      if(prop1.type === "function")
                      {
-                         console.error("params type of = ",typeof selComp.zoneObject.hasOwnProperty(propertyName) , propertyName,prop1.value.length);
                          var argsCount = prop1.value.length;
                          if(argsCount === 0)
                          {
@@ -2612,7 +2597,6 @@ Timer
 
              }
              root.update();
-             console.error("refresh2 qmlpath= ",innerComponentLoader.source);
          }
 
          Rectangle
@@ -2636,7 +2620,6 @@ Timer
                          if(selComp.x>0)
                          {
                              selComp.width = selComp.width - mouseX
-                             console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                              if(selComp.width < 50)
                              {
                                  selComp.width = 50
@@ -2662,7 +2645,6 @@ Timer
                  }
                  onReleased:
                  {
-                     console.error("onReleased left")
                      root.newPosotions(selComp);
                      selComp.forceActiveFocus();
                  }
@@ -2687,7 +2669,6 @@ Timer
                          if(pluginsGrid.width>selComp.x+selComp.width)
                          {
                              selComp.width = selComp.width + mouseX
-                             console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                              if(selComp.width < 50)
                                  selComp.width = 50
                              selComp.forceActiveFocus();
@@ -2697,7 +2678,6 @@ Timer
                              if(mouseX < selComp.x+selComp.width)
                              {
                                  selComp.width = selComp.width + mouseX
-                                 console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                                  if(selComp.width < 50)
                                      selComp.width = 50
                                  selComp.forceActiveFocus();
@@ -2707,7 +2687,6 @@ Timer
                  }
                  onReleased:
                  {
-                     console.error("onReleased right")
                      root.newPosotions(selComp);
                      selComp.forceActiveFocus();
                  }
@@ -2744,7 +2723,6 @@ Timer
                  }
                  onReleased:
                  {
-                     console.error("onReleased top")
                      root.newPosotions(selComp);
                      selComp.forceActiveFocus();
                  }
@@ -2779,7 +2757,6 @@ Timer
                  }
                  onReleased:
                  {
-                     console.error("onReleased bottom")
                      root.newPosotions(selComp);
                      selComp.forceActiveFocus();
                  }
@@ -2814,7 +2791,6 @@ Timer
                          if(selComp.x>0)
                          {
                              selComp.width = selComp.width - mouseX
-                             console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                              if(selComp.width < 50)
                              {
                                  selComp.width = 50
@@ -2840,7 +2816,6 @@ Timer
                  }
                  onReleased:
                  {
-                     console.error("onReleased bottom")
                      root.newPosotions(selComp);
                      selComp.forceActiveFocus();
                  }
@@ -2880,7 +2855,6 @@ Timer
                          if(selComp.x>0)
                          {
                              selComp.width = selComp.width - mouseX
-                             console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                              if(selComp.width < 50)
                              {
                                  selComp.width = 50
@@ -2906,7 +2880,6 @@ Timer
                  }
                  onReleased:
                  {
-                     console.error("onReleased bottom")
                      root.newPosotions(selComp);
                      selComp.forceActiveFocus();
                  }
@@ -2946,7 +2919,6 @@ Timer
                          if(pluginsGrid.width>selComp.x+selComp.width)
                          {
                              selComp.width = selComp.width + mouseX
-                             console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                              if(selComp.width < 50)
                                  selComp.width = 50
                              selComp.forceActiveFocus();
@@ -2956,7 +2928,6 @@ Timer
                              if(mouseX < selComp.x+selComp.width)
                              {
                                  selComp.width = selComp.width + mouseX
-                                 console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                                  if(selComp.width < 50)
                                      selComp.width = 50
                                  selComp.forceActiveFocus();
@@ -2969,7 +2940,6 @@ Timer
                  }
                  onReleased:
                  {
-                     console.error("onReleased bottom")
                      root.newPosotions(selComp);
                      selComp.forceActiveFocus();
                  }
@@ -2998,7 +2968,6 @@ Timer
                          if(pluginsGrid.width>selComp.x+selComp.width)
                          {
                              selComp.width = selComp.width + mouseX
-                             console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                              if(selComp.width < 50)
                                  selComp.width = 50
                              selComp.forceActiveFocus();
@@ -3008,7 +2977,6 @@ Timer
                              if(mouseX < selComp.x+selComp.width)
                              {
                                  selComp.width = selComp.width + mouseX
-                                 console.error("selComp.width = ",selComp.width,mouseX,selComp.x)
                                  if(selComp.width < 50)
                                      selComp.width = 50
                                  selComp.forceActiveFocus();
@@ -3029,7 +2997,6 @@ Timer
                  }
                  onReleased:
                  {
-                     console.error("onReleased bottom")
                      root.newPosotions(selComp);
                      selComp.forceActiveFocus();
                  }
@@ -3046,8 +3013,7 @@ Timer
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.bottom: mainLoader.top
-        anchors.bottomMargin: mainLoader.componentMain.height>0?60:0
+        anchors.bottom: commonArchiveContainer.top
 
         //anchors.bottomMargin: 150
         Canvas
@@ -3076,7 +3042,6 @@ Timer
                     var _height = (pluginsGrid.height / (pluginsGrid.rows?pluginsGrid.rows:1))  ;//- pluginsGrid.rowSpacing;
                     ctx.lineWidth = 1;
                     ctx.fillStyle =root.mainColor//"#4d4d4d";
-                    console.error("_height = ",_height);
                     for(var x = 0;x<cols;x++)
                     {
                         for(var y =0;y<rows;y++)
@@ -3160,10 +3125,8 @@ Timer
                   }
 
                   onPositionChanged: {
-                      console.error("onPositionChanged = = " , mouse.modifiers , Qt.ControlModifier, mouse.button , Qt.LeftButton);
                       //if (mouse.modifiers === 67108864)
                       //{
-                          console.error("onPositionChanged = = " );
 
                           if(pluginsGrid.children.length  <2 || root.isFullscreen)
                           {
@@ -3202,11 +3165,9 @@ Timer
 
                           if(underDragablecCam !== null)
                           {
-                              console.error("under= ",underDragablecCam,underDragablecCam.col,underDragablecCam.row,underDragablecCam.dx,underDragablecCam.dy);
                           }
                           else
                           {
-                              console.error("under else= ");
                           }
 
                           if(dragableCam !== null && dragableCam !== undefined)
@@ -3232,11 +3193,9 @@ Timer
                   }
                   onPressed:
                   {
-                      console.error("onPRESSED = = " , mouse.modifiers , Qt.ControlModifier, mouse.button , Qt.LeftButton);
                      // mouse.accepted = false;
                       if(mouse.button === Qt.LeftButton && mouse.modifiers === 67108864)
                       {
-                          console.error("onPRESSED222 = = " , mouse.modifiers);
                           if(pluginsGrid.children.length  <2 || root.isFullscreen)
                           {
                               mouse.accepted = false;
@@ -3286,7 +3245,6 @@ Timer
                   }
                   onReleased:
                   {
-                      console.error("onReleased = = " , mouse.modifiers , Qt.ControlModifier, mouse.button , Qt.LeftButton);
                      //if (mouse.button == Qt.LeftButton && mouse.modifiers === 67108864)
                      // {
 
@@ -3332,7 +3290,6 @@ Timer
                                   }
                               }
 
-                               console.error("тут 5" , dragPos, underPos)
                               var undPosX = pos[underPos].x
                               var undPosY = pos[underPos].y
                               var undPosDx = pos[underPos].dx;
@@ -3419,63 +3376,82 @@ Timer
           }
         }
     }
-  Loader {
-      id:mainLoader
-      width: parent.width
-      height: mainLoader.componentMain.height>0?mainLoader.componentMain.height:0
-      onHeightChanged:
-      {
-          resizeTimer.start();
-          console.error("HEIGHT CHANGED = ",mainLoader.height , mainLoader.componentMain.height)
-      }
+  Item {
+      id: commonArchiveContainer
 
+      anchors.left: parent.left
+      anchors.right: parent.right
       anchors.bottom: parent.bottom
-      asynchronous: false
-      property var componentMain: null
-      function create1()
-      {
-          var qmlFile2 = 'file:///' + applicationDirPath +  "/qtplugins/iv/viewers/archiveplayer/IVArchivePlayer.qml";
-          mainLoader.source = qmlFile2;
-      }
-      function refresh()
-      {
-          mainLoader.destroy1();
-          mainLoader.create1();
-      }
-      function destroy1()
-      {
-          if(mainLoader.status !== Loader.Null)
-              mainLoader.source = "";
-      }
-      onStatusChanged:
-      {
-          //archive.value = "true";
-          if (mainLoader.status === Loader.Ready)
-          {
-              console.error("START ARCHIVE COMMON")
-              mainLoader.componentMain = mainLoader.item;
-              //ch250529 mainLoader.componentMain.arc_vers = 1;
-              mainLoader.componentMain.arc_vers = 2;
-              //e
-              mainLoader.componentMain.common_panel = true;
-              mainLoader.componentMain.key2 = "common_panel";
-              mainLoader.componentMain.tab_id = root.globSignalsObject.tabUniqId;
 
-              console.error("250530 002 tabUniqId ", root.globSignalsObject.tabUniqId );
-              mainLoader.componentMain.startPlugin();
-              console.error("END ARCHIVE COMMON")
-          }
-          if(mainLoader.status === Loader.Error)
-          {
-              console.error("mainLoader error");
-          }
-          if(mainLoader.status === Loader.Null)
-          {
+      height: !root.isRealtime ? commonArchiveHeight : 0
 
+      ArchivePlayer.IVCommonArchiveStrip {
+          id: commonArchiveStrip
+
+          anchors.left: parent.left
+          anchors.right: parent.right
+
+          players: commonArchiveManager.commonArchivePlayers
+          visible: root.isSets && !root.isRealtime && !root.isFullscreen && !commonArchiveStrip.hasFullscreenPlayer
+
+          Component.onCompleted: commonArchiveManager.commonArchiveStrip = commonArchiveStrip
+          Component.onDestruction: {
+              if (commonArchiveManager.commonArchiveStrip === commonArchiveStrip)
+                  commonArchiveManager.commonArchiveStrip = null
           }
       }
-      Component.onCompleted:
-      {
+
+      Loader {
+          id: mainLoader
+
+          anchors.fill: parent
+          asynchronous: true
+
+          onHeightChanged:
+          {
+              resizeTimer.start();
+          }
+
+          property var componentMain: null
+
+          function create1()
+          {
+              var qmlFile2 = 'file:///' + applicationDirPath +  "/qtplugins/iv/viewers/archiveplayer/IVArchivePlayer.qml";
+              mainLoader.source = qmlFile2;
+          }
+          function refresh()
+          {
+              mainLoader.destroy1();
+              mainLoader.create1();
+          }
+          function destroy1()
+          {
+              if(mainLoader.status !== Loader.Null)
+                  mainLoader.source = "";
+          }
+          onStatusChanged:
+          {
+              //archive.value = "true";
+              if (mainLoader.status === Loader.Ready)
+              {
+                  mainLoader.componentMain = mainLoader.item;
+                  //ch250529 mainLoader.componentMain.arc_vers = 1;
+                  mainLoader.componentMain.arc_vers = 2;
+                  //e
+                  mainLoader.componentMain.common_panel = true;
+                  mainLoader.componentMain.key2 = "common_panel";
+                  mainLoader.componentMain.tab_id = root.globSignalsObject.tabUniqId;
+
+                  mainLoader.componentMain.startPlugin();
+              }
+              if(mainLoader.status === Loader.Error)
+              {
+              }
+              if(mainLoader.status === Loader.Null)
+              {
+
+              }
+          }
       }
   }
 }

@@ -10,6 +10,8 @@
 #include "WebSocketClient.h"
 #include "ArchiveSegmentStreamer.h"
 #include "VideoItem.h"
+#include "ExportController.h"
+#include "ExportManager.h"
 #include "ImagePipeline.h"
 #include "AppInfo.h"
 #include "PrimitiveOverlay.h"
@@ -63,6 +65,18 @@ IVVERSION
 
 ColorImageProvider* g_images = NULL;
 
+namespace {
+QObject* exportManagerProvider(QQmlEngine* engine, QJSEngine* scriptEngine)
+{
+    Q_UNUSED(scriptEngine);
+    auto exportManager = new ExportManager(engine);
+    auto appInfo = qvariant_cast<AppInfo*>(engine->property("appInfo"));
+    if (appInfo)
+        exportManager->setAppInfo(appInfo);
+    return exportManager;
+}
+} // namespace
+
 boointernal int pre_dll_init(const param_t* p)
 {
     //функция инициализации autoloader, stable и т.д
@@ -86,7 +100,7 @@ void QarchiveplayerPlugin::registerTypes(const char *uri)
     // т.к вызывается один раз, то решил инициализацию autoloader добавить сюда
     ::iv::autoloader::qml::helper< 10 * 1024 > autoloader(pre_dll_init);
     Q_UNUSED(autoloader);
-    qDebug()<< "LOAD ARCHIVE URI" << uri;
+    // qDebug()<< "LOAD ARCHIVE URI" << uri;
     qmlRegisterType<ArchivePlayer>("ArchiveComponents", 1, 0, "ArchivePlayer");
     qmlRegisterType<TreeModel>("ArchiveComponents", 1, 0, "FilterModel");
     qRegisterMetaType<TreeItem*>("TreeItem");
@@ -94,8 +108,11 @@ void QarchiveplayerPlugin::registerTypes(const char *uri)
     qmlRegisterType<WebSocketClient>("ArchiveComponents", 1, 0, "WebSocketClient");
     qmlRegisterType<ImagePipeline>("ArchiveComponents", 1, 0, "ImagePipeline");
     qmlRegisterType<ArchiveSegmentStreamer>("ArchiveComponents", 1, 0, "ArchiveSegmentStreamer");
+    qmlRegisterType<ExportController>("ArchiveComponents", 1, 0, "ExportController");
     qmlRegisterType<VideoItem>("ArchiveComponents", 1, 0, "VideoItem");
     qmlRegisterType<PrimitiveOverlay>("ArchiveComponents", 1, 0, "PrimitiveOverlay");
+    qmlRegisterSingletonType<ExportManager>("ArchiveComponents", 1, 0, "ExportManager",
+                                            exportManagerProvider);
 
     qmlRegisterType<EventsModel>("iv.data",1,0,"EventsModel");
     qmlRegisterType<FullnessModel>("iv.data",1,0,"FullnessModel");

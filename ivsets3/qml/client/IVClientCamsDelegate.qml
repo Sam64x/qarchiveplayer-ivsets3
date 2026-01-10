@@ -40,10 +40,6 @@ Rectangle
 //                        var obbj = model.params
 //                    }
 //                }
-//                catch(except)
-//                {
-//                    console.error("IVClientCamsDel parse errror = ",except)
-//                }
 
                 tmpLoad.item.params = params;
                 tmpLoad.item.qmlPath = qmlPath;

@@ -110,7 +110,6 @@ Rectangle
                     }
                     else
                     {
-                        console.error(" control = null")
                         rootRect.parentComponent.viewer_command_obj.command_to_viewer('windows:hide');
                     }
 

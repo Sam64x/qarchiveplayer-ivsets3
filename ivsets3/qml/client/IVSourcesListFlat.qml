@@ -98,12 +98,10 @@ Rectangle
         {
 //            root.setName = newSetName;
 //            devices.remove()
-//            console.error("onSetNameChanged devices.init")
 //            devices.init("sources")
         }
         onSetRemoved2:
         {
-            console.error("DELETE SET onSetRemoved2",setname, setId)
             root.customSets.deleteSet2(setname, setId);
         }
     }
@@ -247,9 +245,6 @@ Rectangle
                             function refreshModel()
                             {
                                 clear();
-                                console.error("refreshModel() items in menu")
-
-                                    console.error("append items in menu")
 //                                    append({text: "Открыть",
 //                                               status: IVContextMenuItem.Type.Default,
 //                                               icon: "new_images/expand",
@@ -713,35 +708,25 @@ Rectangle
                 id: itemItem
                 color: "transparent"//"red"
                 //property int currIndex:groupRect.parent.parent.model.index
-                property var itemName: itemItem.model.getProp("name_")
-                property var type: itemItem.model.getProp("type")
-                property var view_type: itemItem.model.getProp("view_type")
-                property var isVisible: itemItem.model.visible//itemItem.model.getProp("visible")
+                property var itemName: itemItem.model && itemItem.model.getProp("name_")
+                property var type: itemItem.model && itemItem.model.getProp("type")
+                property var view_type: itemItem.model && itemItem.model.getProp("view_type")
+                property var isVisible:itemItem.model && itemItem.model.visible//itemItem.model.getProp("visible")
                 property var model: null
-                property bool isAvailable: Boolean(itemItem.model.getProp("is_available"))
-                anchors.left: parent.left
-                anchors.right: parent.right
+                property bool isAvailable: itemItem.model && Boolean(itemItem.model.getProp("is_available"))
                 property bool checkable:true
                 property bool selected:false
-                onIsVisibleChanged:
-                {
-                    //console.error("onIsVisibleChanged VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV")
-                }
-                Connections
-                {
-                    target: root
-//                    onSearchSignal:
-//                    {
-//                        itemItem.isVisible = itemItem.model.getProp("visible");
-//                    }
-                }
 
-                visible: itemItem.isVisible
-                height: itemItem.isVisible?(buttText.paintedHeight>32?buttText.paintedHeight*root.isize:32*root.isize):0
                 signal clicked
                 signal checkBoxClicked
                 signal doubleClicked
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                visible: itemItem.isVisible
+                height: itemItem.isVisible?(buttText.paintedHeight>32?buttText.paintedHeight*root.isize:32*root.isize):0
                 state:root.isHideSets?root.currentTab===itemItem.itemName?"hovered":"normal":"normal"
+
                 IVContextMenu
                 {
                     id: contextMenuItem2
@@ -791,7 +776,6 @@ Rectangle
                                         _zoneObj["type"] =itemItem.type
                                         _zoneObj["params"] = item.params
                                         _zoneObj["qml_path"] = item.qml_path
-                                        console.error("CAMS TO SLOT onClicked =====================================",JSON.stringify(_zoneObj))
                                         root.globSignalsObject.zonesAdded("",JSON.stringify(_zoneObj));
                                     }
                                     else
@@ -940,7 +924,6 @@ Rectangle
                                 var dx = 8, dy = 8
                                 var cols = 32, rows = 32
                                 var item = root.customSets.getTypePreset(itemItem.type, "key2", "string", itemItem.itemName);
-                                console.error("JSON PRESET = ",JSON.stringify(item));
                                 var _zoneObj = {} // customSets.getZZZone(el.getProp("type"), el.getProp("name_"))
                                 _zoneObj["x"] = x
                                 _zoneObj["y"] = y
@@ -949,12 +932,10 @@ Rectangle
                                 _zoneObj["type"] =itemItem.type
                                 _zoneObj["params"] = item.params
                                 _zoneObj["qml_path"] = item.qml_path
-                                console.error("CAMS TO SLOT onClicked =====================================",JSON.stringify(_zoneObj))
                                 root.globSignalsObject.zonesAdded("",JSON.stringify(_zoneObj));
                             }
                             else
                             {
-                                console.error("root.globSignalsObject.tabAdded3",itemItem.itemName,itemItem.type);
                                 if(root.isFixArchive)
                                 {
                                     root.globSignalsObject.tabAdded5(groupRect.name,groupRect.type,groupRect.tabId,"archive");
@@ -1136,21 +1117,21 @@ Rectangle
                 //border.color: "red"
                 //property int currIndex:groupRect.parent.parent.parent.model.index
                 //property var modelVis: groupRect.model.getProp("visible")
-                property var name: groupRect.model.getProp("name_")
-                property var isVisible: groupRect.model.visible//groupRect.model.getProp("visible")
-                property var type:groupRect.model.getProp("type")
-                property var tabId:groupRect.model.getProp("id_")
-                property var isNotAvalCount:groupRect.model.getProp("isNotAval")
-                property string view_type:groupRect.model.getProp("view_type")
+                property var name: groupRect.model && groupRect.model.getProp("name_")
+                property var isVisible: groupRect.model && groupRect.model.visible//groupRect.model.getProp("visible")
+                property var type:groupRect.model && groupRect.model.getProp("type")
+                property var tabId: groupRect.model && groupRect.model.getProp("id_")
+                property var isNotAvalCount: groupRect.model && groupRect.model.getProp("isNotAval")
+                property string view_type: groupRect.model && groupRect.model.getProp("view_type")
                 property var model: null
-                property bool isLocal: Boolean(groupRect.model.getProp("isLocal"))
+                property bool isLocal: groupRect.model && Boolean(groupRect.model.getProp("isLocal"))
                 onIsNotAvalCountChanged:
                 {
                     //console.error("IS NOT AVAL COUNT = ",groupRect.isNotAvalCount )
                 }
                 visible: groupRect.isVisible?(root.isSetsVisible?true:(groupRect.type==="map"?true:false)):false
                 height:groupRect.isVisible?(root.isSetsVisible || groupRect.type!=="map"?( groupRect.opened === true?headerRect.height+bodyRect.height:headerRect.height):0):0
-                property bool opened:groupRect.model.opened //groupRect.model.getProp("opened")//?(root.isAllOpen?(groupRect.view_type==="group"? (groupRect.type==="set" ||groupRect.type==="map" ?false:true):true):false):false
+                property bool opened: groupRect.model && groupRect.model.opened //groupRect.model.getProp("opened")//?(root.isAllOpen?(groupRect.view_type==="group"? (groupRect.type==="set" ||groupRect.type==="map" ?false:true):true):false):false
 
 
 //                Drag.active: ma4.drag.active
@@ -1260,7 +1241,6 @@ Rectangle
                                             else if(action === "open_archive")
                                             {
                                                 //signal tabAdded5(string tabname, string type,string id,string viewType)
-                                                console.error("444444444444444444444444444 1111" )
                                                 root.globSignalsObject.tabAdded5(groupRect.name,groupRect.type,groupRect.tabId,"archive");
                                             }
                                             else if(action === "settings")
@@ -1270,7 +1250,6 @@ Rectangle
                                             }
                                             else if(action === "remove")
                                             {
-                                                console.error("action === remove", groupRect.name,groupRect.tabId);
                                                 root.globSignalsObject.setRemoved2(groupRect.name,groupRect.tabId);
                                             }
                                             else
@@ -1402,7 +1381,6 @@ Rectangle
                             }
                         }
                         onClicked: {
-                            console.error("MOUSE CLICKED")
                             if(mouse.button & Qt.RightButton)
                             {
                                 if (groupRect.type === "set")
@@ -1721,7 +1699,7 @@ Rectangle
                             Text
                             {
                                 id: countText
-                                text: groupRect.model.getCurrentCount()
+                                text: groupRect.model ? groupRect.model.getCurrentCount() : ""
                                 clip: true
                                 elide: Text.ElideRight
                                 font: IVColors.getFont("Label accent")
@@ -1759,7 +1737,6 @@ Rectangle
                                     hoverEnabled: true
                                     onClicked:
                                     {
-                                        console.error("AAAAAAAAAAAAAAAAAAAAAAAAA tabadded3",groupRect.tabId)
                                         if(root.isFixArchive)
                                         {
                                             root.globSignalsObject.tabAdded5(groupRect.name,groupRect.type,groupRect.tabId,"archive");
@@ -1788,7 +1765,7 @@ Rectangle
                         boundsBehavior: ListView.StopAtBounds
                         anchors.fill:parent
                         property int dragItemIndex: -1
-                        model:groupRect.model.children
+                        model: groupRect.model && groupRect.model.children
                         orientation: ListView.Vertical
                         cacheBuffer:1000
                         //snapMode:ListView.SnapToItem

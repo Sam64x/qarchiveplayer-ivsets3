@@ -170,10 +170,6 @@ Rectangle
     property var globalSignalsObject: null
     property bool isEditorEnabled: false
     property string viewType: ""
-    onViewTypeChanged:
-    {
-        console.error("77777777777777777777774 ", root.viewType)
-    }
 
     Connections
     {
@@ -181,7 +177,6 @@ Rectangle
         target: root.globalSignalsObject
         onTabSelected5:
         {
-            console.error("tab 333 onTabSel = " , root.tabName , tabname , root.tabId , id)
             if (root.tabName === tabname && root.tabId === id)
             {
                 root.state = "selected";
@@ -236,10 +231,7 @@ Rectangle
         onClicked:
         {
             //compListModel.clear();
-            console.error("CURR INDEX = ",root.currentIndex)
-            console.error("CURR INDEX = ",root.modelSize)
             //console.error("CURR INDEX = ",root.innerIndex)
-
 
             if(mouse.button & Qt.RightButton)
             {
@@ -262,7 +254,6 @@ Rectangle
 
                     if(archive_fix2.value === "true")
                     {
-                        console.error("on tab clicked  ==== ", root.tabName,root.type, root.type2,root.tabId ,root.viewType);
                         root.globalSignalsObject.tabSelected5(root.tabName,root.type,root.tabId,"archive");
                     }
                     else
@@ -277,7 +268,6 @@ Rectangle
 
                 }
             }
-            console.error("MOUSE CLICKED = " , root.globalSignalsObject.tabUniqId ,root.toString())
             root.globalSignalsObject.tabUniqId = root.toString() ;
 
 
@@ -350,7 +340,6 @@ Rectangle
                     menuListModel.clear();
                     if (root.type2 === IVClientTabDelegate.Type.Set ||root.type2 === IVClientTabDelegate.Type.EditedSet)
                     {
-                        console.error("66666666666666666666666666 ",moreMenu.isArchive , root.viewType )
                         menuListModel.append({text: !moreMenu.isArchive?"Перейти в архив":"Перейти в реалтайм", icon: "new_images/toArchiveBtn", enabled: true})
                         if (root.isLocalSet)
                         {
@@ -638,7 +627,6 @@ Rectangle
                                 //root.globalSignalsObject.setToArchive();
                                 //moreMenu.isArchive = true;
                                // root.model.view = "archive";
-                                // console.error("FFFFFFFFFFFFFFF onTabAdded5 = ",tabname,type,id,viewType);
                                 root.globalSignalsObject.tabAdded5(root.tabName,root.type,root.tabId,"archive");
                             }
                             if (text === "Перейти в реалтайм")

@@ -612,7 +612,7 @@ void eventsThread(void* data)
 	_this->_ev_thread_isRunning = true;
 	if (_this->stop_evThread) {
 		_this->_ev_thread_isRunning = false;
-		qDebug() << "Exit events thread";
+        // qDebug() << "Exit events thread";
 		_this->cs.unlock();
 		return;
 	}
@@ -637,7 +637,7 @@ void eventsThread(void* data)
 	_this->cs.lock();
 	if (evtVals.size() == 0 || _this->stop_evThread) {
 		_this->_ev_thread_isRunning = false;
-		qDebug() << "Exit events thread or evtVals list is empty";
+        // qDebug() << "Exit events thread or evtVals list is empty";
 		_this->cs.unlock();
 		return;
 	}
@@ -685,7 +685,7 @@ void eventsThread(void* data)
 		for (int i = 0; i < ipList.size(); i++) {
 			event_list_res = cl.events_list(fl, events, page_size, true, last_event_id, last_event_time);
 			if (event_list_res >= 0) {
-				qDebug() << "EVENTS FROM IP =" << ipList[i].c_str() << " RESULT = " << event_list_res;
+                // qDebug() << "EVENTS FROM IP =" << ipList[i].c_str() << " RESULT = " << event_list_res;
 				break;
 			}
 		}
@@ -693,7 +693,7 @@ void eventsThread(void* data)
 	if (event_list_res == -3) {
 		_this->cs.lock();
 		_this->_ev_thread_isRunning = false;
-		qDebug() << "Exit events thread lost connection";
+        // qDebug() << "Exit events thread lost connection";
 		_this->cs.unlock();
 		return;
 	}
@@ -710,7 +710,7 @@ void eventsThread(void* data)
 		_this->cs.lock();
 		if (_this->stop_evThread) {
 			_this->_ev_thread_isRunning = false;
-			qDebug() << "Exit events thread";
+            // qDebug() << "Exit events thread";
 			_this->cs.unlock();
 			return;
 		}
@@ -742,7 +742,7 @@ void eventsThread(void* data)
 	_this->cs.lock();
 	if (_this->stop_evThread) {
 		_this->_ev_thread_isRunning = false;
-		qDebug() << "Exit events thread";
+        // qDebug() << "Exit events thread";
 		_this->cs.unlock();
 		return;
 	}
@@ -751,14 +751,14 @@ void eventsThread(void* data)
 	emit _this->evJsonChanged();
 	_this->cs.unlock();
 	////
-	qDebug() << "events count" << eventsCount;
-	qDebug() << "Exit events thread";
+    // qDebug() << "events count" << eventsCount;
+    // qDebug() << "Exit events thread";
 	return;
 }
 void threadVoid(void* data)
 {
     St2_FUNCT_St2(56742);
-	qDebug() << "STARTING EVENTS THREAD";
+    // qDebug() << "STARTING EVENTS THREAD";
 	ArchivePlayer* ctx = (ArchivePlayer*)data;
 
 	if (!ctx) return;
@@ -774,7 +774,7 @@ void threadVoid(void* data)
 	std::list<QVariant> evtTypesList = ctx->evtVals.toStdList();
 	if (evtTypesList.size() == 0 || ctx->stop_evThread) {
 		ctx->_ev_thread_isRunning = false;
-		qDebug() << "EXITING EVENTS THREAD or eventTypes list is empty";
+        // qDebug() << "EXITING EVENTS THREAD or eventTypes list is empty";
 		ctx->cs.unlock();
 		return;
 	}
@@ -804,13 +804,13 @@ void threadVoid(void* data)
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 	if (evt_band->isSupported() == 0) {
-		qDebug() << "evt_band->isSupported() == 0";
+        // qDebug() << "evt_band->isSupported() == 0";
 		evt_band.reset();
 		ctx->cs.lock();
 		ctx->_newEvents_isSupported = 0;
 		ctx->_ev_thread_isRunning = false;
 		ctx->cs.unlock();
-		qDebug() << "EXITING EVENTS THREAD isSupported = 0";
+        // qDebug() << "EXITING EVENTS THREAD isSupported = 0";
 		return;
 	}
 	ctx->cs.lock();
@@ -822,7 +822,7 @@ void threadVoid(void* data)
 		ctx->cs.lock();
 		if (ctx->stop_evThread) {
 			ctx->_ev_thread_isRunning = false;
-			qDebug() << "EXITING EVENTS THREAD";
+            // qDebug() << "EXITING EVENTS THREAD";
 			ctx->cs.unlock();
 			return;
 		}
@@ -838,7 +838,7 @@ void threadVoid(void* data)
 		ctx->cs.lock();
 		if (ctx->stop_evThread) {
 			ctx->_ev_thread_isRunning = false;
-			qDebug() << "EXITING EVENTS THREAD";
+            // qDebug() << "EXITING EVENTS THREAD";
 			ctx->cs.unlock();
 			return;
 		}
@@ -869,7 +869,7 @@ void threadVoid(void* data)
 		ctx->cs.lock();
 		if (ctx->stop_evThread) {
 			ctx->_ev_thread_isRunning = false;
-			qDebug() << "EXITING EVENTS THREAD";
+            // qDebug() << "EXITING EVENTS THREAD";
 			ctx->cs.unlock();
 			return;
 		}
@@ -902,7 +902,7 @@ void threadVoid(void* data)
 		ctx->cs.lock();
 		if (ctx->stop_evThread) {
 			ctx->_ev_thread_isRunning = false;
-			qDebug() << "EXITING EVENTS THREAD";
+            // qDebug() << "EXITING EVENTS THREAD";
 			ctx->cs.unlock();
 			return;
 		}
@@ -934,7 +934,7 @@ void threadVoid(void* data)
 	ctx->cs.lock();
 	if (ctx->stop_evThread) {
 		ctx->_ev_thread_isRunning = false;
-		qDebug() << "EXITING EVENTS THREAD";
+        // qDebug() << "EXITING EVENTS THREAD";
 		ctx->cs.unlock();
 		return;
 	}
@@ -943,7 +943,7 @@ void threadVoid(void* data)
 	emit ctx->evJsonChanged();
 	ctx->cs.unlock();
 	////
-	qDebug() << "EXITING EVENTS THREAD";
+    // qDebug() << "EXITING EVENTS THREAD";
 }
 void ArchivePlayer::GenFilter(iv::ewriter::filter& fl, std::vector<int64_t> vals, QString tBegin, QString tEnd)
 {
@@ -994,7 +994,7 @@ void ArchivePlayer::handleEventsFinished()
 
 void ArchivePlayer::executeEventsRequest(const EventsRequestParams& params)
 {
-        qDebug() << "ArchivePlayer::getEvents()";
+        // qDebug() << "ArchivePlayer::getEvents()";
         _Key2 = params.key2;
         this->scale = params.scale;
         startEvtTime = params.start;
@@ -1006,7 +1006,7 @@ void ArchivePlayer::executeEventsRequest(const EventsRequestParams& params)
         threadIsRunning = _ev_thread_isRunning;
         cs.unlock();
         if (threadIsRunning) {
-                qDebug() << "EventsThread is run, wait for end threads";
+                // qDebug() << "EventsThread is run, wait for end threads";
                 cs.lock();
                 stop_evThread = true;
                 cs.unlock();
@@ -1025,7 +1025,7 @@ void ArchivePlayer::executeEventsRequest(const EventsRequestParams& params)
                 stop_evThread = false;
                 cs.unlock();
         }
-        qDebug() << "Skip event when time between them more" << _skipTime << "ms";
+        // qDebug() << "Skip event when time between them more" << _skipTime << "ms";
         if (_newEvents_isSupported < 0) {
                 threadVoid(this);
                 if (_newEvents_isSupported < 0 || _newEvents_isSupported) return;
@@ -1151,7 +1151,7 @@ ArchivePlayer::~ArchivePlayer()
 		threadIsRunning = _ev_thread_isRunning;
 		cs.unlock();
 		if (threadIsRunning) {
-			qDebug() << "EventsThread is run, wait for end threads";
+            // qDebug() << "EventsThread is run, wait for end threads";
 			cs.lock();
 			stop_evThread = true;
 			cs.unlock();

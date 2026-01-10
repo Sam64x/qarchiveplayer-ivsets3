@@ -149,7 +149,7 @@ void SourceTree::search(QString searchText)
             QString val = item->getProp("name_").toString();
             if (val.contains(searchText, Qt::CaseInsensitive)) {
                 findRes = true;
-                qDebug()<< "FOUNDED NAME = " << val;
+                // qDebug()<< "FOUNDED NAME = " << val;
                // break;
             }
        // }
@@ -187,13 +187,13 @@ void SourceTree::search2(QString searchText)
     St2_FUNCT_St2(300);
     QQueue<SourceTree*> q;
     q = getAll(this);
-    qDebug()<< "COUNT OF ALL = " << q.size();
+    // qDebug()<< "COUNT OF ALL = " << q.size();
     while (!q.isEmpty())
     {
         SourceTree* item = q.last();
         q.pop_back();
         QString val = item->getProp("name_").toString();
-        qDebug()<< "NAME = " << val << q.size();
+        // qDebug()<< "NAME = " << val << q.size();
         if (val.contains(searchText, Qt::CaseInsensitive))
         {
             QString _type = item->getProp("type").toString();
@@ -349,7 +349,7 @@ void SourceTree::remove(QVariantList path)
         //qDebug() << "SourceTree::remove by path" << path;
         get(path.mid(0, path.size() - 1))->remove(path.last().toInt());
     }
-    else qDebug() << "SourceTree::remove by path error - path is empty";
+    // else qDebug() << "SourceTree::remove by path error - path is empty";
 }
 void SourceTree::remove(int index)
 {
@@ -456,7 +456,7 @@ void SourceTree::init(const QString &type)
         }
         if(mapsArray.size()>0) // дописать код для разных ответов ws тттттттттттттттттттттттттттттттттттттттттттттттттттттттттт
         {
-            qDebug()<< "MAPS ARRAY 0 SIZE = ";
+            // qDebug()<< "MAPS ARRAY 0 SIZE = ";
 
             auto t = mapsArray[0].toArray();
             if(t.size()>0)
@@ -636,7 +636,7 @@ void SourceTree::init(const QString &type)
         }
         if(mapsArray.size()>0) // дописать код для разных ответов ws тттттттттттттттттттттттттттттттттттттттттттттттттттттттттт
         {
-            qDebug()<< "MAPS ARRAY 0 SIZE = ";
+            // qDebug()<< "MAPS ARRAY 0 SIZE = ";
 
             auto t = mapsArray[0].toArray();
             if(t.size()>0)
@@ -738,7 +738,7 @@ void SourceTree::init(const QString &type)
             else if(arrayDown.size() >0 && arrayCams.size()==0)
             {
                 item->setProp("type", "repeater");
-                qDebug()<< "REPEATER FOUND";
+                // qDebug()<< "REPEATER FOUND";
             }
             item->setProp("visible", true);
             item->setProp("view_type", "group");
@@ -779,7 +779,7 @@ void SourceTree::init(const QString &type)
       //  qDebug()<< "Open file:"<< file.fileName();
         QJsonArray remSetsArr = QJsonDocument::fromJson(file.readAll()).array();
         file.close();
-         qDebug()<< "remSetsArr.size()"<< remSetsArr.size();
+         // qDebug()<< "remSetsArr.size()"<< remSetsArr.size();
 
        QQueue<QJsonObject> _notFoundList;
         for (auto i : groupsArr)
@@ -790,7 +790,7 @@ void SourceTree::init(const QString &type)
             QString _gId =obj.value("groupId").toString();
             if(_pId == "null")
             {
-                qDebug()<< "_grname = " << _grname << " _pId = " << _pId;
+                // qDebug()<< "_grname = " << _grname << " _pId = " << _pId;
                 SourceTree* item = new SourceTree(this);
                 item->setProp("name_", obj.value("groupName").toString());
                 item->setProp("groupId", obj.value("groupId").toString());
@@ -849,11 +849,11 @@ void SourceTree::init(const QString &type)
             }
             else
             {
-                qDebug()<< "else _grname = " << _grname << " _pId = " << _pId;
+                // qDebug()<< "else _grname = " << _grname << " _pId = " << _pId;
                 SourceTree* _f = findRec(this,_pId);
                 if(_f)
                 {
-                    qDebug()<< "GR FOUND _grname = " << _grname << " _pId = " << _pId;
+                    // qDebug()<< "GR FOUND _grname = " << _grname << " _pId = " << _pId;
                     SourceTree* item = new SourceTree(_f);
                     item->setProp("name_", obj.value("groupName").toString());
                     item->setProp("groupId", obj.value("groupId").toString());
@@ -1005,7 +1005,7 @@ void SourceTree::addRec(QJsonArray array,SourceTree* item)
 
         for(auto obj:obj1)
         {
-            qDebug()<< obj.isObject() << obj.isArray();
+            // qDebug()<< obj.isObject() << obj.isArray();
             if(obj.isObject())
             {
                 SourceTree* item2 = new SourceTree(item);
@@ -1190,8 +1190,8 @@ QVariantList SourceTree::getRows()
     {
         int index = p->children().indexOf(el);
         if (index < 0) {
-            qDebug() << "SourceTree::getRows" << el->getProp("name_").toString()
-                     << "not founded in" << p->getProp("name_").toString();
+            // qDebug() << "SourceTree::getRows" << el->getProp("name_").toString()
+                     // << "not founded in" << p->getProp("name_").toString();
             return {};
         }
         res.append(index);

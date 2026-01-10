@@ -148,8 +148,8 @@ void TreeModel::init(QString type)
             item->setProperty("type", "camera");
             camsGroup->addChildItem(item);
         }
-        qDebug() <<"devices.init sets count:" << setsGroup->childItems().count()
-                << "cams count:" << camsGroup->childItems().count();
+        // qDebug() <<"devices.init sets count:" << setsGroup->childItems().count()
+                // << "cams count:" << camsGroup->childItems().count();
 
         addChildItem(setsGroup);
         addChildItem(camsGroup);
@@ -307,12 +307,12 @@ void TreeModel::getVisCount()
 void TreeModel::clear()
 {
     St2_FUNCT_St2(900);
-    qDebug() << "Clear treeModel";
+    // qDebug() << "Clear treeModel";
     for (int i = 0; i < m_tree.count(); i++)
     {
         for (int j = 0; j < m_tree[i]->childItems().count(); j++)
         {
-            qDebug() << "m_tree[i]->childItems().count()" << m_tree[i]->childItems().count();
+            // qDebug() << "m_tree[i]->childItems().count()" << m_tree[i]->childItems().count();
             delete m_tree[i]->childItems().at(j);
         }
         m_tree[i]->childItems().clear();

@@ -795,7 +795,6 @@ Rectangle
                 component.parent2 = rootRect_ButtonPane; // просто присвоение свойства
         }
         onError: {// вызывается в том случае, когда компонент не может быть создан
-            console.error('onError ' + error);
         }
     }
     //ch91031 deb
@@ -815,7 +814,6 @@ Rectangle
                 component.key2 = m_root_bpa.key2; // просто присвоение свойства
         }
         onError: {// вызывается в том случае, когда компонент не может быть создан
-            console.error('onError ' + error);
         }
     }
     */
@@ -860,7 +858,6 @@ Rectangle
             //e
         }
         onError: {// вызывается в том случае, когда компонент не может быть создан
-            console.error('onError ' + error);
         }
     }
     IVComponentCreator{
@@ -932,7 +929,6 @@ Rectangle
             m_idLog3_bpa.warn('<sound> end onBindings 808 ' );
         }
         onError: {// вызывается в том случае, когда компонент не может быть создан
-            console.error('onError ' + error);
         }
     }
     IVComponentCreator{
@@ -1028,7 +1024,6 @@ Rectangle
         }
         onError: {// вызывается в том случае, когда компонент не может быть создан
             // error - текст ошибки
-            console.error('onError ' + error);
         }
     }
     IVComponentCreator{
@@ -1895,7 +1890,6 @@ Rectangle
 
             }
             onError: {// вызывается в том случае, когда компонент не может быть создан
-                console.error('onError ' + error);
             }
         }
         //e ch90917

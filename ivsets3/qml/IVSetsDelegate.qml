@@ -16,7 +16,6 @@ Rectangle
     property int currentIndex: -1
     onCurrentIndexChanged:
     {
-        //console.error("onCurrentIndexChanged = ",currentIndex , "root.innerIndex = ",root.innerIndex);
         if(root.currentIndex == root.innerIndex)
         {
             setsDel.color = "#26cee0";

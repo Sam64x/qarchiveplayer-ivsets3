@@ -36,7 +36,6 @@ Rectangle
             onClicked:
             {
                // root.globSignalsObject.zoneRemoved(root.innerIndex);
-                console.error("slot clicked = ",root.slotIndex);
             }
             onEntered:
             {

@@ -64,11 +64,6 @@ Rectangle
         root.onLoadCams();
     }
 
-    onHeightChanged:
-    {
-
-        //console.error("SETS DELEG HEIGHT = ",setsDel.height,isVisible )
-    }
     ListModel
     {
         id:camsModel
@@ -76,7 +71,6 @@ Rectangle
 
     onCurrentIndexChanged:
     {
-        //console.error("onCurrentIndexChanged = ",currentIndex , "root.innerIndex = ",setsDel.innerIndex);
         if(setsDel.currentIndex == setsDel.innerIndex)
         {
             setsDel.color = "#b4b4b4";
