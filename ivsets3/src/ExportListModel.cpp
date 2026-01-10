@@ -132,13 +132,13 @@ void ExportListModel::updateCompletion(int row, int status, int progress, const 
     item.client = nullptr;
 
     emit dataChanged(index(row), index(row), {
-        StatusRole,
-        ProgressRole,
-        PreviewRole,
-        SizeBytesRole,
-        ControllerRole,
-        ClientRole
-    });
+                                                 StatusRole,
+                                                 ProgressRole,
+                                                 PreviewRole,
+                                                 SizeBytesRole,
+                                                 ControllerRole,
+                                                 ClientRole
+                                             });
 }
 
 void ExportListModel::updateController(int row, ExportController* controller, WebSocketClient* client)

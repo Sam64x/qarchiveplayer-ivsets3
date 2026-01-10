@@ -635,13 +635,9 @@ Item {
                         if (mouse.button & Qt.RightButton) {
                             contextMenu.x = mouse.x
                             contextMenu.y = mouse.y
-                            console.log("common_panel = ", root.common_panel)
-                            console.log("is_multiscreen = ", root.is_multiscreen)
-                            console.log("isFullscreen = ", root.isFullscreen)
-                            console.log("isSetsMode = ", root.isSetsMode)
-                            console.log("effectiveSetsMode", root.effectiveSetsMode)
                             contextMenu.open()
                             mouse.accept = true
+                            console.log("appInfo.wsUrl = ", appInfo.wsUrl)
                         }
                         else mouse.accepted = false
                     }

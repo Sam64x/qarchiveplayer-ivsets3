@@ -70,17 +70,17 @@ void ExportManager::setAppInfo(QObject* appInfo)
 }
 
 void ExportManager::startExport(const QString& cameraId,
-                               const QDateTime& fromLocal,
-                               const QDateTime& toLocal,
-                               const QString& archiveId,
-                               const QString& outputPath,
-                               const QString& format,
-                               int maxChunkDurationMinutes,
-                               qint64 maxChunkFileSizeBytes,
-                               bool exportPrimitives,
-                               bool exportCameraInformation,
-                               bool exportImagePipeline,
-                               QObject* imagePipeline)
+                                const QDateTime& fromLocal,
+                                const QDateTime& toLocal,
+                                const QString& archiveId,
+                                const QString& outputPath,
+                                const QString& format,
+                                int maxChunkDurationMinutes,
+                                qint64 maxChunkFileSizeBytes,
+                                bool exportPrimitives,
+                                bool exportCameraInformation,
+                                bool exportImagePipeline,
+                                QObject* imagePipeline)
 {
     if (!m_appInfo)
         m_appInfo = resolveAppInfo(this);
@@ -89,7 +89,7 @@ void ExportManager::startExport(const QString& cameraId,
     const QString toFormat = isSameDay ? QStringLiteral("HH:mm:ss")
                                        : QStringLiteral("dd.MM.yyyy HH:mm:ss");
     const QString timeText = fromLocal.toString("dd.MM.yyyy HH:mm:ss")
-        + QStringLiteral(" - ") + toLocal.toString(toFormat);
+                             + QStringLiteral(" - ") + toLocal.toString(toFormat);
     ExportListModel::Item item;
     item.path = outputPath;
     item.cameraName = cameraId;
