@@ -2538,7 +2538,19 @@ void ExportController::stopClientReconnects()
 void ExportController::stopConsumerThread()
 {
     m_active.store(false, std::memory_order_release);
-    QMutexLocker locker(&m_stateMutex);
+    if (m_stopConsumerPending)
+        return;
+
+    if (!m_stateMutex.tryLock()) {
+        m_stopConsumerPending = true;
+        QTimer::singleShot(0, this, [this]() {
+            m_stopConsumerPending = false;
+            stopConsumerThread();
+        });
+        return;
+    }
+
+    QMutexLocker locker(&m_stateMutex, QMutexLocker::AdoptLock);
     ControllerState& st = controllerState();
     if (st.remuxer) {
         auto remuxer = st.remuxer;

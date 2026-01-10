@@ -334,4 +334,5 @@ private:
 
     std::unique_ptr<ControllerState> m_state;
     mutable QMutex m_stateMutex;
+    bool m_stopConsumerPending {false};
 };
