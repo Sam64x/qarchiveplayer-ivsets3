@@ -49,7 +49,8 @@ public:
                                  bool exportPrimitives,
                                  bool exportCameraInformation,
                                  bool exportImagePipeline,
-                                 QObject* imagePipeline);
+                                 QObject* imagePipeline,
+                                 const QUrl& wsUrl);
 
 signals:
     void statusChanged(ExportService::Status status);
@@ -74,9 +75,11 @@ private:
         bool exportCameraInformation {false};
         bool exportImagePipeline {false};
         QPointer<QObject> imagePipeline;
+        QUrl wsUrl;
     };
 
     bool validateExport(const PendingExport& pending, QString* error) const;
+    QUrl resolveWsUrl(const PendingExport& pending) const;
     QUrl resolveWsUrl() const;
     ExportController* startExportInternal(const PendingExport& pending, const QUrl& wsUrl);
     void attachController(ExportController* controller);

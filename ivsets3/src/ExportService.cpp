@@ -95,7 +95,8 @@ bool ExportService::startExport(const QString& cameraId,
                                 bool exportPrimitives,
                                 bool exportCameraInformation,
                                 bool exportImagePipeline,
-                                QObject* imagePipeline)
+                                QObject* imagePipeline,
+                                const QUrl& wsUrl)
 {
     PendingExport pending;
     pending.cameraId = cameraId;
@@ -110,6 +111,7 @@ bool ExportService::startExport(const QString& cameraId,
     pending.exportCameraInformation = exportCameraInformation;
     pending.exportImagePipeline = exportImagePipeline;
     pending.imagePipeline = imagePipeline;
+    pending.wsUrl = wsUrl;
 
     QString validationError;
     if (!validateExport(pending, &validationError)) {
@@ -142,8 +144,8 @@ bool ExportService::startExport(const QString& cameraId,
         return false;
     }
 
-    const QUrl wsUrl = resolveWsUrl();
-    if (wsUrl.isEmpty() || !wsUrl.isValid()) {
+    const QUrl resolvedWsUrl = resolveWsUrl(pending);
+    if (resolvedWsUrl.isEmpty() || !resolvedWsUrl.isValid()) {
         m_pendingExports.push_back(pending);
         setStatus(Connecting);
         if (!m_wsUrlConnection) {
@@ -163,7 +165,7 @@ bool ExportService::startExport(const QString& cameraId,
     }
 
     setStatus(Connecting);
-    ExportController* controller = startExportInternal(pending, wsUrl);
+    ExportController* controller = startExportInternal(pending, resolvedWsUrl);
     if (!controller) {
         setLastError(QStringLiteral("Failed to start export."));
         setStatus(Failed);
@@ -233,6 +235,14 @@ bool ExportService::validateExport(const PendingExport& pending, QString* error)
     }
 
     return true;
+}
+
+QUrl ExportService::resolveWsUrl(const PendingExport& pending) const
+{
+    if (!pending.wsUrl.isEmpty() && pending.wsUrl.isValid())
+        return pending.wsUrl;
+
+    return resolveWsUrl();
 }
 
 QUrl ExportService::resolveWsUrl() const

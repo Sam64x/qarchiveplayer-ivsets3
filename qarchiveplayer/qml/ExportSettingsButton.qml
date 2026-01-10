@@ -120,7 +120,7 @@ C.IVButtonControl {
             ExportService.startExport(root.cameraId, layout.fromTime, layout.toTime, root.archiveId,
                                       outputPath, root.selectedFormat, maxChunkDurationMinutes,
                                       maxChunkFileSizeBytes, exportPrimitives, exportCameraInformation,
-                                      exportImagePipeline, root.imagePipeline)
+                                      exportImagePipeline, root.imagePipeline, appInfo.wsUrl)
         })
     }
 
