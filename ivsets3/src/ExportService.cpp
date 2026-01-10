@@ -85,17 +85,17 @@ void ExportService::setExportManager(ExportManager* manager)
 }
 
 bool ExportService::startExport(const QString& cameraId,
-                               const QDateTime& fromLocal,
-                               const QDateTime& toLocal,
-                               const QString& archiveId,
-                               const QString& outputPath,
-                               const QString& format,
-                               int maxChunkDurationMinutes,
-                               qint64 maxChunkFileSizeBytes,
-                               bool exportPrimitives,
-                               bool exportCameraInformation,
-                               bool exportImagePipeline,
-                               QObject* imagePipeline)
+                                const QDateTime& fromLocal,
+                                const QDateTime& toLocal,
+                                const QString& archiveId,
+                                const QString& outputPath,
+                                const QString& format,
+                                int maxChunkDurationMinutes,
+                                qint64 maxChunkFileSizeBytes,
+                                bool exportPrimitives,
+                                bool exportCameraInformation,
+                                bool exportImagePipeline,
+                                QObject* imagePipeline)
 {
     PendingExport pending;
     pending.cameraId = cameraId;

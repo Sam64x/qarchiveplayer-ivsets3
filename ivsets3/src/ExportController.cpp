@@ -261,13 +261,13 @@ static void applyColorControls(int& r, int& g, int& b, const ExportController::P
 static QJsonObject pipelineSettingsToJson(const ExportController::PipelineSettings& s)
 {
     return QJsonObject {
-        {QStringLiteral("r"), s.r},
-        {QStringLiteral("g"), s.g},
-        {QStringLiteral("b"), s.b},
-        {QStringLiteral("brightness"), s.brightness},
-        {QStringLiteral("contrast"), s.contrast},
-        {QStringLiteral("saturation"), s.saturation},
-    };
+                       {QStringLiteral("r"), s.r},
+                       {QStringLiteral("g"), s.g},
+                       {QStringLiteral("b"), s.b},
+                       {QStringLiteral("brightness"), s.brightness},
+                       {QStringLiteral("contrast"), s.contrast},
+                       {QStringLiteral("saturation"), s.saturation},
+                       };
 }
 
 static QString sanitizeFileComponent(const QString& value)
@@ -1038,6 +1038,11 @@ ExportController::ExportController(QObject* parent)
     m_inflightTimer->setInterval(kInflightCheckIntervalMs);
     connect(m_inflightTimer, &QTimer::timeout,
             this, &ExportController::checkInflightTimeouts);
+    m_connectTimeoutTimer = new QTimer(this);
+    m_connectTimeoutTimer->setSingleShot(true);
+    m_connectTimeoutTimer->setInterval(kInflightTimeoutSeconds * 1000);
+    connect(m_connectTimeoutTimer, &QTimer::timeout,
+            this, &ExportController::onConnectTimeout);
     resetControllerState();
 }
 
@@ -1072,6 +1077,8 @@ void ExportController::setClient(WebSocketClient* c)
         connect(m_client, &WebSocketClient::connected,
                 this, [this]() {
                     m_clientConnected = true;
+                    if (m_connectTimeoutTimer)
+                        m_connectTimeoutTimer->stop();
                     m_pendingSegmentsRequest = false;
                     if (exporting())
                         requestSegmentsMeta();
@@ -1384,6 +1391,8 @@ void ExportController::start(const QString& cameraId,
 
     if (m_client)
         m_client->connectToServer();
+    if (m_connectTimeoutTimer)
+        m_connectTimeoutTimer->start();
 
     requestSegmentsMeta();
 }
@@ -1395,6 +1404,8 @@ void ExportController::resetState()
     m_inflightSegments.clear();
     if (m_inflightTimer)
         m_inflightTimer->stop();
+    if (m_connectTimeoutTimer)
+        m_connectTimeoutTimer->stop();
 
     m_exportStatus = Idle;
     m_exportProgress = 0;
@@ -1462,6 +1473,15 @@ void ExportController::resetState()
             cancelRemuxerAsync(remuxer);
         }
     }
+}
+
+void ExportController::onConnectTimeout()
+{
+    if (!exporting() || m_clientConnected)
+        return;
+
+    qWarning() << "[Export] connection timeout while opening websocket";
+    onExportFinished(false, QStringLiteral("Время ожидания подключения истекло"));
 }
 
 QString ExportController::toIsoUtcMs(const QDateTime &dt)

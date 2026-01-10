@@ -1,6 +1,6 @@
 module iv.sets.sets3
-ActiveExportsButton 1.0 client/archive/ActiveExportsButton.qml
-UploadProgressBar 1.0 client/archive/UploadProgressBar.qml
+ActiveExportsButton 1.0 ActiveExportsButton.qml
+UploadProgressBar 1.0 UploadProgressBar.qml
 IVSets3 1.0 IVSets3.qml
 IVSetZone 1.0 IVSetZone.qml
 IVSetZoneWindow 1.0 IVSetZoneWindow.qml
