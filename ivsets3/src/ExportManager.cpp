@@ -62,7 +62,7 @@ bool ExportManager::showExportsPanel() const
 
 QObject* ExportManager::appInfo() const
 {
-    return m_appInfo;
+    return m_appInfo.data();
 }
 
 void ExportManager::setAppInfo(QObject* appInfo)
@@ -91,6 +91,12 @@ void ExportManager::startExport(const QString& cameraId,
 {
     if (!m_appInfo)
         m_appInfo = resolveAppInfo(this);
+
+    QPointer<QObject> pipeline = imagePipeline;
+    if (exportImagePipeline && !pipeline) {
+        qWarning() << "[Export] image pipeline requested but not available; disabling pipeline export.";
+        exportImagePipeline = false;
+    }
 
     const bool isSameDay = fromLocal.date() == toLocal.date();
     const QString toFormat = isSameDay ? QStringLiteral("HH:mm:ss")
@@ -122,7 +128,7 @@ void ExportManager::startExport(const QString& cameraId,
         pending.exportPrimitives = exportPrimitives;
         pending.exportCameraInformation = exportCameraInformation;
         pending.exportImagePipeline = exportImagePipeline;
-        pending.imagePipeline = imagePipeline;
+        pending.imagePipeline = pipeline;
         m_pendingExports.push_back(pending);
         if (m_appInfo && !m_wsUrlConnection) {
             m_wsUrlConnection = QObject::connect(
@@ -142,7 +148,8 @@ void ExportManager::startExport(const QString& cameraId,
 
         auto* controller = new ExportController(this);
         controller->setClient(client);
-        controller->setImagePipeline(imagePipeline);
+        if (pipeline)
+            controller->setImagePipeline(pipeline.data());
         controller->setMaxChunkDurationMinutes(maxChunkDurationMinutes);
         controller->setMaxChunkFileSizeBytes(maxChunkFileSizeBytes);
         controller->setExportPrimitives(exportPrimitives);
@@ -204,12 +211,18 @@ void ExportManager::handleWsUrlReady()
 
             auto* controller = new ExportController(this);
             controller->setClient(client);
-            controller->setImagePipeline(item.imagePipeline);
+            if (item.exportImagePipeline && !item.imagePipeline) {
+                qWarning() << "[Export] image pipeline missing; disabling pipeline export.";
+                controller->setExportImagePipeline(false);
+            }
+            if (item.imagePipeline)
+                controller->setImagePipeline(item.imagePipeline.data());
             controller->setMaxChunkDurationMinutes(item.maxChunkDurationMinutes);
             controller->setMaxChunkFileSizeBytes(item.maxChunkFileSizeBytes);
             controller->setExportPrimitives(item.exportPrimitives);
             controller->setExportCameraInformation(item.exportCameraInformation);
-            controller->setExportImagePipeline(item.exportImagePipeline);
+            if (!item.exportImagePipeline || item.imagePipeline)
+                controller->setExportImagePipeline(item.exportImagePipeline);
 
             if (item.modelRow >= 0)
                 m_model->updateController(item.modelRow, controller, client);

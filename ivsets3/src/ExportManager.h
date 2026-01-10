@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QDateTime>
 #include <QMetaObject>
+#include <QPointer>
 #include <QUrl>
 #include <QVector>
 
@@ -60,7 +61,7 @@ private:
         bool exportPrimitives {false};
         bool exportCameraInformation {false};
         bool exportImagePipeline {false};
-        QObject* imagePipeline {nullptr};
+        QPointer<QObject> imagePipeline;
     };
 
     QUrl resolveWsUrl() const;
@@ -72,7 +73,7 @@ private:
 
     ExportListModel* m_model {nullptr};
     bool m_showExportsPanel {false};
-    QObject* m_appInfo {nullptr};
+    QPointer<QObject> m_appInfo;
     QVector<PendingExport> m_pendingExports;
     QMetaObject::Connection m_wsUrlConnection;
 };
