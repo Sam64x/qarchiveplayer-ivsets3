@@ -71,15 +71,37 @@ void ExportManager::startExport(const QString& cameraId,
     if (!m_appInfo)
         m_appInfo = resolveAppInfo(this);
 
-    auto* client = new WebSocketClient(this);
-    client->startWorkerThread();
+    const bool isSameDay = fromLocal.date() == toLocal.date();
+    const QString toFormat = isSameDay ? QStringLiteral("HH:mm:ss")
+                                       : QStringLiteral("dd.MM.yyyy HH:mm:ss");
+    const QString timeText = fromLocal.toString("dd.MM.yyyy HH:mm:ss")
+        + QStringLiteral(" - ") + toLocal.toString(toFormat);
+
+    QUrl wsUrl;
     if (m_appInfo) {
         const QVariant wsUrlValue = m_appInfo->property("wsUrl");
         if (wsUrlValue.canConvert<QUrl>())
-            client->setUrl(wsUrlValue.toUrl());
+            wsUrl = wsUrlValue.toUrl();
         else
-            client->setUrl(QUrl(wsUrlValue.toString()));
+            wsUrl = QUrl(wsUrlValue.toString());
     }
+
+    if (wsUrl.isEmpty() || !wsUrl.isValid()) {
+        qWarning() << "[Export] missing wsUrl; export request ignored.";
+        ExportListModel::Item item;
+        item.path = outputPath;
+        item.cameraName = cameraId;
+        item.timeText = timeText;
+        item.status = ExportController::Status::Error;
+        item.progress = 0;
+        m_model->addItem(item);
+        setShowExportsPanel(true);
+        return;
+    }
+
+    auto* client = new WebSocketClient(this);
+    client->startWorkerThread();
+    client->setUrl(wsUrl);
 
     auto* controller = new ExportController(this);
     controller->setClient(client);
@@ -89,12 +111,6 @@ void ExportManager::startExport(const QString& cameraId,
     controller->setExportPrimitives(exportPrimitives);
     controller->setExportCameraInformation(exportCameraInformation);
     controller->setExportImagePipeline(exportImagePipeline);
-
-    const bool isSameDay = fromLocal.date() == toLocal.date();
-    const QString toFormat = isSameDay ? QStringLiteral("HH:mm:ss")
-                                       : QStringLiteral("dd.MM.yyyy HH:mm:ss");
-    const QString timeText = fromLocal.toString("dd.MM.yyyy HH:mm:ss")
-        + QStringLiteral(" - ") + toLocal.toString(toFormat);
 
     ExportListModel::Item item;
     item.controller = controller;
