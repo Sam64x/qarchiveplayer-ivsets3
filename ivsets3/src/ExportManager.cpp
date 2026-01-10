@@ -7,6 +7,8 @@
 #include <QVariant>
 #include <QQmlContext>
 #include <QQmlEngine>
+#include <QMetaObject>
+#include <utility>
 
 namespace {
 QObject* resolveAppInfo(QObject* contextObject)
@@ -52,6 +54,10 @@ bool ExportManager::showExportsPanel() const
 
 void ExportManager::setAppInfo(QObject* appInfo)
 {
+    if (m_appInfo == appInfo)
+        return;
+    if (m_appInfo && m_wsUrlConnection)
+        QObject::disconnect(m_wsUrlConnection);
     m_appInfo = appInfo;
 }
 
@@ -77,25 +83,34 @@ void ExportManager::startExport(const QString& cameraId,
     const QString timeText = fromLocal.toString("dd.MM.yyyy HH:mm:ss")
         + QStringLiteral(" - ") + toLocal.toString(toFormat);
 
-    QUrl wsUrl;
-    if (m_appInfo) {
-        const QVariant wsUrlValue = m_appInfo->property("wsUrl");
-        if (wsUrlValue.canConvert<QUrl>())
-            wsUrl = wsUrlValue.toUrl();
-        else
-            wsUrl = QUrl(wsUrlValue.toString());
-    }
-
+    const QUrl wsUrl = resolveWsUrl();
     if (wsUrl.isEmpty() || !wsUrl.isValid()) {
-        qWarning() << "[Export] missing wsUrl; export request ignored.";
-        ExportListModel::Item item;
-        item.path = outputPath;
-        item.cameraName = cameraId;
-        item.timeText = timeText;
-        item.status = ExportController::Status::Error;
-        item.progress = 0;
-        m_model->addItem(item);
-        setShowExportsPanel(true);
+        qWarning() << "[Export] missing wsUrl; waiting for AppInfo update.";
+        PendingExport pending;
+        pending.cameraId = cameraId;
+        pending.fromLocal = fromLocal;
+        pending.toLocal = toLocal;
+        pending.archiveId = archiveId;
+        pending.outputPath = outputPath;
+        pending.format = format;
+        pending.maxChunkDurationMinutes = maxChunkDurationMinutes;
+        pending.maxChunkFileSizeBytes = maxChunkFileSizeBytes;
+        pending.exportPrimitives = exportPrimitives;
+        pending.exportCameraInformation = exportCameraInformation;
+        pending.exportImagePipeline = exportImagePipeline;
+        pending.imagePipeline = imagePipeline;
+        m_pendingExports.push_back(pending);
+        if (m_appInfo && !m_wsUrlConnection) {
+            m_wsUrlConnection = QObject::connect(
+                m_appInfo,
+                SIGNAL(wsUrlChanged()),
+                this,
+                SLOT(handleWsUrlReady()));
+        }
+        if (m_appInfo) {
+            const QString key2 = m_appInfo->property("archiveKey2").toString();
+            QMetaObject::invokeMethod(m_appInfo, "refreshWsUrlForKey2", Q_ARG(QString, key2));
+        }
         return;
     }
 
@@ -147,6 +162,47 @@ void ExportManager::startExport(const QString& cameraId,
 
     controller->startExportVideo(cameraId, fromLocal, toLocal, archiveId, outputPath, format);
     setShowExportsPanel(true);
+}
+
+void ExportManager::handleWsUrlReady()
+{
+    const QUrl wsUrl = resolveWsUrl();
+    if (wsUrl.isEmpty() || !wsUrl.isValid())
+        return;
+
+    QVector<PendingExport> pending = std::move(m_pendingExports);
+    m_pendingExports.clear();
+    if (m_wsUrlConnection) {
+        QObject::disconnect(m_wsUrlConnection);
+        m_wsUrlConnection = QMetaObject::Connection();
+    }
+
+    for (const PendingExport& item : pending) {
+        startExport(item.cameraId,
+                    item.fromLocal,
+                    item.toLocal,
+                    item.archiveId,
+                    item.outputPath,
+                    item.format,
+                    item.maxChunkDurationMinutes,
+                    item.maxChunkFileSizeBytes,
+                    item.exportPrimitives,
+                    item.exportCameraInformation,
+                    item.exportImagePipeline,
+                    item.imagePipeline);
+    }
+}
+
+QUrl ExportManager::resolveWsUrl() const
+{
+    if (!m_appInfo)
+        return {};
+
+    const QVariant wsUrlValue = m_appInfo->property("wsUrl");
+    if (wsUrlValue.canConvert<QUrl>())
+        return wsUrlValue.toUrl();
+
+    return QUrl(wsUrlValue.toString());
 }
 
 void ExportManager::removeExport(int index)

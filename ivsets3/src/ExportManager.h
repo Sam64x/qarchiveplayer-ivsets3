@@ -2,6 +2,9 @@
 
 #include <QObject>
 #include <QDateTime>
+#include <QMetaObject>
+#include <QUrl>
+#include <QVector>
 
 #include "ExportListModel.h"
 
@@ -37,7 +40,27 @@ public:
 signals:
     void showExportsPanelChanged();
 
+private slots:
+    void handleWsUrlReady();
+
 private:
+    struct PendingExport {
+        QString cameraId;
+        QDateTime fromLocal;
+        QDateTime toLocal;
+        QString archiveId;
+        QString outputPath;
+        QString format;
+        int maxChunkDurationMinutes {0};
+        qint64 maxChunkFileSizeBytes {0};
+        bool exportPrimitives {false};
+        bool exportCameraInformation {false};
+        bool exportImagePipeline {false};
+        QObject* imagePipeline {nullptr};
+    };
+
+    QUrl resolveWsUrl() const;
+
     void setShowExportsPanel(bool show);
     void updatePreview(ExportController* controller);
     void updateSizeBytes(ExportController* controller);
@@ -45,4 +68,6 @@ private:
     ExportListModel* m_model {nullptr};
     bool m_showExportsPanel {false};
     QObject* m_appInfo {nullptr};
+    QVector<PendingExport> m_pendingExports;
+    QMetaObject::Connection m_wsUrlConnection;
 };
