@@ -5,6 +5,34 @@
 
 #include <QUrl>
 #include <QVariant>
+#include <QQmlContext>
+#include <QQmlEngine>
+
+namespace {
+QObject* resolveAppInfo(QObject* contextObject)
+{
+    if (!contextObject)
+        return nullptr;
+
+    auto* engine = qmlEngine(contextObject);
+    if (!engine)
+        return nullptr;
+
+    QObject* appInfo = engine->property("appInfo").value<QObject*>();
+    if (appInfo)
+        return appInfo;
+
+    QQmlContext* rootContext = engine->rootContext();
+    if (!rootContext)
+        return nullptr;
+
+    QVariant contextProperty = rootContext->contextProperty("appInfo");
+    if (contextProperty.canConvert<QObject*>())
+        return contextProperty.value<QObject*>();
+
+    return nullptr;
+}
+} // namespace
 
 ExportManager::ExportManager(QObject* parent)
     : QObject(parent)
@@ -40,6 +68,9 @@ void ExportManager::startExport(const QString& cameraId,
                                bool exportImagePipeline,
                                QObject* imagePipeline)
 {
+    if (!m_appInfo)
+        m_appInfo = resolveAppInfo(this);
+
     auto* client = new WebSocketClient(this);
     client->startWorkerThread();
     if (m_appInfo) {
