@@ -18,6 +18,7 @@ public:
         PathRole,
         CameraNameRole,
         TimeTextRole,
+        ArchiveKey2Role,
         StatusRole,
         ProgressRole,
         PreviewRole,
@@ -30,6 +31,7 @@ public:
         QString path;
         QString cameraName;
         QString timeText;
+        QString archiveKey2;
         int status {0};
         int progress {0};
         QString preview;
@@ -49,6 +51,7 @@ public:
     void updatePreview(int row, const QString& preview);
     void updateSizeBytes(int row, qint64 sizeBytes);
     void updateCompletion(int row, int status, int progress, const QString& preview, qint64 sizeBytes);
+    void updateController(int row, ExportController* controller, WebSocketClient* client);
 
 signals:
     void countChanged();

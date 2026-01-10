@@ -32,6 +32,8 @@ QVariant ExportListModel::data(const QModelIndex& index, int role) const
         return item.cameraName;
     case TimeTextRole:
         return item.timeText;
+    case ArchiveKey2Role:
+        return item.archiveKey2;
     case StatusRole:
         return item.status;
     case ProgressRole:
@@ -55,6 +57,7 @@ QHash<int, QByteArray> ExportListModel::roleNames() const
     roles[PathRole] = "path";
     roles[CameraNameRole] = "cameraName";
     roles[TimeTextRole] = "timeText";
+    roles[ArchiveKey2Role] = "archiveKey2";
     roles[StatusRole] = "status";
     roles[ProgressRole] = "progress";
     roles[PreviewRole] = "preview";
@@ -139,4 +142,16 @@ void ExportListModel::updateCompletion(int row, int status, int progress, const 
         ControllerRole,
         ClientRole
     });
+}
+
+void ExportListModel::updateController(int row, ExportController* controller, WebSocketClient* client)
+{
+    if (row < 0 || row >= m_items.size())
+        return;
+
+    Item& item = m_items[row];
+    item.controller = controller;
+    item.client = client;
+
+    emit dataChanged(index(row), index(row), {ControllerRole, ClientRole});
 }
