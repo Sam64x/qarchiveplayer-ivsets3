@@ -51,7 +51,6 @@ private:
         QString archiveId;
         QString outputPath;
         QString format;
-        QString archiveKey2;
         int modelRow {-1};
         int maxChunkDurationMinutes {0};
         qint64 maxChunkFileSizeBytes {0};

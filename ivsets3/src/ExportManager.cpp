@@ -8,6 +8,7 @@
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QMetaObject>
+#include <QTimer>
 #include <utility>
 
 namespace {
@@ -89,13 +90,10 @@ void ExportManager::startExport(const QString& cameraId,
                                        : QStringLiteral("dd.MM.yyyy HH:mm:ss");
     const QString timeText = fromLocal.toString("dd.MM.yyyy HH:mm:ss")
         + QStringLiteral(" - ") + toLocal.toString(toFormat);
-    const QString archiveKey2 = m_appInfo ? m_appInfo->property("archiveKey2").toString() : QString();
-
     ExportListModel::Item item;
     item.path = outputPath;
     item.cameraName = cameraId;
     item.timeText = timeText;
-    item.archiveKey2 = archiveKey2;
     item.status = ExportController::Status::Uploading;
     item.progress = 0;
     const int modelRow = m_model->addItem(item);
@@ -111,7 +109,6 @@ void ExportManager::startExport(const QString& cameraId,
         pending.archiveId = archiveId;
         pending.outputPath = outputPath;
         pending.format = format;
-        pending.archiveKey2 = archiveKey2;
         pending.modelRow = modelRow;
         pending.maxChunkDurationMinutes = maxChunkDurationMinutes;
         pending.maxChunkFileSizeBytes = maxChunkFileSizeBytes;
@@ -128,91 +125,31 @@ void ExportManager::startExport(const QString& cameraId,
                 SLOT(handleWsUrlReady()));
         }
         if (m_appInfo) {
+            const QString key2 = m_appInfo->property("archiveKey2").toString();
             QMetaObject::invokeMethod(
                 m_appInfo,
                 "refreshWsUrlForKey2",
                 Qt::QueuedConnection,
-                Q_ARG(QString, archiveKey2));
+                Q_ARG(QString, key2));
         }
         return;
     }
 
-    auto* client = new WebSocketClient(this);
-    client->startWorkerThread();
-    client->setUrl(wsUrl);
-
-    auto* controller = new ExportController(this);
-    controller->setClient(client);
-    controller->setImagePipeline(imagePipeline);
-    controller->setMaxChunkDurationMinutes(maxChunkDurationMinutes);
-    controller->setMaxChunkFileSizeBytes(maxChunkFileSizeBytes);
-    controller->setExportPrimitives(exportPrimitives);
-    controller->setExportCameraInformation(exportCameraInformation);
-    controller->setExportImagePipeline(exportImagePipeline);
-
-    m_model->updateController(modelRow, controller, client);
-
-    connect(controller, &ExportController::firstFramePreviewChanged, this, [this, controller]() {
-        updatePreview(controller);
-    });
-    connect(controller, &ExportController::exportedSizeBytesChanged, this, [this, controller](qint64) {
-        updateSizeBytes(controller);
-    });
-    connect(controller, &ExportController::finished, this, [this, controller, client]() {
-        const int row = m_model->indexOfController(controller);
-        if (row >= 0) {
-            m_model->updateCompletion(row,
-                                      controller->status(),
-                                      controller->exportProgress(),
-                                      controller->firstFramePreview(),
-                                      controller->exportedSizeBytes());
-        }
-        controller->deleteLater();
-        if (client)
-            client->deleteLater();
-    });
-
-    QMetaObject::invokeMethod(controller,
-                              "startExportVideo",
-                              Qt::QueuedConnection,
-                              Q_ARG(QString, cameraId),
-                              Q_ARG(QDateTime, fromLocal),
-                              Q_ARG(QDateTime, toLocal),
-                              Q_ARG(QString, archiveId),
-                              Q_ARG(QString, outputPath),
-                              Q_ARG(QString, format));
-    setShowExportsPanel(true);
-}
-
-void ExportManager::handleWsUrlReady()
-{
-    const QUrl wsUrl = resolveWsUrl();
-    if (wsUrl.isEmpty() || !wsUrl.isValid())
-        return;
-
-    QVector<PendingExport> pending = std::move(m_pendingExports);
-    m_pendingExports.clear();
-    if (m_wsUrlConnection) {
-        QObject::disconnect(m_wsUrlConnection);
-        m_wsUrlConnection = QMetaObject::Connection();
-    }
-
-    for (const PendingExport& item : pending) {
+    QTimer::singleShot(0, this, [=]() {
         auto* client = new WebSocketClient(this);
         client->startWorkerThread();
         client->setUrl(wsUrl);
 
         auto* controller = new ExportController(this);
         controller->setClient(client);
-        controller->setImagePipeline(item.imagePipeline);
-        controller->setMaxChunkDurationMinutes(item.maxChunkDurationMinutes);
-        controller->setMaxChunkFileSizeBytes(item.maxChunkFileSizeBytes);
-        controller->setExportPrimitives(item.exportPrimitives);
-        controller->setExportCameraInformation(item.exportCameraInformation);
-        controller->setExportImagePipeline(item.exportImagePipeline);
+        controller->setImagePipeline(imagePipeline);
+        controller->setMaxChunkDurationMinutes(maxChunkDurationMinutes);
+        controller->setMaxChunkFileSizeBytes(maxChunkFileSizeBytes);
+        controller->setExportPrimitives(exportPrimitives);
+        controller->setExportCameraInformation(exportCameraInformation);
+        controller->setExportImagePipeline(exportImagePipeline);
 
-        if (item.modelRow >= 0)
-            m_model->updateController(item.modelRow, controller, client);
+        m_model->updateController(modelRow, controller, client);
 
         connect(controller, &ExportController::firstFramePreviewChanged, this, [this, controller]() {
             updatePreview(controller);
@@ -237,12 +174,76 @@ void ExportManager::handleWsUrlReady()
         QMetaObject::invokeMethod(controller,
                                   "startExportVideo",
                                   Qt::QueuedConnection,
-                                  Q_ARG(QString, item.cameraId),
-                                  Q_ARG(QDateTime, item.fromLocal),
-                                  Q_ARG(QDateTime, item.toLocal),
-                                  Q_ARG(QString, item.archiveId),
-                                  Q_ARG(QString, item.outputPath),
-                                  Q_ARG(QString, item.format));
+                                  Q_ARG(QString, cameraId),
+                                  Q_ARG(QDateTime, fromLocal),
+                                  Q_ARG(QDateTime, toLocal),
+                                  Q_ARG(QString, archiveId),
+                                  Q_ARG(QString, outputPath),
+                                  Q_ARG(QString, format));
+    });
+}
+
+void ExportManager::handleWsUrlReady()
+{
+    const QUrl wsUrl = resolveWsUrl();
+    if (wsUrl.isEmpty() || !wsUrl.isValid())
+        return;
+
+    QVector<PendingExport> pending = std::move(m_pendingExports);
+    m_pendingExports.clear();
+    if (m_wsUrlConnection) {
+        QObject::disconnect(m_wsUrlConnection);
+        m_wsUrlConnection = QMetaObject::Connection();
+    }
+
+    for (const PendingExport& item : pending) {
+        QTimer::singleShot(0, this, [this, item, wsUrl]() {
+            auto* client = new WebSocketClient(this);
+            client->startWorkerThread();
+            client->setUrl(wsUrl);
+
+            auto* controller = new ExportController(this);
+            controller->setClient(client);
+            controller->setImagePipeline(item.imagePipeline);
+            controller->setMaxChunkDurationMinutes(item.maxChunkDurationMinutes);
+            controller->setMaxChunkFileSizeBytes(item.maxChunkFileSizeBytes);
+            controller->setExportPrimitives(item.exportPrimitives);
+            controller->setExportCameraInformation(item.exportCameraInformation);
+            controller->setExportImagePipeline(item.exportImagePipeline);
+
+            if (item.modelRow >= 0)
+                m_model->updateController(item.modelRow, controller, client);
+
+            connect(controller, &ExportController::firstFramePreviewChanged, this, [this, controller]() {
+                updatePreview(controller);
+            });
+            connect(controller, &ExportController::exportedSizeBytesChanged, this, [this, controller](qint64) {
+                updateSizeBytes(controller);
+            });
+            connect(controller, &ExportController::finished, this, [this, controller, client]() {
+                const int row = m_model->indexOfController(controller);
+                if (row >= 0) {
+                    m_model->updateCompletion(row,
+                                              controller->status(),
+                                              controller->exportProgress(),
+                                              controller->firstFramePreview(),
+                                              controller->exportedSizeBytes());
+                }
+                controller->deleteLater();
+                if (client)
+                    client->deleteLater();
+            });
+
+            QMetaObject::invokeMethod(controller,
+                                      "startExportVideo",
+                                      Qt::QueuedConnection,
+                                      Q_ARG(QString, item.cameraId),
+                                      Q_ARG(QDateTime, item.fromLocal),
+                                      Q_ARG(QDateTime, item.toLocal),
+                                      Q_ARG(QString, item.archiveId),
+                                      Q_ARG(QString, item.outputPath),
+                                      Q_ARG(QString, item.format));
+        });
     }
 }
 
