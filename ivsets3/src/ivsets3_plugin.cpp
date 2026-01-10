@@ -69,6 +69,11 @@ QObject* exportManagerProvider(QQmlEngine* engine, QJSEngine* scriptEngine)
     Q_UNUSED(scriptEngine);
     auto* exportManager = new ExportManager(engine);
     QObject* appInfo = engine->property("appInfo").value<QObject*>();
+    if (!appInfo && engine->rootContext()) {
+        const QVariant contextProperty = engine->rootContext()->contextProperty("appInfo");
+        if (contextProperty.canConvert<QObject*>())
+            appInfo = contextProperty.value<QObject*>();
+    }
     if (appInfo)
         exportManager->setAppInfo(appInfo);
     return exportManager;

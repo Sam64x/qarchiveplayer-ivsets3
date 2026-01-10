@@ -17,6 +17,13 @@ QObject* resolveAppInfo(QObject* contextObject)
         return nullptr;
 
     auto* engine = qmlEngine(contextObject);
+    if (!engine) {
+        engine = qobject_cast<QQmlEngine*>(contextObject->parent());
+    }
+    if (!engine) {
+        if (auto* context = QQmlEngine::contextForObject(contextObject))
+            engine = context->engine();
+    }
     if (!engine)
         return nullptr;
 
