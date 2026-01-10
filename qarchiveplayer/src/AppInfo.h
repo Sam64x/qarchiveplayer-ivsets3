@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QString>
 #include <QFileSystemWatcher>
+#include <QFutureWatcher>
 #include <QTimer>
 
 class AppInfo : public QObject
@@ -66,6 +67,7 @@ private slots:
     void onFileChanged(const QString& path);
     void onDirChanged(const QString& path);
     void doReloadDebounced();
+    void handleNetSourceReady();
 
 private:
     QString readIpFromFile(const QString& path) const;
@@ -88,6 +90,7 @@ private:
 private:
     QFileSystemWatcher m_watcher;
     QTimer             m_reloadDebounce;
+    QFutureWatcher<QString> m_netSourceWatcher;
     QString            m_ip;
     QString            m_primaryIp;
     QString            m_archiveKey2;
@@ -102,4 +105,6 @@ private:
     QString m_cacheDbPath;
     QString m_exportSaveDirectory;
     QString m_snapshotSaveDirectory;
+    QString m_pendingKey2;
+    QString m_inflightKey2;
 };

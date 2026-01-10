@@ -9,6 +9,7 @@
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QUrl>
+#include <QtConcurrent/QtConcurrent>
 
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -34,6 +35,7 @@ AppInfo::AppInfo(QObject* parent)
     m_reloadDebounce.setSingleShot(true);
     m_reloadDebounce.setInterval(100);
     connect(&m_reloadDebounce, &QTimer::timeout, this, &AppInfo::doReloadDebounced);
+    connect(&m_netSourceWatcher, &QFutureWatcher<QString>::finished, this, &AppInfo::handleNetSourceReady);
 
     connect(&m_watcher, &QFileSystemWatcher::fileChanged, this, &AppInfo::onFileChanged);
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &AppInfo::onDirChanged);
@@ -248,6 +250,8 @@ void AppInfo::refreshWsUrlForKey2(const QString& key2)
 
     if (key2.isEmpty()) {
         qInfo() << "AppInfo: key2 is empty, using primary ip" << m_primaryIp;
+        m_pendingKey2.clear();
+        m_inflightKey2.clear();
         setActiveIp(m_primaryIp);
         return;
     }
@@ -255,19 +259,34 @@ void AppInfo::refreshWsUrlForKey2(const QString& key2)
     const QString callIp = m_primaryIp.isEmpty() ? wsCallIp() : m_primaryIp;
     if (callIp.isEmpty()) {
         qWarning() << "AppInfo: no IP available to query net source";
+        m_pendingKey2.clear();
+        m_inflightKey2.clear();
         setActiveIp(m_primaryIp);
         return;
     }
 
-    const std::string params = QString("{\"key2\":\"%1\"}").arg(key2).toStdString();
+    if (m_netSourceWatcher.isRunning()) {
+        if (m_inflightKey2 != key2)
+            m_pendingKey2 = key2;
+        return;
+    }
 
-    iv::ws_ws ws_zna_ip;
+    m_inflightKey2 = key2;
+    m_pendingKey2.clear();
     qInfo() << "AppInfo: requesting net source for key2" << key2 << "via ip" << callIp;
-    std::future<std::string> ft_zna_ip = ws_zna_ip.call(callIp.toStdString(), "arc_info_status:get_net_source", params, "", NULL);
+    const std::string params = QString("{\"key2\":\"%1\"}").arg(key2).toStdString();
+    m_netSourceWatcher.setFuture(QtConcurrent::run([callIp, params]() {
+        iv::ws_ws ws_zna_ip;
+        std::future<std::string> ft_zna_ip =
+            ws_zna_ip.call(callIp.toStdString(), "arc_info_status:get_net_source", params, "", NULL);
+        ft_zna_ip.wait();
+        return QString::fromStdString(ft_zna_ip.get());
+    }));
+}
 
-    ft_zna_ip.wait();
-    const QString ws_zna_ip_res = QString::fromStdString(ft_zna_ip.get());
-
+void AppInfo::handleNetSourceReady()
+{
+    const QString ws_zna_ip_res = m_netSourceWatcher.result();
     qInfo() << "AppInfo: net source response" << ws_zna_ip_res;
 
     const QString subAddressIp = extractSubAddressIp(ws_zna_ip_res, m_primaryIp);
@@ -277,6 +296,15 @@ void AppInfo::refreshWsUrlForKey2(const QString& key2)
     } else {
         qInfo() << "AppInfo: subordinate archive ip not found, reverting to primary" << m_primaryIp;
         setActiveIp(m_primaryIp);
+    }
+
+    if (!m_pendingKey2.isEmpty() && m_pendingKey2 != m_inflightKey2) {
+        const QString nextKey2 = m_pendingKey2;
+        m_pendingKey2.clear();
+        m_inflightKey2.clear();
+        refreshWsUrlForKey2(nextKey2);
+    } else {
+        m_inflightKey2.clear();
     }
 }
 
@@ -470,7 +498,6 @@ void AppInfo::loadCacheValues()
         emit snapshotSaveDirectoryChanged();
     }
 }
-
 
 
 
