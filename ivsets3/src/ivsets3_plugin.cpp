@@ -12,6 +12,7 @@
 #include <QObject>
 #include <QFile>
 #include <QDir>
+#include <QQmlContext>
 #include <QQmlEngine>
 #include <QJSEngine>
 #include <QVariant>
@@ -86,6 +87,17 @@ QObject* exportServiceProvider(QQmlEngine* engine, QJSEngine* scriptEngine)
     if (!managerObj)
         managerObj = exportManagerProvider(engine, scriptEngine);
     exportService->setExportManager(qobject_cast<ExportManager*>(managerObj));
+    if (engine->property("exportService").value<QObject*>() == nullptr)
+        engine->setProperty("exportService", QVariant::fromValue(exportService));
+
+    QObject* appInfo = engine->property("appInfo").value<QObject*>();
+    if (!appInfo && engine->rootContext()) {
+        const QVariant contextAppInfo = engine->rootContext()->contextProperty("appInfo");
+        if (contextAppInfo.canConvert<QObject*>())
+            appInfo = contextAppInfo.value<QObject*>();
+    }
+    if (appInfo)
+        exportService->setAppInfo(appInfo);
     return exportService;
 }
 } // namespace

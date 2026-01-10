@@ -51,6 +51,9 @@ ExportController* ExportManager::startExport(const QString& cameraId,
 
     if (wsUrl.isEmpty() || !wsUrl.isValid()) {
         qWarning() << "[Export] missing wsUrl; export aborted.";
+        m_model->removeItem(modelRow);
+        if (m_model->rowCount() == 0)
+            setShowExportsPanel(false);
         return nullptr;
     }
 
