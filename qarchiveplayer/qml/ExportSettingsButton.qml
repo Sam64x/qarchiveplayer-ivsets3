@@ -4,6 +4,7 @@ import QtQuick.Layouts 1.11
 import QtQuick.Dialogs 1.3
 
 import ArchiveComponents 1.0
+import ExportComponents 1.0
 import iv.colors 1.0
 import iv.calendar 1.0
 import iv.singletonLang 1.0
@@ -64,6 +65,47 @@ C.IVButtonControl {
             path = path.replace(/\//g, "\\")
         }
         return path
+    }
+
+    function resolveExportPath(path) {
+        if (!path)
+            return ""
+        var normalized = path.toString()
+        if (normalized.startsWith("file:")) {
+            normalized = normalized.replace(/^file:\/+/, "/")
+            if (Qt.platform.os === "windows" && normalized.startsWith("/"))
+                normalized = normalized.slice(1)
+        }
+        return normalizePath(normalized)
+    }
+
+    function canStartExport() {
+        if (!ExportManager || !ExportManager.startExport)
+            return false
+        if (!root.cameraId || !root.archiveId)
+            return false
+        if (!timeFieldLayout.fromTime || !timeFieldLayout.toTime)
+            return false
+        return resolveExportPath(root.selectedPath || appInfo.exportSaveDirectory).length > 0
+    }
+
+    function runExport() {
+        if (!canStartExport())
+            return
+
+        var maxChunkFileSizeBytes = root.isMemoryLimit ? root.maxMemory * 1024 * 1024 : 0
+        var maxChunkDurationMinutes = root.isMinutesLimit ? root.maxMinutes : 0
+        var exportPrimitives = root.exportPrimitives
+        var exportCameraInformation = root.exportCameraInformation
+        var exportImagePipeline = root.exportImagePipeline && root.imagePipeline
+        var outputPath = resolveExportPath(root.selectedPath || appInfo.exportSaveDirectory)
+
+        Qt.callLater(function() {
+            ExportManager.startExport(root.cameraId, timeFieldLayout.fromTime, timeFieldLayout.toTime, root.archiveId,
+                                      outputPath, root.selectedFormat, maxChunkDurationMinutes,
+                                      maxChunkFileSizeBytes, exportPrimitives, exportCameraInformation,
+                                      exportImagePipeline, root.imagePipeline)
+        })
     }
 
     width: 24
@@ -414,7 +456,7 @@ C.IVButtonControl {
                                     selectMultiple: false
 
                                     onAccepted: {
-                                        root.selectedPath = fileUrl.toString().replace("file:///", "")
+                                        root.selectedPath = fileUrl.toLocalFile()
                                     }
                                 }
                             }
@@ -843,17 +885,7 @@ C.IVButtonControl {
                     size: C.IVButtonControl.Size.Big
                     type: C.IVButtonControl.Type.Primary
                     onClicked: {
-                        if (ExportManager && ExportManager.startExport) {
-                            var maxChunkFileSizeBytes = root.isMemoryLimit ? root.maxMemory * 1024 * 1024 : 0
-                            var maxChunkDurationMinutes = root.isMinutesLimit ? root.maxMinutes : 0
-                            var exportPrimitives = root.exportPrimitives
-                            var exportCameraInformation = root.exportCameraInformation
-                            var exportImagePipeline = root.exportImagePipeline
-                            ExportManager.startExport(root.cameraId, timeFieldLayout.fromTime, timeFieldLayout.toTime, root.archiveId,
-                                                      root.selectedPath, root.selectedFormat, maxChunkDurationMinutes,
-                                                      maxChunkFileSizeBytes, exportPrimitives, exportCameraInformation,
-                                                      exportImagePipeline, root.imagePipeline)
-                        }
+                        runExport()
                         exportMenu.close()
                     }
                 }
