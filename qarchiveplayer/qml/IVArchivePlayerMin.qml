@@ -28,13 +28,39 @@ Item {
 
     property var globalComponent: null
     property bool __registeredInCommonArchive: false
+    property var __registeredCommonArchiveTarget: null
 
     property alias idarchive_player: idarchive_player
     property alias archiveStreamer: archiveStreamer
 
+    function registerInCommonArchive(target) {
+        if (!target || !target.registerArchivePlayerMin)
+            return;
+        target.registerArchivePlayerMin(root);
+        __registeredInCommonArchive = true;
+        __registeredCommonArchiveTarget = target;
+    }
+
+    function unregisterFromCommonArchive() {
+        if (!__registeredInCommonArchive || !__registeredCommonArchiveTarget)
+            return;
+        if (__registeredCommonArchiveTarget.unregisterArchivePlayerMin)
+            __registeredCommonArchiveTarget.unregisterArchivePlayerMin(root);
+        __registeredInCommonArchive = false;
+        __registeredCommonArchiveTarget = null;
+    }
+
     function getFrameTime() {
         if (archiveStreamer)
             return archiveStreamer.currentTime;
+    }
+
+    onGlobalComponentChanged: {
+        if (__registeredCommonArchiveTarget && __registeredCommonArchiveTarget !== globalComponent)
+            unregisterFromCommonArchive();
+
+        if (!__registeredInCommonArchive && globalComponent)
+            registerInCommonArchive(globalComponent);
     }
 
     function funcSwitchSelectIntervalMode() {
@@ -72,6 +98,13 @@ Item {
         shortcutLastSequence1.value = "Ctrl+W"
         shortcutLastSequence1.value = "@$##$&*()#"
     }
+
+    Component.onCompleted: {
+        if (globalComponent)
+            registerInCommonArchive(globalComponent);
+    }
+
+    Component.onDestruction: unregisterFromCommonArchive()
 
 
     function compare_events(a, b) {
