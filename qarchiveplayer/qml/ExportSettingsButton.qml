@@ -115,12 +115,12 @@ C.IVButtonControl {
             return
         if (!isValidDate(layout.fromTime) || !isValidDate(layout.toTime))
             return
-
+        console.log("reach here 1")
         Qt.callLater(function() {
             ExportService.startExport(root.cameraId, layout.fromTime, layout.toTime, root.archiveId,
                                       outputPath, root.selectedFormat, maxChunkDurationMinutes,
                                       maxChunkFileSizeBytes, exportPrimitives, exportCameraInformation,
-                                      exportImagePipeline, root.imagePipeline)
+                                      exportImagePipeline, root.imagePipeline, appInfo.wsUrl)
         })
     }
 
