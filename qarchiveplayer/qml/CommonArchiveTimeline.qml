@@ -13,6 +13,7 @@ Item {
     id: root
 
     property var players: []
+    property var playersList: []
     property real isize: 1
     property int commonScale: 0
     property var sharedCurrentDate: null
@@ -24,7 +25,7 @@ Item {
     signal timeChanged(var date)
     signal boundsChanged(var bounds)
 
-    readonly property var primaryPlayer: players.length > 0 ? players[0] : null
+    readonly property var primaryPlayer: playersList.length > 0 ? playersList[0] : null
 
     property var viewStart: null
     property var viewEnd: null
@@ -83,7 +84,7 @@ Item {
 
     function visibilityKeyForPlayer(player, index) {
         var hasIndex = index !== undefined && index !== null
-        var resolvedIndex = hasIndex ? index : players.indexOf(player)
+        var resolvedIndex = hasIndex ? index : playersList.indexOf(player)
         var baseKey = player && player.key2 ? player.key2 : "player"
         var sameKeyCount = key2Frequency[baseKey]
 
@@ -117,18 +118,35 @@ Item {
     }
 
     onPlayersChanged: {
+        var resolvedPlayers = []
+        if (players) {
+            if (Array.isArray(players)) {
+                resolvedPlayers = players
+            } else if (players.count !== undefined && players.get !== undefined) {
+                for (var p = 0; p < players.count; ++p)
+                    resolvedPlayers.push(players.get(p))
+            } else if (players.length !== undefined) {
+                for (var q = 0; q < players.length; ++q)
+                    resolvedPlayers.push(players[q])
+            } else {
+                resolvedPlayers = [players]
+            }
+        }
+
+        playersList = resolvedPlayers
+
         var frequency = {}
         var updatedVisibility = {}
-        for (var i = 0; i < players.length; ++i) {
-            var player = players[i]
+        for (var i = 0; i < playersList.length; ++i) {
+            var player = playersList[i]
             var rawKey = player && player.key2 ? player.key2 : "player"
             frequency[rawKey] = (frequency[rawKey] || 0) + 1
         }
 
         key2Frequency = frequency
 
-        for (var j = 0; j < players.length; ++j) {
-            var currentPlayer = players[j]
+        for (var j = 0; j < playersList.length; ++j) {
+            var currentPlayer = playersList[j]
             var key = visibilityKeyForPlayer(currentPlayer, j)
             var existing = fullnessVisibility.hasOwnProperty(key) ? fullnessVisibility[key] : true
             updatedVisibility[key] = existing
@@ -477,7 +495,7 @@ Item {
         }
 
         Repeater {
-            model: players
+            model: playersList
 
             delegate: Item {
                 implicitHeight: 32
@@ -498,7 +516,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.leftMargin: 8
                     implicitHeight: 32
-                    text: modelData.key2
+                    text: modelData && modelData.key2 ? modelData.key2 : ""
                     checked: true
 
                     function updateCheckedFromVisibility() {
@@ -756,7 +774,7 @@ Item {
                 }
 
                 Repeater {
-                    model: players
+                    model: playersList
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
@@ -764,7 +782,7 @@ Item {
                         Layout.preferredHeight: 32
                         Layout.fillWidth: true
                         archivePlayer: modelData
-                        key2: modelData ? modelData.key2 : null
+                        key2: modelData && modelData.key2 ? modelData.key2 : null
                         timelineModel: mainSlider.timeline_model
                         viewStart: root.viewStart
                         viewEnd: root.viewEnd

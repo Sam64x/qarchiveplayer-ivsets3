@@ -143,14 +143,37 @@ Item {
         return candidate.idarchive_player !== undefined;
     }
 
+    function normalizePlayersList(source) {
+        var list = [];
+        if (!source)
+            return list;
+
+        if (Array.isArray(source))
+            return source;
+
+        if (source.count !== undefined && source.get !== undefined) {
+            for (var i = 0; i < source.count; ++i)
+                list.push(source.get(i));
+            return list;
+        }
+
+        if (source.length !== undefined) {
+            for (var j = 0; j < source.length; ++j)
+                list.push(source[j]);
+            return list;
+        }
+
+        list.push(source);
+        return list;
+    }
+
     function sanitizePlayersList(source) {
         var list = [];
         if (!source)
             return list;
 
-        var iterable = Array.isArray(source) ? source : [source];
-        for (var i = 0; i < iterable.length; ++i) {
-            var candidate = iterable[i];
+        for (var i = 0; i < source.length; ++i) {
+            var candidate = source[i];
             if (isArchivePlayerMin(candidate))
                 list.push(candidate);
         }
@@ -158,8 +181,9 @@ Item {
     }
 
     onPlayersChanged: {
-        var sanitized = sanitizePlayersList(players);
-        archivePlayers = sanitized.length === 0 && players && players.length ? players : sanitized;
+        var normalized = normalizePlayersList(players);
+        var sanitized = sanitizePlayersList(normalized);
+        archivePlayers = sanitized.length === 0 && normalized.length ? normalized : sanitized;
         syncPrimaryPlayer();
         updateIntervalMode();
         updateFullscreenState();
