@@ -118,6 +118,28 @@ void ExportListModel::updateSizeBytes(int row, qint64 sizeBytes)
     emit dataChanged(index(row), index(row), {SizeBytesRole});
 }
 
+void ExportListModel::updateProgress(int row, int progress)
+{
+    if (row < 0 || row >= m_items.size())
+        return;
+    if (m_items[row].progress == progress)
+        return;
+
+    m_items[row].progress = progress;
+    emit dataChanged(index(row), index(row), {ProgressRole});
+}
+
+void ExportListModel::updateStatus(int row, int status)
+{
+    if (row < 0 || row >= m_items.size())
+        return;
+    if (m_items[row].status == status)
+        return;
+
+    m_items[row].status = status;
+    emit dataChanged(index(row), index(row), {StatusRole});
+}
+
 void ExportListModel::updateCompletion(int row, int status, int progress, const QString& preview, qint64 sizeBytes)
 {
     if (row < 0 || row >= m_items.size())

@@ -99,7 +99,6 @@ bool ExportService::startExport(const QString& cameraId,
                                 QObject* imagePipeline,
                                 const QUrl& wsUrl)
 {
-    qDebug() << "reach here 2";
     PendingExport pending;
     pending.cameraId = cameraId;
     pending.fromLocal = fromLocal;
@@ -114,39 +113,36 @@ bool ExportService::startExport(const QString& cameraId,
     pending.exportImagePipeline = exportImagePipeline;
     pending.imagePipeline = imagePipeline;
     pending.wsUrl = wsUrl;
-    qDebug() << "reach here 3";
     QString validationError;
     if (!validateExport(pending, &validationError)) {
         setLastError(validationError);
         setStatus(Failed);
         return false;
     }
-    qDebug() << "reach here 4";
     setLastError(QString());
     setStatus(Queued);
 
-    if (!m_appInfo)
-        m_appInfo = resolveAppInfo(this);
-    if (!m_appInfo) {
-        setLastError(QStringLiteral("AppInfo is not available."));
-        setStatus(Failed);
-        return false;
-    }
-    qDebug() << "reach here 5";
     if (!m_exportManager) {
         if (auto* engine = qmlEngine(this)) {
             QObject* managerObj = engine->property("exportManager").value<QObject*>();
             m_exportManager = qobject_cast<ExportManager*>(managerObj);
         }
     }
-    qDebug() << "reach here 6";
 
     if (!m_exportManager) {
         setLastError(QStringLiteral("ExportManager is not available."));
         setStatus(Failed);
         return false;
     }
-    qDebug() << "reach here 7";
+
+    const bool needsAppInfo = pending.wsUrl.isEmpty() || !pending.wsUrl.isValid();
+    if (!m_appInfo && needsAppInfo)
+        m_appInfo = resolveAppInfo(this);
+    if (!m_appInfo && needsAppInfo) {
+        setLastError(QStringLiteral("AppInfo is not available."));
+        setStatus(Failed);
+        return false;
+    }
     const QUrl resolvedWsUrl = resolveWsUrl(pending);
     if (resolvedWsUrl.isEmpty() || !resolvedWsUrl.isValid()) {
         m_pendingExports.push_back(pending);
@@ -166,7 +162,6 @@ bool ExportService::startExport(const QString& cameraId,
             Q_ARG(QString, key2));
         return true;
     }
-    qDebug() << "reach here 8";
 
     setStatus(Connecting);
     ExportController* controller = startExportInternal(pending, resolvedWsUrl);
@@ -175,7 +170,6 @@ bool ExportService::startExport(const QString& cameraId,
         setStatus(Failed);
         return false;
     }
-    qDebug() << "reach here 9";
 
     attachController(controller);
     return true;

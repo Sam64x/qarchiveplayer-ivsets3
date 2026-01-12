@@ -238,11 +238,12 @@ void WebSocketClient::componentComplete()
 void WebSocketClient::startWorkerThread()
 {
     if (m_thread) return;
-    m_thread = new QThread(this);
+    m_thread = new QThread();
     m_worker = new WebSocketClientWorker();
     m_worker->moveToThread(m_thread);
 
     connect(m_thread, SIGNAL(finished()), m_worker, SLOT(deleteLater()));
+    connect(m_thread, SIGNAL(finished()), m_thread, SLOT(deleteLater()));
     connect(m_worker, SIGNAL(connected()), this, SIGNAL(connected()), Qt::QueuedConnection);
     connect(m_worker, SIGNAL(disconnected()), this, SIGNAL(disconnected()), Qt::QueuedConnection);
     connect(m_worker, SIGNAL(errorOccurred(QAbstractSocket::SocketError)), this, SIGNAL(errorOccurred(QAbstractSocket::SocketError)), Qt::QueuedConnection);
@@ -258,9 +259,9 @@ void WebSocketClient::startWorkerThread()
 void WebSocketClient::stopWorkerThread()
 {
     if (!m_thread) return;
-    if (m_worker) QMetaObject::invokeMethod(m_worker, "shutdown", Qt::BlockingQueuedConnection);
+    if (m_worker)
+        QMetaObject::invokeMethod(m_worker, "shutdown", Qt::QueuedConnection);
     m_thread->quit();
-    m_thread->wait();
     m_worker = nullptr;
     m_thread = nullptr;
 }

@@ -89,8 +89,8 @@ C.IVButtonControl {
                    timeText: model.timeText
                    selectedPath: model.path
                    exportController: model.controller
-                   statusOverride: model.status === UploadProgressBar.Status.Uploading ? undefined : model.status
-                   progressOverride: model.status === UploadProgressBar.Status.Uploading ? undefined : model.progress
+                   statusOverride: model.status
+                   progressOverride: model.progress
                    previewOverride: model.preview
                    sizeOverride: model.sizeBytes
 

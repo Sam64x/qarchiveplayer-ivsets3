@@ -72,6 +72,16 @@ ExportController* ExportManager::startExport(const QString& cameraId,
 
     m_model->updateController(modelRow, controller, client);
 
+    connect(controller, &ExportController::exportProgressChanged, this, [this, controller](int) {
+        const int row = m_model->indexOfController(controller);
+        if (row >= 0)
+            m_model->updateProgress(row, controller->exportProgress());
+    });
+    connect(controller, &ExportController::statusChanged, this, [this, controller](ExportController::Status status) {
+        const int row = m_model->indexOfController(controller);
+        if (row >= 0)
+            m_model->updateStatus(row, static_cast<int>(status));
+    });
     connect(controller, &ExportController::firstFramePreviewChanged, this, [this, controller]() {
         updatePreview(controller);
     });

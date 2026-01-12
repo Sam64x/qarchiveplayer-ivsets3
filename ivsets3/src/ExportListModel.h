@@ -48,6 +48,8 @@ public:
 
     void updatePreview(int row, const QString& preview);
     void updateSizeBytes(int row, qint64 sizeBytes);
+    void updateProgress(int row, int progress);
+    void updateStatus(int row, int status);
     void updateCompletion(int row, int status, int progress, const QString& preview, qint64 sizeBytes);
     void updateController(int row, ExportController* controller, WebSocketClient* client);
 
