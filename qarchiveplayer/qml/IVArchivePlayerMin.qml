@@ -29,6 +29,9 @@ Item {
     property var globalComponent: null
     property bool __registeredInCommonArchive: false
     property var __registeredCommonArchiveTarget: null
+    readonly property bool commonArchiveStripVisible: __registeredCommonArchiveTarget
+                                                     && __registeredCommonArchiveTarget.commonArchiveStrip
+                                                     && __registeredCommonArchiveTarget.commonArchiveStrip.visible
 
     property alias idarchive_player: idarchive_player
     property alias archiveStreamer: archiveStreamer
@@ -932,6 +935,7 @@ Item {
             id: wndControlPanel
             z: 5
             anchors.fill: parent
+            visible: !root.commonArchiveStripVisible
             opacity: ((0 === root.getCamCommonPanelModeUseSetPanel_Deb() && !root.isSmallMode()) || mainMouseArea.containsMouse || root.common_panel) ? 1.0 : 0.0
 
             ColumnLayout {
