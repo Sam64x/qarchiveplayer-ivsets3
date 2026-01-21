@@ -170,6 +170,10 @@ Popup {
                          if (ExportManager)
                             ExportManager.removeExport(modelIndex)
                     }
+                    onRestartRequested: {
+                        if (ExportManager)
+                            ExportManager.restartExport(modelIndex)
+                    }
 
                     onSelectedPathChanged: {
                         updateFolderUrl();

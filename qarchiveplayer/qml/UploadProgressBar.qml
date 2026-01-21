@@ -33,6 +33,7 @@ Item {
     property real smoothProgress: 0
 
     signal removeRequested()
+    signal restartRequested()
 
     function localFileUrl(path) {
         if (!path)
@@ -157,6 +158,8 @@ Item {
                             contentWidth += sizeText.implicitWidth
                         }
                         return Math.max(84, contentWidth + 16)
+                    case UploadProgressBar.Status.Restart:
+                        return Math.max(84, restartText.implicitWidth + 16)
                     case UploadProgressBar.Status.Error:
                         return 32
                     default:
@@ -244,6 +247,16 @@ Item {
                     verticalAlignment: Text.AlignVCenter
                 }
 
+                Text {
+                    id: restartText
+                    visible: root.status === UploadProgressBar.Status.Restart
+                    text: Language.getTranslate("Restart", "Повторить")
+                    color: IVColors.get("Colors/Text new/TxContrast")
+                    font: IVColors.getFont("Label accent")
+                    horizontalAlignment: Text.AlignLeft
+                    verticalAlignment: Text.AlignVCenter
+                }
+
                 C.IVImage {
                     name: "new_images/alert-triangle"
                     Layout.preferredWidth: 16
@@ -255,14 +268,20 @@ Item {
 
             MouseArea {
                 anchors.fill: parent
-                enabled: root.status === UploadProgressBar.Status.Done && root.selectedPath
+                enabled: (root.status === UploadProgressBar.Status.Done && root.selectedPath) ||
+                         root.status === UploadProgressBar.Status.Restart
                 hoverEnabled: true
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: {
                     if (!enabled)
                         return
-                    var url = "file:///" + root.selectedPath
-                    Qt.openUrlExternally(root.localFileUrl(root.selectedPath))
+                    if (root.status === UploadProgressBar.Status.Restart) {
+                        root.restartRequested()
+                        return
+                    }
+                    if (root.status === UploadProgressBar.Status.Done) {
+                        Qt.openUrlExternally(root.localFileUrl(root.selectedPath))
+                    }
                 }
             }
         }
@@ -307,5 +326,5 @@ Item {
     onSmoothProgressChanged: progressCircle.requestPaint()
     onStatusChanged: progressCircle.requestPaint()
 
-    enum Status { Idle, Uploading, Done, Error }
+    enum Status { Idle, Uploading, Done, Error, Restart }
 }
