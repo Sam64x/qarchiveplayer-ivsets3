@@ -16,6 +16,8 @@ file(GLOB_RECURSE PROJECT_SRC
 file (GLOB_RECURSE QML_SRC
     qml/*.qml
     qml/client/*.qml
+    qml/zonesGrid/*.qml
+	other/*.*
     qmldir
 )
 set(FILETOCOPY ${QML_SRC})
@@ -31,6 +33,7 @@ add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME} PRIVATE
     src
     qml
+	other
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

@@ -5,7 +5,6 @@
 
 #include "ExportListModel.h"
 
-class AppInfo;
 class ExportController;
 class ImagePipeline;
 
@@ -18,8 +17,6 @@ public:
 
     ExportListModel* activeExportsModel() const;
 
-    void setAppInfo(AppInfo* appInfo);
-
     Q_INVOKABLE void startExport(const QString& cameraId,
                                  const QDateTime& fromLocal,
                                  const QDateTime& toLocal,
@@ -31,7 +28,8 @@ public:
                                  bool exportPrimitives,
                                  bool exportCameraInformation,
                                  bool exportImagePipeline,
-                                 ImagePipeline* imagePipeline);
+                                 ImagePipeline* imagePipeline,
+                                 const QString& wsUrl);
     Q_INVOKABLE void removeExport(int index);
 
 private:
@@ -39,5 +37,4 @@ private:
     void updateSizeBytes(ExportController* controller);
 
     ExportListModel* m_model {nullptr};
-    AppInfo* m_appInfo {nullptr};
 };

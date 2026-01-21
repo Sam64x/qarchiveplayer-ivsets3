@@ -28,10 +28,12 @@ RowLayout {
 
     // Just Data
     property var archiveId
+    property var archiveIsPlaying
     property var rootRef
     property var cameraId
     property var isIntervalMode
     property var archiveTime
+    property real isize: 1
 
     // Component reference
     property var iv_arc_slider_new
@@ -81,7 +83,9 @@ RowLayout {
         archiveStreamer: root.archiveStreamer
     }
 
-    IVSeparator {}
+    IVSeparator {
+        visible: !root.isCommonSets
+    }
 
     FrameTimeButton {
         visible: !root.isCommonSets
@@ -90,6 +94,7 @@ RowLayout {
 
     EventButtons {
         id: iv_butt_spb_events_skip
+        visible: !root.isCommonSets
         iv_arc_slider_new: root.iv_arc_slider_new
         updateTimeFromSlider: root.updateTimeFromSlider
     }
@@ -106,23 +111,11 @@ RowLayout {
     }
 
     Rectangle {
-        implicitWidth: 40
-        implicitHeight: 24
-        radius: 4
-        color: IVColors.get("Colors/Background new/BgEvent")
-        visible: ExportManager.activeExportsModel.count > 0
-
-        ActiveExportsButton {
-            rootRef: root.rootRef
-        }
-    }
-
-    Rectangle {
         height: parent.height
         width: height
         radius: 4
         color: IVColors.get("Colors/Background new/BgEvent")
-        visible: root.isIntervalMode && !root.archiveStreamer.exporting
+        visible: !root.isCommonSets && root.isIntervalMode && !root.archiveStreamer.exporting
 
         ExportSettingsButton {
             id: exportSettings
@@ -140,7 +133,7 @@ RowLayout {
         width: height
         radius: 4
         color: IVColors.get("Colors/Background new/BgEvent")
-        visible: root.isIntervalMode && !root.archiveStreamer.exporting
+        visible: !root.isCommonSets && root.isIntervalMode && !root.archiveStreamer.exporting
 
         C.IVButtonControl {
             anchors.fill: parent

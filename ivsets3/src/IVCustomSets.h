@@ -68,14 +68,12 @@ public slots:
   void initMap();
   void deinitMap();
   void getMapsFromFile();
-  QString getSetPreset(QString presetNumber);
   QJsonObject getTypePreset(QString type,QString propertyName,QString propertyType,QVariant value);
   int deleteSet(QString setName);
   int deleteSet2(QString setName,QString setId);
   QString getZoneTypes();
   QString getZone(QString setName);
   QString getZone2(QString setName,QString setId);
-  QString getZone(QString setName,bool isLocal);
   QString getZonesRemote(QString setName);
   QString getZonesLocal(QString setName);
   QString getZonesCommon(QString setName,QString setId);

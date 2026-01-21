@@ -32,6 +32,8 @@ QVariant ExportListModel::data(const QModelIndex& index, int role) const
         return item.cameraName;
     case TimeTextRole:
         return item.timeText;
+    case ExportDateRole:
+        return item.exportDate;
     case StatusRole:
         return item.status;
     case ProgressRole:
@@ -55,6 +57,7 @@ QHash<int, QByteArray> ExportListModel::roleNames() const
     roles[PathRole] = "path";
     roles[CameraNameRole] = "cameraName";
     roles[TimeTextRole] = "timeText";
+    roles[ExportDateRole] = "exportDate";
     roles[StatusRole] = "status";
     roles[ProgressRole] = "progress";
     roles[PreviewRole] = "preview";
@@ -62,14 +65,44 @@ QHash<int, QByteArray> ExportListModel::roleNames() const
     return roles;
 }
 
-int ExportListModel::addItem(const Item& item)
+int ExportListModel::generalStatus() const
 {
-    const int row = m_items.size();
-    beginInsertRows(QModelIndex(), row, row);
-    m_items.append(item);
+    return m_generalStatus;
+}
+
+void ExportListModel::setGeneralStatus(int value)
+{
+    if (m_generalStatus != value) {
+        m_generalStatus = value;
+        emit generalStatusChanged();
+    }
+}
+
+int ExportListModel::generalProgress() const
+{
+    return m_generalProgress;
+}
+
+void ExportListModel::setGeneralProgress(int value)
+{
+    if (m_generalProgress != value) {
+        m_generalProgress = value;
+        emit generalProgressChanged();
+    }
+}
+
+void ExportListModel::addItem(const Item& item)
+{
+    beginInsertRows(QModelIndex(), 0, 0);
+
+    m_items.push_front(item);
+    const auto controller = item.controller;
+    connect(controller, &ExportController::statusChanged, this, &ExportListModel::updateGeneralStatus);
+    connect(controller, &ExportController::exportProgressChanged, this, &ExportListModel::updateGeneralProgress);
+
     endInsertRows();
+
     emit countChanged();
-    return row;
 }
 
 void ExportListModel::removeItem(int row)
@@ -78,7 +111,10 @@ void ExportListModel::removeItem(int row)
         return;
 
     beginRemoveRows(QModelIndex(), row, row);
+
     m_items.removeAt(row);
+    updateGeneralStatus();
+
     endRemoveRows();
     emit countChanged();
 }
@@ -139,4 +175,47 @@ void ExportListModel::updateCompletion(int row, int status, int progress, const 
         ControllerRole,
         ClientRole
     });
+}
+
+void ExportListModel::updateGeneralStatus()
+{
+    bool anyItemUploading = false;
+    bool anyItemHasError = false;
+    for (auto& item: m_items) {
+        if (!item.controller) {
+            continue;
+        }
+        if (!anyItemUploading && item.controller->status() == ExportController::Uploading) {
+            anyItemUploading = true;
+        }
+        if (!anyItemHasError && item.controller->status() == ExportController::Error) {
+            anyItemHasError = true;
+        }
+        if (anyItemUploading && anyItemHasError) {
+            break;
+        }
+    }
+    if (anyItemUploading && anyItemHasError) {
+        setGeneralStatus(static_cast<int>(GeneralStatus::UploadingAndError));
+    }
+    else if (anyItemUploading) {
+        setGeneralStatus(static_cast<int>(GeneralStatus::Uploading));
+    }
+    else if (anyItemHasError) {
+        setGeneralStatus(static_cast<int>(GeneralStatus::Error));
+    }
+    else {
+        setGeneralStatus(static_cast<int>(GeneralStatus::Done));
+    }
+}
+
+void ExportListModel::updateGeneralProgress()
+{
+    auto minProgress = 100;
+    for (auto& item: m_items) {
+        if (item.controller && item.controller->status() == ExportController::Uploading) {
+            minProgress = std::min(minProgress, item.controller->exportProgress());
+        }
+    }
+    setGeneralProgress(minProgress);
 }

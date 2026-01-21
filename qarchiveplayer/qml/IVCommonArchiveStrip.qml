@@ -3,6 +3,7 @@ import QtQuick 2.11
 import QtQuick.Controls 2.3
 import QtQuick.Layouts 1.3
 
+import iv.colors 1.0
 import iv.viewers.archiveplayer 1.0 as ArchivePlayer
 import iv.singletonLang 1.0
 import iv.controls 1.0 as C
@@ -11,7 +12,7 @@ Item {
     id: root
 
     property var players: []
-    property var playersCount: Math.max(1, players.length)
+    property int playersCount: Math.max(1, players.length)
     property var archivePlayers: []
     property real isize: 1
 
@@ -29,7 +30,7 @@ Item {
 
     readonly property bool archiveIsPlaying: !multiArchiveStreamer.paused
 
-    readonly property var rootRef: primaryPlayer ? primaryPlayer : null
+    property var rootRef
     readonly property string archiveId: primaryPlayer && primaryPlayer.archiveId ? primaryPlayer.archiveId : ""
     readonly property string cameraId: primaryPlayer && primaryPlayer.cameraId ? primaryPlayer.cameraId : ""
 
@@ -317,7 +318,6 @@ Item {
         }
 
         property real playbackSpeed: primaryPlayer && primaryPlayer.archiveStreamer ? primaryPlayer.archiveStreamer.playbackSpeed : 1
-        property bool exporting: primaryPlayer && primaryPlayer.archiveStreamer ? primaryPlayer.archiveStreamer.exporting : false
 
         onPlaybackSpeedChanged: {
             forEachPlayer(function(player) {
@@ -396,98 +396,148 @@ Item {
         }
     }
 
-    Rectangle {
+    ColumnLayout {
         anchors.fill: parent
-        color: "transparent"
+        anchors.topMargin: 8
+        spacing: 8 * root.isize
 
-        visible: true
+        ArchiveControls {
+            id: archiveControls
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.topMargin: 8
-            spacing: 8 * root.isize
+            implicitHeight: 32 - parent.spacing*2
+            Layout.alignment: Qt.AlignHCenter
 
-            ArchiveControls {
-                id: archiveControls
+            m_i_curr_scale: root.commonScale
+            needToUpdateArchive: root.needToUpdateArchive
+            archiveId: root.archiveId
+            rootRef: root.rootRef
+            imagePipeline: root.primaryImagePipeline
+            cameraId: root.cameraId
+            isIntervalMode: root.isIntervalMode || commonTimeline.exportMode
+            archiveTime: root.sharedCurrentDate
+            isCommonSets: true
+            iv_arc_slider_new: primarySlider
+            archiveStreamer: multiArchiveStreamer
+            updateTimeFromSlider: root.updateTimeFromSlider
+            updateTimeFromCalendar: root.updateTimeFromCalendar
 
-                implicitHeight: 32 - parent.spacing*2
-                Layout.alignment: Qt.AlignHCenter
-
-                m_i_curr_scale: root.commonScale
-                needToUpdateArchive: root.needToUpdateArchive
-                archiveId: root.archiveId
-                rootRef: root.rootRef
-                imagePipeline: root.primaryImagePipeline
-                cameraId: root.cameraId
-                isIntervalMode: root.isIntervalMode
-                archiveTime: root.sharedCurrentDate
-                isCommonSets: true
-                iv_arc_slider_new: primarySlider
-                archiveStreamer: multiArchiveStreamer
-                updateTimeFromSlider: root.updateTimeFromSlider
-                updateTimeFromCalendar: root.updateTimeFromCalendar
-                funcSwitchSelectIntervalMode: root.toggleIntervalMode
-
-                onScaleChosen: root.applyScaleToPlayers(index)
-                onClearPendingUpdate: {
-                    root.needToUpdateArchive = false;
-                    forEachPlayer(function(player) {
-                        if (player.needToUpdateArchive !== undefined)
-                            player.needToUpdateArchive = false;
-                    });
-                }
+            onScaleChosen: root.applyScaleToPlayers(index)
+            onClearPendingUpdate: {
+                root.needToUpdateArchive = false;
+                forEachPlayer(function(player) {
+                    if (player.needToUpdateArchive !== undefined)
+                        player.needToUpdateArchive = false;
+                });
             }
 
-            ColumnLayout {
-                id: sliderStack
+            RowLayout {
+                spacing: 1
+                visible: commonTimeline.exportMode
 
-                width: parent.width
-                spacing: 4
-
-                CommonArchiveTimeline {
-                    id: commonTimeline
-
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-
-                    isize: root.isize
-                    players: root.archivePlayers
-                    commonScale: root.commonScale
-                    sharedCurrentDate: root.sharedCurrentDate
-
-                    onTimeChanged: {
-                        if (!date)
-                            return;
-                        root.sharedCurrentDate = date
-                        root.updatePlayersArchiveTime(date)
-                        root.setCalendarTime(date)
-                        root.updateTimeFromSlider()
-                    }
-
-                    onBoundsChanged: {
-                        var intervalBounds = bounds
-                        forEachPlayer(function(player) {
-                            if (player.applyCommonBounds)
-                                player.applyCommonBounds(intervalBounds)
-                            else if (player) {
-                                var left = intervalBounds.left - intervalBounds.left % 1000
-                                var right = intervalBounds.right - intervalBounds.right % 1000
-                                if (player.m_uu_i_ms_begin_interval !== undefined)
-                                    player.m_uu_i_ms_begin_interval = left
-                                if (player.m_uu_i_ms_end_interval !== undefined)
-                                    player.m_uu_i_ms_end_interval = right
-                            }
-                        });
-                    }
-
-                    Component.onCompleted: root.primarySlider = commonTimeline.slider
+                C.IVButtonControl {
+                    Layout.preferredWidth: 72
+                    Layout.preferredHeight: 24
+                    radius: 0
+                    topLeftRadius: 4
+                    bottomLeftRadius: 4
+                    text: "Выгрузить"
+                    size: C.IVButtonControl.Size.Small
+                    type: C.IVButtonControl.Type.Event
+                    enabled: commonTimeline.exportCameraIds.length > 0
+                    onClicked: exportSettings.startExport()
                 }
 
-                Binding {
-                    target: root
-                    property: "primarySlider"
-                    value: commonTimeline ? commonTimeline.slider : null
+                ExportSettingsButton {
+                    id: exportSettings
+                    radius: 0
+                    Layout.preferredWidth: 24
+                    Layout.preferredHeight: 24
+                    size: C.IVButtonControl.Size.Small
+                    type: C.IVButtonControl.Type.Event
+                    enabled: commonTimeline.exportCameraIds.length > 0
+                    archiveId: root.archiveId
+                    cameraId: root.cameraId
+                    rootRef: root.rootRef
+                    imagePipeline: root.primaryImagePipeline
+                    externalFromTime: commonTimeline.exportBounds.left
+                    externalToTime: commonTimeline.exportBounds.right
+                    useExternalBounds: true
+                    exportCameraIds: commonTimeline.exportCameraIds
+                    applyBounds: function(fromTime, toTime) {
+                        commonTimeline.setExportBounds(fromTime, toTime)
+                    }
                 }
+
+                C.IVButtonControl {
+                    Layout.preferredWidth: 24
+                    Layout.preferredHeight: 24
+                    radius: 0
+                    topRightRadius: 4
+                    bottomRightRadius: 4
+                    source: "new_images/x-close"
+                    size: C.IVButtonControl.Size.Small
+                    type: C.IVButtonControl.Type.Event
+                    toolTipText: Language.getTranslate("Exit from interval selection", "Выйти из режима выбора интервала")
+                    enabled: true
+                    onClicked: {
+                        if (commonTimeline.exportMode)
+                            commonTimeline.exportMode = false
+                        else
+                            root.toggleIntervalMode()
+                    }
+                }
+            }
+        }
+
+        ColumnLayout {
+            id: sliderStack
+
+            width: parent.width
+            spacing: 4
+
+            CommonArchiveTimeline {
+                id: commonTimeline
+
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                isize: root.isize
+                players: root.archivePlayers
+                commonScale: root.commonScale
+                sharedCurrentDate: root.sharedCurrentDate
+
+                onTimeChanged: {
+                    if (!date)
+                        return;
+                    root.sharedCurrentDate = date
+                    root.updatePlayersArchiveTime(date)
+                    root.setCalendarTime(date)
+                    root.updateTimeFromSlider()
+                }
+
+                onBoundsChanged: {
+                    var intervalBounds = bounds
+                    forEachPlayer(function(player) {
+                        if (player.applyCommonBounds)
+                            player.applyCommonBounds(intervalBounds)
+                        else if (player) {
+                            var left = intervalBounds.left - intervalBounds.left % 1000
+                            var right = intervalBounds.right - intervalBounds.right % 1000
+                            if (player.m_uu_i_ms_begin_interval !== undefined)
+                                player.m_uu_i_ms_begin_interval = left
+                            if (player.m_uu_i_ms_end_interval !== undefined)
+                                player.m_uu_i_ms_end_interval = right
+                        }
+                    });
+                }
+
+                Component.onCompleted: root.primarySlider = commonTimeline.slider
+            }
+
+            Binding {
+                target: root
+                property: "primarySlider"
+                value: commonTimeline ? commonTimeline.slider : null
             }
         }
     }

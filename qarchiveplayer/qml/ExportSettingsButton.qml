@@ -34,6 +34,11 @@ C.IVButtonControl {
 
     property var rootRef
     property var iv_arc_slider_new
+    property var externalFromTime: null
+    property var externalToTime: null
+    property bool useExternalBounds: false
+    property var exportCameraIds: []
+    property var applyBounds
 
     readonly property real rootWidth: rootRef.width
     readonly property real rootHeight: rootRef.height
@@ -64,6 +69,65 @@ C.IVButtonControl {
             path = path.replace(/\//g, "\\")
         }
         return path
+    }
+
+    function resolveDateTime(value) {
+        if (value && value.getTime && !isNaN(value.getTime()))
+            return value
+        return null
+    }
+
+    function resolvedFromTime() {
+        var external = resolveDateTime(root.externalFromTime)
+        if (root.useExternalBounds && external)
+            return external
+        if (iv_arc_slider_new)
+            return iv_arc_slider_new.firstBorderTime
+        return null
+    }
+
+    function resolvedToTime() {
+        var external = resolveDateTime(root.externalToTime)
+        if (root.useExternalBounds && external)
+            return external
+        if (iv_arc_slider_new)
+            return iv_arc_slider_new.secondBorderTime
+        return null
+    }
+
+    function resolvedExportTimes() {
+        var fromTimeRaw = resolvedFromTime()
+        var toTimeRaw = resolvedToTime()
+        if (!fromTimeRaw || !toTimeRaw)
+            return { "fromTime": null, "toTime": null }
+        var needSwap = fromTimeRaw > toTimeRaw
+        return {
+            "fromTime": needSwap ? toTimeRaw : fromTimeRaw,
+            "toTime": needSwap ? fromTimeRaw : toTimeRaw
+        }
+    }
+
+    function startExport() {
+        if (!(ExportManager && ExportManager.startExport))
+            return
+
+        var times = resolvedExportTimes()
+        if (!times.fromTime || !times.toTime)
+            return
+
+        var maxChunkFileSizeBytes = root.isMemoryLimit ? root.maxMemory * 1024 * 1024 : 0
+        var maxChunkDurationMinutes = root.isMinutesLimit ? root.maxMinutes : 0
+        var exportPrimitives = root.exportPrimitives
+        var exportCameraInformation = root.exportCameraInformation
+        var exportImagePipeline = root.exportImagePipeline
+        var cameraIds = root.exportCameraIds && root.exportCameraIds.length > 0
+                ? root.exportCameraIds : [root.cameraId]
+        for (var i = 0; i < cameraIds.length; ++i) {
+            ExportManager.startExport(cameraIds[i], times.fromTime, times.toTime, root.archiveId,
+                                      root.selectedPath, root.selectedFormat, maxChunkDurationMinutes,
+                                      maxChunkFileSizeBytes, exportPrimitives, exportCameraInformation,
+                                      exportImagePipeline, root.imagePipeline, appInfo.wsUrl)
+        }
     }
 
     width: 24
@@ -704,13 +768,13 @@ C.IVButtonControl {
 
                     property bool suppressFieldSync: false
 
-                    readonly property var fromTimeRaw: iv_arc_slider_new.firstBorderTime
-                    readonly property var toTimeRaw: iv_arc_slider_new.secondBorderTime
+                    readonly property var fromTimeRaw: root.resolvedFromTime()
+                    readonly property var toTimeRaw: root.resolvedToTime()
                     readonly property bool needSwap: fromTimeRaw > toTimeRaw
                     readonly property var fromTime: needSwap ? toTimeRaw : fromTimeRaw
                     readonly property var toTime: needSwap ? fromTimeRaw : toTimeRaw
-                    readonly property string fromUtc: Qt.formatDateTime(fromTime, "dd.MM.yyyy hh:mm:ss")
-                    readonly property string toUtc: Qt.formatDateTime(toTime,   "dd.MM.yyyy hh:mm:ss")
+                    readonly property string fromUtc: fromTime ? Qt.formatDateTime(fromTime, "dd.MM.yyyy hh:mm:ss") : ""
+                    readonly property string toUtc: toTime ? Qt.formatDateTime(toTime, "dd.MM.yyyy hh:mm:ss") : ""
 
                     onFromUtcChanged: {
                         if (timeFieldLayout.suppressFieldSync)
@@ -755,7 +819,10 @@ C.IVButtonControl {
                                     var ds = Date.fromLocaleString(Qt.locale(), text, "dd.MM.yyyy hh:mm:ss")
                                     var toDate = Date.fromLocaleString(Qt.locale(), timeFieldLayout.toUtc,
                                                                        "dd.MM.yyyy hh:mm:ss")
-                                    iv_arc_slider_new.setBounds(ds, toDate)
+                                    if (root.useExternalBounds && root.applyBounds)
+                                        root.applyBounds(ds, toDate)
+                                    else if (iv_arc_slider_new)
+                                        iv_arc_slider_new.setBounds(ds, toDate)
                                     timeFieldLayout.suppressFieldSync = false
                                 }
                             }
@@ -813,7 +880,10 @@ C.IVButtonControl {
                                     timeFieldLayout.suppressFieldSync = true
                                     var fromDate = Date.fromLocaleString(Qt.locale(), timeFieldLayout.fromUtc, "dd.MM.yyyy hh:mm:ss")
                                     var ds = Date.fromLocaleString(Qt.locale(), text, "dd.MM.yyyy hh:mm:ss")
-                                    iv_arc_slider_new.setBounds(fromDate, ds)
+                                    if (root.useExternalBounds && root.applyBounds)
+                                        root.applyBounds(fromDate, ds)
+                                    else if (iv_arc_slider_new)
+                                        iv_arc_slider_new.setBounds(fromDate, ds)
                                     timeFieldLayout.suppressFieldSync = false
                                 }
                             }
@@ -843,17 +913,7 @@ C.IVButtonControl {
                     size: C.IVButtonControl.Size.Big
                     type: C.IVButtonControl.Type.Primary
                     onClicked: {
-                        if (ExportManager && ExportManager.startExport) {
-                            var maxChunkFileSizeBytes = root.isMemoryLimit ? root.maxMemory * 1024 * 1024 : 0
-                            var maxChunkDurationMinutes = root.isMinutesLimit ? root.maxMinutes : 0
-                            var exportPrimitives = root.exportPrimitives
-                            var exportCameraInformation = root.exportCameraInformation
-                            var exportImagePipeline = root.exportImagePipeline
-                            ExportManager.startExport(root.cameraId, timeFieldLayout.fromTime, timeFieldLayout.toTime, root.archiveId,
-                                                      root.selectedPath, root.selectedFormat, maxChunkDurationMinutes,
-                                                      maxChunkFileSizeBytes, exportPrimitives, exportCameraInformation,
-                                                      exportImagePipeline, root.imagePipeline)
-                        }
+                        root.startExport()
                         exportMenu.close()
                     }
                 }

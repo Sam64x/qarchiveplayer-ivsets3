@@ -1,274 +1,237 @@
-import QtQuick 2.11
 import QtQml 2.3
-import QtQuick.Controls 2.2
-import QtQuick.Layouts 1.3
-import QtQml.Models 2.1
-import QtQuick.Window 2.3
-import iv.sets.sets3 1.0
-import iv.colors 1.0
-import iv.controls 1.0
+import QtQuick 2.11
+import QtQuick.Controls 2.4
+import QtQuick.Layouts 1.11
 import QtGraphicalEffects 1.0
 
-IVContextMenu {
+import ArchiveComponents 1.0
+import iv.singletonLang 1.0
+import iv.controls 1.0 as Controls
+import iv.colors 1.0
+import iv.viewers.archiveplayer 1.0 as ArchivePlayerModule
+
+Popup {
     id: root
-    //bgColor: IVColors.get("Colors/Background new/BgContextMenuThemed")
-    readonly property real isize: 1
-    property var model: null
-    radius: 8 * root.isize
-    component: Component {
+
+    rightPadding: 0
+    leftPadding: 0
+    topPadding: 0
+    bottomPadding: 0
+
+    closePolicy: Popup.CloseOnPressOutsideParent | Popup.CloseOnReleaseOutsideParent
+
+    background: Item {
+        Rectangle {
+            id: rect
+            anchors.fill: parent
+            color: IVColors.get("Colors/Background new/BgContextMenuThemed")
+            radius: 4
+        }
+
+        DropShadow {
+            anchors.fill: rect
+            source: rect
+            verticalOffset: 10
+            radius: 24
+            spread: 0.3
+            color: "#4D020720"
+            samples: 32
+        }
+    }
+
+    contentItem: Item {
+        implicitWidth: 444
+        implicitHeight: contentLayout.implicitHeight
+
         ColumnLayout {
-            width: 317 * root.isize
-            height: 400 * root.isize
+            id: contentLayout
+
+            anchors.fill: parent
             spacing: 0
+
+            Label {
+                Layout.topMargin: visible ? 16 : 0
+                Layout.bottomMargin: visible ? 16 : 0
+                Layout.alignment: Qt.AlignHCenter
+
+                visible: !ExportManager.activeExportsModel.count
+                text: "Нет активных/завершенных выгрузок для отображения"
+                color: IVColors.get("Colors/Text new/TxPrimaryThemed")
+                font: IVColors.getFont("Label accent")
+            }
+
             Rectangle {
                 Layout.fillWidth: true
-                Layout.bottomMargin: 8 * root.isize
-                Layout.leftMargin: 16 * root.isize
-                Layout.rightMargin: 16 * root.isize
-                color: "transparent"
-                height: statusColumn.height
-                ColumnLayout {
-                    id: statusColumn
-                    spacing: 4 * root.isize
-                    anchors {
-                        verticalCenter: parent.verticalCenter
-                        left: parent.left
-                    }
-                    property bool smallSpace: true
-                    property bool spaceOver: false
-                    property bool isRecording: true
-                    Rectangle {
-                        id: smallSpaceMsg
-                        color: IVColors.get("Colors/Text new/TxCritical")
-                        width: 144 * root.isize
-                        height: 20 * root.isize
-                        radius: 8 * root.isize
-                        visible: parent.smallSpace
-                        Image {
-                            id: triangleImage
-                            width: 16 * root.isize
-                            height: 16 * root.isize
-                            anchors {
-                                left: parent.left
-                                leftMargin: 6 * root.isize
-                                verticalCenter: parent.verticalCenter
-                            }
-                            source: "file:///"+applicationDirPath + "/images/new_images/alert-triangle.svg"
-                            ColorOverlay {
-                                anchors.fill: parent
-                                source: parent
-                                color: IVColors.get("Colors/Text new/TxContrast")
-                            }
-                        }
-                        Text {
-                            id: alarmText
-                            color: IVColors.get("Colors/Text new/TxContrast")
-                            font: IVColors.getFont("Subtext")
-                            anchors {
-                                left: triangleImage.right
-                                leftMargin: 3 * root.isize
-                                verticalCenter: parent.verticalCenter
-                            }
-                            text: parent.visible ? "В системе "+(statusColumn.spaceOver ? "нет" : "мало")+" места" : ""
-                        }
-                    }
-                    Row {
-                        id: statusTextRow
-                        property bool localRec
-                        property bool serverRec
-                        visible: parent.spaceOver || !parent.smallSpace
-                        onLocalRecChanged: {
-                            recordPathText.text = "Записи ведутся "
-                            recordPathText.text += (localRec && serverRec ? "в " : "только в ")
-                            if (localRec && serverRec) recordPathText.text += "<b>Архив</b> и <b>Файлы</b>"
-                            else if (serverRec) recordPathText.text += "<b>Архив</b>"
-                            else if (localRec) recordPathText.text += "<b>Файлы</b>"
-                            else recordPathText.text = "Записи остановлены"
-                        }
-                        onServerRecChanged: {
-                            recordPathText.text = "Записи ведутся "
-                            recordPathText.text += (localRec && serverRec ? "в " : "только в ")
-                            if (localRec && serverRec) recordPathText.text += "<b>Архив</b> и <b>Файлы</b>"
-                            else if (serverRec) recordPathText.text += "<b>Архив</b>"
-                            else if (localRec) recordPathText.text += "<b>Файлы</b>"
-                            else recordPathText.text = "Записи остановлены"
-                        }
-                        Text {
-                            id: recordPathText
-                            color: IVColors.get("Colors/Text new/TxContrast")
-                            font: IVColors.getFont("Label")
-                            text: "Записи остановлены"
-                        }
-                        Component.onCompleted: {
-                            localRec = true
-                            serverRec = true
-                        }
-                    }
-                    Text {
-                        id: spaceText
-                        color: IVColors.get("Colors/Text new/TxContrast")
-                        property string time: "32ч 15м"
-                        property int avaliableMb: 101
-                        property string units: " МБ"
-                        font: IVColors.getFont("Label")
-                        text: "<b>"+avaliableMb+" "+units+"</b> " + (!statusColumn.smallSpace ? "доступно" : ("это примерно " + "<b>"+time+"</b>"))
-                        onAvaliableMbChanged: {
-                            if (avaliableMb > 1024) units = "ГБ"
-                            else units = "МБ"
-                        }
-                    }
-                }
-                IVButton {
-                    source: "new_images/archive"
-                    toolTipText: "Открыть папку экспорта"
-                    width: 40 * root.isize
-                    height: 40 * root.isize
-                    type: IVButton.Type.Helper
-                    anchors {
-                        verticalCenter: parent.verticalCenter
-                        right: parent.right
-                    }
-                    onClicked: {
-                    }
-                }
-            }
-            Rectangle{
-                Layout.fillWidth: true
-                height: 1 * root.isize
-                color: IVColors.get("Colors/Background new/BgContextMenuThemed")
-            }
-            ListView {
-                id: exportListView
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                model: root.model
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                section.property: "forDate"
-                section.delegate: Rectangle {
-                    width: parent.width
-                    height: 24 * root.isize
-                    color: "transparent"
-                    Text {
-                        text: new Date(parseInt(section)).getFullYear() === new Date().getFullYear() ?
-                                  Qt.formatDate(new Date(parseInt(section)), "dd MMMM") :
-                                  Qt.formatDate(new Date(parseInt(section)), "dd MMMM yyyy")
+                Layout.preferredHeight: 56
 
-                        color: IVColors.get("Colors/Text new/TxSecondaryThemed")
-                        font: IVColors.getFont("Subtext")
-                        anchors {
-                            left: parent.left
-                            bottom: parent.bottom
-                            leftMargin: 8 * root.isize
-                        }
-                    }
-                }
-                delegate: Rectangle {
-                    width: parent.width
-                    height: 48 * root.isize
-                    color: "transparent"
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 8 * root.isize
-                        spacing: 0
-                        Rectangle {
-                            id: exportPreview
-                            width: 44 * root.isize
-                            radius: 4 * root.isize
-                            Layout.fillHeight: true
-                            color: Qt.rgba(Math.random(),Math.random(),Math.random(), 0.9)
-                        }
-                        ColumnLayout {
-                            Layout.fillHeight: true
-                            Layout.fillWidth: true
-                            spacing: 0
-                            Text {
-                                text: model.key2
-                                color: IVColors.get("Colors/Text new/TxPrimaryThemed")
-                                font: IVColors.getFont("Label accent")
-                            }
-                            Text {
-                                text: model.duration
-                                color: IVColors.get("Colors/Text new/TxSecondaryThemed")
-                                font: IVColors.getFont("Subtext")
-                            }
-                        }
-                        IVRecordButton {
-                            width: 84 * root.isize
-                            height: 32 * root.isize
-                            sizeMB: JSON.parse(model.sizeMB)
-                            type: switch (model.status){
-                                  case "recording": return IVRecordButton.Type.Recording
-                                  case "recorded": return IVRecordButton.Type.Download
-                                  case "saved": return IVRecordButton.Type.Open
-                                  case "error": return IVRecordButton.Type.NoSpace
-                                  }
-                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                            Timer {
-                                id: exportFictive
-                                interval: 1000
-                                repeat: true
-                                property int count: 0
-                                onTriggered: {
-                                    var randInt = parseInt((Math.random()*15)%15)
-                                    parent.sizeMB += randInt
-                                    count++;
-                                    if (count == 20){
-                                        parent.type = IVRecordButton.Type.Download
-                                        stop()
-                                    }
-                                }
-                            }
-                            onClicked: {
-                                switch (type) {
-                                case IVRecordButton.Type.Recording:
-                                    exportFictive.stop()
-                                    type = IVRecordButton.Type.Open;
-                                    break
-                                case IVRecordButton.Type.Download:
-                                    break
-                                case IVRecordButton.Type.Open:
-                                    break
-                                case IVRecordButton.Type.NoSpace:
-                                    break
-                                }
-                            }
-                            Component.onCompleted: {
-                                if (type === IVRecordButton.Type.Recording) exportFictive.start()
-                            }
-                        }
-                    }
-                    Rectangle {
-                        anchors {
-                            bottom: parent.bottom
-                            left: parent.left
-                            right: parent.right
-                        }
-                        height: 1 * root.isize
-                        color: IVColors.get("Colors/Background new/BgContextMenuThemed")
-                    }
-                }
-            }
+                visible: ExportManager.activeExportsModel.count
+                color: IVColors.get("Colors/Background new/BgListPrimaryThemed")
+                radius: 4
 
-            Rectangle{
-                Layout.fillWidth: true
-                height: 1 * root.isize
-                color: IVColors.get("Colors/Background new/BgContextMenuThemed")
-            }
-            Rectangle{
-                Layout.fillWidth: true
-                height: 40 * root.isize
-                color: "transparent"
-                IVButton {
-                    text: "Показать ещё"
-                    type: IVButton.Type.Tertiary
+                RowLayout {
                     anchors {
                         fill: parent
-                        margins: 8 * root.isize
+                        topMargin: 8
+                        leftMargin: 16
+                        rightMargin: 16
+                        bottomMargin: 8
                     }
-                    onClicked: {
+
+                    spacing: 0
+
+                    Text {
+                        text: Language.getTranslate("Export History", "История выгрузки")
+                        color: IVColors.get("Colors/Text new/TxPrimaryThemed")
+                        font: IVColors.getFont("Label accent")
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    Controls.IVButtonControl {
+                        id: openFolderButton
+
+                        property string folderUrl: ""
+
+                        implicitWidth: 40
+                        implicitHeight: 40
+
+                        enabled: folderUrl
+                        source: "new_images/archive"
+
+                        onClicked: {
+                            Qt.openUrlExternally(folderUrl);
+                        }
                     }
                 }
+            }
+
+            ListView {
+                id: activeExportListView
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(contentHeight + bottomMargin, 400)
+                Layout.leftMargin: 16
+                Layout.rightMargin: 4
+                rightMargin: 12
+                bottomMargin: 4
+
+                model: ExportManager.activeExportsModel
+                visible: count
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+
+                ScrollBar.vertical: ScrollBar {
+                    width: 8
+                    policy: ScrollBar.AlwaysOn
+                    visible: parent.contentHeight > parent.height
+                    contentItem: Rectangle {
+                        implicitWidth: parent.width
+                        implicitHeight: parent.height / activeExportListView.contentHeight
+                        radius: width / 2
+                        color: parent.pressed ? IVColors.get("Colors/Text new/TxPrimaryThemed") :
+                                                 IVColors.get("Colors/Background new/BgFormSecondaryThemed")
+                    }
+                }
+
+                section.property: "exportDate"
+                section.delegate: Column {
+                    spacing: 0
+
+                    Item {
+                        implicitWidth: 1
+                        implicitHeight: 8
+                    }
+
+                    Text {
+                        text: privates.formatDateLabel(section)
+                        color: IVColors.get("Colors/Text new/TxSecondaryThemed")
+                        font: IVColors.getFont("Label accent")
+                    }
+                }
+
+                delegate: ArchivePlayerModule.UploadProgressBar {
+                    property int modelIndex: index
+
+                    width: ListView.view.width - ListView.view.rightMargin
+
+                    cameraName: model.cameraName
+                    timeText: model.timeText
+                    selectedPath: model.path
+                    exportController: model.controller
+                    statusOverride: model.status === ArchivePlayerModule.UploadProgressBar.Status.Uploading
+                                    ? undefined : model.status
+                    progressOverride: model.status === ArchivePlayerModule.UploadProgressBar.Status.Uploading
+                                      ? undefined : model.progress
+                    previewOverride: model.preview
+                    sizeOverride: model.sizeBytes
+
+                    onRemoveRequested: {
+                         if (ExportManager)
+                            ExportManager.removeExport(modelIndex)
+                    }
+
+                    onSelectedPathChanged: {
+                        updateFolderUrl();
+                    }
+                    onStatusChanged: {
+                        updateFolderUrl();
+                    }
+                    function updateFolderUrl() {
+                        if (status === ArchivePlayerModule.UploadProgressBar.Status.Done && selectedPath) {
+                            openFolderButton.folderUrl = localFileUrl(selectedPath);
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            bottom: parent.bottom
+                        }
+
+                        color: IVColors.get("Colors/Stroke new/StSeparatorThemed")
+                    }
+                }
+            }
+        }
+    }
+
+    QtObject {
+        id: privates
+
+        function formatDateLabel(dateStr) {
+            // Парсим строку вида "dd.MM.yyyy"
+            const parts = dateStr.split(".");
+            if (parts.length !== 3) return dateStr;
+
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // месяцы в JS: 0–11
+            const year = parseInt(parts[2], 10);
+
+            const date = new Date(year, month, day);
+
+            // Проверяем корректность
+            if (isNaN(date.getTime())) return dateStr;
+
+            // Получаем начало "сегодня" и "вчера" (без времени)
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+
+            const targetDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+            if (targetDay.getTime() === today.getTime()) {
+                return "Сегодня";
+            } else if (targetDay.getTime() === yesterday.getTime()) {
+                return "Вчера";
+            } else {
+                const months = [
+                    "января", "февраля", "марта", "апреля", "мая", "июня",
+                    "июля", "августа", "сентября", "октября", "ноября", "декабря"
+                ];
+                return day + " " + months[date.getMonth()] + " " + year;
             }
         }
     }

@@ -1,6 +1,5 @@
 #include "ExportManager.h"
 
-#include "AppInfo.h"
 #include "ExportController.h"
 #include "ImagePipeline.h"
 #include "WebSocketClient.h"
@@ -18,28 +17,24 @@ ExportListModel* ExportManager::activeExportsModel() const
     return m_model;
 }
 
-void ExportManager::setAppInfo(AppInfo* appInfo)
-{
-    m_appInfo = appInfo;
-}
-
 void ExportManager::startExport(const QString& cameraId,
-                               const QDateTime& fromLocal,
-                               const QDateTime& toLocal,
-                               const QString& archiveId,
-                               const QString& outputPath,
-                               const QString& format,
-                               int maxChunkDurationMinutes,
-                               qint64 maxChunkFileSizeBytes,
-                               bool exportPrimitives,
-                               bool exportCameraInformation,
-                               bool exportImagePipeline,
-                               ImagePipeline* imagePipeline)
+                                const QDateTime& fromLocal,
+                                const QDateTime& toLocal,
+                                const QString& archiveId,
+                                const QString& outputPath,
+                                const QString& format,
+                                int maxChunkDurationMinutes,
+                                qint64 maxChunkFileSizeBytes,
+                                bool exportPrimitives,
+                                bool exportCameraInformation,
+                                bool exportImagePipeline,
+                                ImagePipeline* imagePipeline,
+                                const QString& wsUrl)
 {
     auto* client = new WebSocketClient(this);
     client->startWorkerThread();
-    if (m_appInfo) {
-        client->setUrl(QUrl(m_appInfo->wsUrl()));
+    if (!wsUrl.isEmpty()) {
+        client->setUrl(static_cast<QUrl>(wsUrl));
     }
 
     auto* controller = new ExportController(this);
@@ -63,6 +58,7 @@ void ExportManager::startExport(const QString& cameraId,
     item.path = outputPath;
     item.cameraName = cameraId;
     item.timeText = timeText;
+    item.exportDate = QDate::currentDate().toString("dd.MM.yyyy");
     item.status = ExportController::Status::Uploading;
     item.progress = controller->exportProgress();
     item.preview = controller->firstFramePreview();

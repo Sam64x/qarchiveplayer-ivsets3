@@ -70,9 +70,6 @@ QObject* exportManagerProvider(QQmlEngine* engine, QJSEngine* scriptEngine)
 {
     Q_UNUSED(scriptEngine);
     auto exportManager = new ExportManager(engine);
-    auto appInfo = qvariant_cast<AppInfo*>(engine->property("appInfo"));
-    if (appInfo)
-        exportManager->setAppInfo(appInfo);
     return exportManager;
 }
 } // namespace

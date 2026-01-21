@@ -64,13 +64,17 @@ Item {
     }
 
     Behavior on smoothProgress {
-        NumberAnimation { duration: 300; easing.type: Easing.InOutQuad }
+        NumberAnimation {
+            duration: 300
+            easing.type: Easing.InOutQuad
+        }
     }
 
     RowLayout {
         id: progressBarLayout
 
         width: parent.width
+        anchors.verticalCenter: parent.verticalCenter
         spacing: 8
 
         Rectangle {

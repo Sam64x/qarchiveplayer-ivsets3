@@ -50,9 +50,15 @@ Item {
     property var oldTimeEvtEnd: null
     property bool isNeedUpdateEvents: true
     property var eventsFilter: []
+    property bool externalDragging: false
+    readonly property bool dragging: timeline.dragging || externalDragging
+    property real hoverX: 0
+    property bool hoverActive: false
 
     property alias timelineModelView: timelineModel
     property bool sliderFullHeight: false
+
+    property var viewBounds: ({ "left": null, "right": null })
 
     readonly property real sliderVisualX: sliderRect.x + sliderRect.width/2
     readonly property real sliderVisualWidth: sliderRect.implicitWidth
@@ -171,6 +177,12 @@ Item {
                 updateFnJson();
             }
         }
+    }
+
+    Connections {
+        target: root.archivePlayer
+        enabled: !!root.archivePlayer
+        onFnJsonChanged: updateFnJson()
     }
 
     property bool setInterval: false
@@ -419,6 +431,7 @@ Item {
                         containerArea.updateX()
                         if (!moving) root.requestEvents()
                     }
+                    root.updateViewBounds()
                 }
                 onContentXChanged: {
                     if (root.ready){
@@ -452,6 +465,7 @@ Item {
                             }
                         }
                     }
+                    root.updateViewBounds()
                 }
 
                 onContentWidthChanged: {
@@ -474,6 +488,7 @@ Item {
                         root.isScaleChange = false
                         if (!moving) root.requestEvents()
                     }
+                    root.updateViewBounds()
                 }
                 Timer{
                     id: refreshTimer
@@ -496,6 +511,7 @@ Item {
                         containerArea.updateX()
                         root.requestEvents()
                         root.ready = true
+                        root.updateViewBounds()
                     }
                 }
 
@@ -1574,6 +1590,26 @@ Item {
             }
         }
     }
+
+    MouseArea {
+        id: commonPanelCursorArea
+
+        anchors.fill: parent
+        enabled: isCommonPanel
+        hoverEnabled: isCommonPanel
+        acceptedButtons: Qt.NoButton
+        propagateComposedEvents: true
+        z: 10000
+
+        cursorShape: root.dragging ? Qt.ClosedHandCursor :
+                     containsMouse ? Qt.OpenHandCursor :
+                                     Qt.ArrowCursor
+
+        onEntered: root.hoverActive = true
+        onExited: root.hoverActive = false
+        onPositionChanged: root.hoverX = mouseX
+    }
+
     function getMonthModel(ind){
         switch (ind){
         case 0: return Language.getTranslate("January", "Январь");
@@ -1689,6 +1725,28 @@ Item {
         else if (offset > maxOffset)
             offset = maxOffset
         return offset
+    }
+
+    function startExternalDrag() {
+        externalDragging = true
+        root.canAutoMove = false
+    }
+
+    function dragTimelineBy(deltaX) {
+        if (!root.ready || !isFinite(deltaX))
+            return
+
+        var minX = timeline.originX
+        var maxX = timeline.originX + Math.max(0, timeline.contentWidth - timeline.width)
+        var nextX = timeline.contentX - deltaX
+        if (!isFinite(nextX))
+            return
+        nextX = Math.min(Math.max(nextX, minX), maxX)
+        timeline.contentX = nextX
+    }
+
+    function endExternalDrag() {
+        externalDragging = false
     }
 
     function handleTimelineDoubleClick(mappedX) {
@@ -1811,6 +1869,15 @@ Item {
         var width = timeline.width
 
         return {"left": xToTime(offset), "right": xToTime(offset + width)}
+    }
+
+    function updateViewBounds() {
+        if (!timeline || timeline.width <= 0 || timelineModel.count < 1) {
+            viewBounds = { "left": null, "right": null }
+            return
+        }
+        var bounds = getViewBounds()
+        viewBounds = { "left": bounds.left, "right": bounds.right }
     }
     function setBounds(first, second){
         var now = root.nowDateTime || new Date()

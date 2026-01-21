@@ -1652,12 +1652,7 @@ Rectangle {
                 source: "new_images/Earth"
                 toolTipText: "Меню"
                 onClicked:{
-                    var isEditor = globSignalsObject.getEditorStatus();
-                    if (!isEditor)
-                    {
-                        if (leftMenu.opened) globSignalsObject.hideLeftMenu()
-                        else globSignalsObject.showLeftMenu()
-                    }
+
                 }
             }
             Text {

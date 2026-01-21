@@ -7,8 +7,6 @@
 #include <QVariant>
 #include "Nv12Frame.h"
 
-class ImagePipeline;
-
 class VideoItem : public QQuickFramebufferObject
 {
     Q_OBJECT

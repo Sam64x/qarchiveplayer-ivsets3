@@ -134,21 +134,16 @@ ApplicationWindow
 
         z:5
     }
-    QtObject
-    {
-        id:tempObj
-         property string tabUniqId:""
-    }
 
     IVClientSetsZone
     {
         id:setZone
         anchors.fill: parent
         z:3
-        tvIrMode:"tvDay"
-        isEditor:false
-        isSets:false
-        globSignalsObject:root.tempObj
+        // tvIrMode:"tvDay"
+        // isEditor:false
+        // isSets:false
+        globalSignalsObject:root.tempObj
     }
     onOutPropertiesChanged:
     {

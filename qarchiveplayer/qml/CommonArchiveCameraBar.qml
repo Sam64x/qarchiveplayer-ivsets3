@@ -2,6 +2,7 @@ import QtQuick 2.9
 import QtQml 2.1
 import QtQuick.Controls 2.3
 import iv.colors 1.0
+import iv.controls 1.0
 import iv.data 1.0
 
 Rectangle {
@@ -12,10 +13,12 @@ Rectangle {
     property int timelineModel: 0
     property var viewStart: null
     property var viewEnd: null
+    property var dataStart: null
+    property var dataEnd: null
     property real isize: 1
     property bool clampNow: true
 
-    property color fullnessColor: IVColors.get("Colors/Text new/TxAccent")
+    property string fullnessColor: "rgba(53, 165, 92, 0.6)"
     property real fullnessOpacity: 1
     property color eventColor: IVColors.get("Colors/Background new/BgBtnCritical")
     property real fullnessRadius: 4
@@ -52,16 +55,48 @@ Rectangle {
                       ? archivePlayer.idarchive_player
                       : archivePlayer;
 
-        if (!backend || !viewStart || !viewEnd)
+        if (!backend || !dataStart || !dataEnd)
             return;
 
-        backend.getFullness(viewStart, viewEnd, key2, timelineModel);
+        backend.getFullness(dataStart, dataEnd, key2, timelineModel);
         fullnessModel.updateFromJson(backend.getFnJson(), timelineModel, fullnessModel.dateCheckSum);
 
-        backend.getEvents(viewStart, viewEnd, 0, key2, timelineModel);
+        backend.getEvents(dataStart, dataEnd, 0, key2, timelineModel);
         eventsModel.updateFromJson(backend.getEventsStr(), [], timelineModel, eventsModel.dateCheckSum);
 
         projectData();
+    }
+
+    function syncDataForView(forceFetch) {
+        if (!viewStart || !viewEnd) {
+            dataStart = null
+            dataEnd = null
+            return
+        }
+
+        var startMs = viewStart.getTime()
+        var endMs = viewEnd.getTime()
+        if (!isFinite(startMs) || !isFinite(endMs) || endMs <= startMs)
+            return
+
+        var spanMs = endMs - startMs
+        var marginMs = Math.round(spanMs * 0.5)
+        var desiredStart = new Date(Math.max(0, startMs - marginMs))
+        var desiredEnd = new Date(endMs + marginMs)
+
+        var needsFetch = forceFetch
+        if (!dataStart || !dataEnd)
+            needsFetch = true
+        else if (startMs < dataStart.getTime() || endMs > dataEnd.getTime())
+            needsFetch = true
+
+        if (needsFetch) {
+            dataStart = desiredStart
+            dataEnd = desiredEnd
+            refreshModels()
+        } else {
+            projectData()
+        }
     }
 
     function projectData() {
@@ -70,10 +105,11 @@ Rectangle {
         barCanvas.requestPaint();
     }
 
-    onViewStartChanged: refreshModels()
-    onViewEndChanged: refreshModels()
-    onTimelineModelChanged: refreshModels()
-    onArchivePlayerChanged: refreshModels()
+    onViewStartChanged: syncDataForView(false)
+    onViewEndChanged: syncDataForView(false)
+    onTimelineModelChanged: syncDataForView(true)
+    onArchivePlayerChanged: syncDataForView(true)
+    onKey2Changed: syncDataForView(true)
 
 
     Canvas {
@@ -120,6 +156,11 @@ Rectangle {
                 }
             }
         }
+
+        Connections {
+            target: root
+            onFullnessOpacityChanged: barCanvas.requestPaint()
+        }
     }
 
     Item {
@@ -128,37 +169,75 @@ Rectangle {
         anchors.fill: parent
         visible: root.showEvents
 
-        Repeater {
-            model: eventsProjection.count
+        Component {
+            id: eventsDelegateComponent
 
-            delegate: MouseArea {
-                readonly property var eventData: eventsProjection.get(index)
+            Item {
+                id: eventDelegate
 
-                width: markerSize
-                height: markerSize
-                hoverEnabled: true
-                anchors.bottom: parent.bottom
-                x: root.width * eventData.s - width / 2
+                width: 0
+                height: 0
 
-                readonly property real markerSize: 16 * root.isize
+                property real margs: 0
+                property var eventData: model
 
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: parent.width
-                    height: parent.height
-                    radius: 4
-                    color: root.eventColor
+                Component.onCompleted: eventArea.opacity = 1
+                onEventDataChanged: eventArea.opacity = 1
+                Component.onDestruction: {
+                    if (eventArea)
+                        eventArea.destroy()
+                }
 
-                    ToolTip {
-                        property var s: eventData.startDate
-                        property string f: "yyyy.MM.dd hh:mm:ss.zzz"
-                        property string dateString: Qt.formatDateTime(s, f)
-                        text: dateString + "\n" + eventData.comment
-                        visible: parent.parent.containsMouse
-                        delay: 150
+                MouseArea {
+                    id: eventArea
+
+                    hoverEnabled: true
+                    opacity: 0
+                    x: root.width * eventDelegate.eventData.s - width / 2
+                    height: barCanvas.height - 2 * eventDelegate.margs
+                    width: height
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: -3/2*height
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 16 * root.isize
+                        height: 16 * root.isize
+                        radius: 4
+                        color: root.eventColor
+
+                        IVImage {
+                            anchors.centerIn: parent
+                            width: 16 * root.isize
+                            height: 16 * root.isize
+                            name: "new_images/Event"
+                            color: IVColors.get("Colors/Text new/TxContrast")
+
+                            ToolTip {
+                                property var s: eventDelegate.eventData.startDate
+                                property string f: "yyyy.MM.dd hh:mm:ss.zzz"
+                                property string dateString: Qt.formatDateTime(s, f)
+                                text: dateString + "\n" + eventDelegate.eventData.comment
+                                visible: eventArea.containsMouse
+                                delay: 150
+                            }
+                        }
                     }
+
+                    Behavior on opacity { NumberAnimation { duration: 150 }}
                 }
             }
+        }
+
+        ListView {
+            id: eventsListView
+            anchors.fill: parent
+            interactive: false
+            orientation: ListView.Horizontal
+            spacing: 0
+            cacheBuffer: width
+            model: root.showEvents ? eventsProjection : null
+            delegate: eventsDelegateComponent
         }
     }
 

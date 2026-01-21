@@ -202,13 +202,7 @@ void IVCustomSets::getMapsFromFile()
     }
 
 }
-QString IVCustomSets::getSetPreset(QString presetNumber)
-{
-    St2_FUNCT_St2(45983);
-    QString result = "";
-    return result;
 
-}
 QJsonObject IVCustomSets::getTypePreset(QString type, QString propertyName, QString propertyType, QVariant value)
 {
     St2_FUNCT_St2(45983);
@@ -704,25 +698,7 @@ QString IVCustomSets::getZone2(QString setName,QString setId)
 
     return result;
 }
-QString IVCustomSets::getZone(QString setName,bool isLocal)
-{
-    St2_FUNCT_St2(3232);
-    QString result = "{}";
-    QString temp;
-    if(isLocal)
-    {
-        temp = getZonesLocal(setName);
-    }
-    else
-    {
-        temp = getZonesRemote(setName);
-    }
-    if(!temp.isEmpty())
-    {
-        result = temp;
-    }
-    return result;
-}
+
 QString IVCustomSets::getMapsList()
 {
     St2_FUNCT_St2(322);
@@ -1328,6 +1304,11 @@ void IVCustomSets::saveSet( QString setName,QString newSetName, QString setJson)
 }
 void IVCustomSets::saveSet2(QString setName, QString setId, QString newSetName, QString setJson)
 {
+    // qDebug() << "___saveSet2___";
+    // qDebug() << "setName" << setName;
+    // qDebug() << "setId" << setId;
+    // qDebug() << "newSetName" << newSetName;
+    // qDebug() << "setJson" << setJson;
     St2_FUNCT_St2(4876);
 
     QByteArray setNameBa = setName.toUtf8();
@@ -1427,10 +1408,11 @@ void IVCustomSets::saveSet2(QString setName, QString setId, QString newSetName, 
                 (*setNewData)("setName") = newSetName_;
                 // qDebug() << "  New name:" << newSetName;
 
-                QString newSetId = QString("%1_copy_%2").arg(setId).arg(QDateTime::currentMSecsSinceEpoch());
-                QByteArray newSetIdBa = newSetId.toUtf8();
-                char* newSetIdC = newSetIdBa.data();
-                (*setNewData)("setId") = newSetIdC;
+                // QString newSetId = QString("%1_copy_%2").arg(setId).arg(QDateTime::currentMSecsSinceEpoch());
+                // QByteArray newSetIdBa = newSetId.toUtf8();
+                // char* newSetIdC = newSetIdBa.data();
+                // (*setNewData)("setId") = newSetIdC;
+                (*setNewData)("setId") = setIdC;
                 // qDebug() << "  New ID for copy:" << newSetId;
 
                 char* finalCopyData = mjson_generate1(setNewData);
@@ -1457,7 +1439,10 @@ void IVCustomSets::saveSet2(QString setName, QString setId, QString newSetName, 
             }
 
             char* newSets = mjson_generate1(jConfig);
+            // qDebug() << "New config to save>";
+            // qDebug() << "New config to save = " << QString(newSets);
             // qDebug() << "New config to save:" << newSets;
+            // qDebug() << "New config to save<";
 
             if(QString(newSets).contains(newSetName)) {
                 // qDebug() << "New config contains copy '" << newSetName << "'";

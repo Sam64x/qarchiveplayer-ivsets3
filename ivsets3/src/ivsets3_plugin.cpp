@@ -6,6 +6,8 @@
 #include "archive/filter/treemodel.h"
 #include "archive/filter/treeitem.h"
 #include "sourceTree.h"
+#include "IVSetsManager.h"
+#include "IVZonesModel.h"
 
 #include <QObject>
 #include <QFile>
@@ -1181,6 +1183,14 @@ boointernal int pre_dll_init(const param_t* p) {
     initTypes();
     return 0;
 }
+
+static QObject* IVSetsManagerProvider(QQmlEngine *engine, QJSEngine *scriptEngine)
+{
+    Q_UNUSED(engine)
+    Q_UNUSED(scriptEngine)
+    return IVSetsManager::instance();
+}
+
 void IVSets3Plugin::registerTypes(const char* uri) {
   // т.к вызывается один раз, то решил инициализацию autoloader добавить сюда
   ::iv::autoloader::qml::helper<10 * 1024> autoloader(pre_dll_init);
@@ -1195,6 +1205,12 @@ void IVSets3Plugin::registerTypes(const char* uri) {
   qRegisterMetaType<IVArchSource*>("IVArchSource");
   qmlRegisterType<TreeModel>(uri, 1, 0, "TreeModel");
   qmlRegisterType<IVMainArea>(uri, 1, 0, "IVMainArea");
+
+  qmlRegisterSingletonType<IVSetsManager>(uri, 1, 0, "IVSetsManager", IVSetsManagerProvider);
+  qmlRegisterUncreatableType<IVSet>(uri, 1, 0, "IVSet", "IVSet enum access");
+  qRegisterMetaType<IVSet*>();
+  qRegisterMetaType<IVZone*>();
+  qmlRegisterType<IVZonesModel>(uri, 1, 0, "IVZonesModel");
 }
 //реализуем данную функцию для отписки от всех зависимостей(core, log-1 и т.д)
 booexport bool pre_dll_free(const char*)

@@ -16,23 +16,25 @@ import QtGraphicalEffects 1.0
 Rectangle
 {
     id:root
-    color: IVColors.get("Colors/Background new/BgFormPrimaryThemed")
+
+    property real isize: interfaceSize.value !== "" ? parseFloat(interfaceSize.value) : 1
+    readonly property int expandWidth: 72*root.isize
+    property var globalSignalsObject: null
+    property bool extended_menu: false
+    property var templateStandart: null
+
+    readonly property bool opened: globalSignalsObject.leftMenuOpened
+
     width: opened ? expandWidth : 0
     height: parent.height
+
+    opacity: width/expandWidth
+    color: IVColors.get("Colors/Background new/BgFormPrimaryThemed")
 
     IvVcliSetting {
         id: interfaceSize
         name: 'interface.size'
     }
-    property real isize: interfaceSize.value !== "" ? parseFloat(interfaceSize.value) : 1
-    readonly property int expandWidth: 72*root.isize
-    property var globalSignalsObject: null
-    property bool extended_menu: false
-    property bool isSameMenuExpanded: false
-    property bool opened: false
-    opacity: width/expandWidth
-    property var templateStandart: null
-
 
     IvVcliSetting
     {
@@ -49,12 +51,6 @@ Rectangle
     {
         id:mainAreaTemplates
         name:"qml.templates.mainarea"
-    }
-    IvVcliSetting
-    {
-        id:setsTimerSettings
-        name:root.Window.window.unique?root.Window.window.unique+"#tabs#setsTimer":""
-        //value:setsTimerImage._pressed?"running":""
     }
     IvVcliSetting
     {
@@ -105,13 +101,6 @@ Rectangle
         }
     }
 
-    Connections {
-        id: myConn
-        target: root.globSignalsObject
-        onShowLeftMenu: root.opened = true
-        onHideLeftMenu: root.opened = false
-    }
-
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true
@@ -150,7 +139,7 @@ Rectangle
                     root.templateStandart = JSON.parse(mainAreaTemplates.value);
                 }
 
-                if (opened) root.globalSignalsObject.hideLeftMenu()
+                root.globalSignalsObject.leftMenuOpened = false;
                 if (windows.length > maxWinCount-1) {
                     // перемещаем фокус на уже созданное окно
                     //windows[maxWinCount-1].requestActivate()
@@ -183,7 +172,7 @@ Rectangle
 //            enabled: true
 //            onClicked: {
 //                if (opened) {
-//                    root.globalSignalsObject.hideLeftMenu()
+        // root.globalSignalsObject.leftMenuOpened = false;
 //                    var path = 'file:///' + applicationDirPath +
 //                            '/qtplugins/iv/sets/sets3/IVClientArchiveWindow.qml'
 //                    var info = {}
@@ -202,7 +191,7 @@ Rectangle
             property int maxWinCount: 4
             property var windows: []
             onClicked: {
-                if (opened) root.globalSignalsObject.hideLeftMenu()
+                root.globalSignalsObject.leftMenuOpened = false;
                 if (windows.length > maxWinCount-1) {
 //                    // перемещаем фокус на уже созданное окно
 //                    windows[maxWinCount-1].requestActivate()
@@ -230,20 +219,9 @@ Rectangle
             source: "new_images/cctv"
             toolTipText: "Источники"
             onClicked: {
-                //root.globSignalsObject.setCopy("");
-                var isEditor = root.globalSignalsObject.getEditorStatus();
-                if (!isEditor) {
-                    if (opened) {
-                        root.globalSignalsObject.hideLeftMenu()
-                        root.isSameMenuExpanded = true
-                    }
-                    else {
-                        root.globalSignalsObject.showLeftMenu()
-                        root.isSameMenuExpanded = false
-                    }
-                    if (!root.globalSignalsObject.setsAndCamsBlockOpened){
-                        root.globalSignalsObject.showSetsAndCams()
-                    }
+                root.globalSignalsObject.leftMenuOpened = false;
+                if (!root.globalSignalsObject.setsAndCamsBlockOpened) {
+                    root.globalSignalsObject.setsAndCamsBlockOpened = true;
                 }
             }
         }
@@ -256,7 +234,7 @@ Rectangle
             enabled: arch_detector_acc.isAllowed
             property var windows: []
             onClicked: {
-                if (opened) root.globalSignalsObject.hideLeftMenu()
+                root.globalSignalsObject.leftMenuOpened = false;
                 if (windows.length > 0) {
                     // перемещаем фокус на уже созданное окно
                     windows[0].requestActivate()
@@ -276,7 +254,7 @@ Rectangle
             enabled: arc_stat_acc.isAllowed
             property var windows: []
             onClicked: {
-                if (opened) root.globalSignalsObject.hideLeftMenu()
+                root.globalSignalsObject.leftMenuOpened = false;
                 if (windows.length > 0) {
                     // перемещаем фокус на уже созданное окно
                     windows[0].requestActivate()
@@ -309,7 +287,7 @@ Rectangle
             enabled:events_acc.isAllowed
             property var windows: []
             onClicked: {
-                if (opened) root.globalSignalsObject.hideLeftMenu()
+                root.globalSignalsObject.leftMenuOpened = false;
                 if (windows.length > 0) {
                     // перемещаем фокус на уже созданное окно
                     windows[0].requestActivate()
@@ -332,7 +310,7 @@ Rectangle
             property int winCount: MExprogress.windows_count
             property var windows: []
             onClicked: {
-                if (opened) root.globalSignalsObject.hideLeftMenu()
+                root.globalSignalsObject.leftMenuOpened = false;
                 if (winCount > 0) {
                     if (windows.length > 0) {
                         // перемещаем фокус на уже созданное окно
@@ -349,31 +327,6 @@ Rectangle
                     sender.commandToParent('cleanExprogressWindow', {})
             }
         }
-//        Rectangle {
-//            color: IVColors.get("Colors/Stroke new/StSeparatorThemed")
-//            Layout.fillWidth: true
-//            visible: root.width > 0
-//            height: 2
-//            radius: 1
-//        }
-//        IVMenuButton {
-//            id: strange2Button
-//            Layout.fillWidth: true
-//            height: 40
-//            source: "new_images/help-circle"
-//            //toolTipText: "Алексей, что это?"
-//            enabled: false
-//            onClicked: {
-//                if (opened) {
-//                    root.globalSignalsObject.hideLeftMenu()
-//                    root.isSameMenuExpanded = true
-//                }
-//                else {
-//                    root.globalSignalsObject.showLeftMenu()
-//                    root.isSameMenuExpanded = false
-//                }
-//            }
-//        }
     }
     ColumnLayout {
         anchors {
@@ -393,18 +346,8 @@ Rectangle
             source: "new_images/settings-02"
             toolTipText: "Настройки клиента"
             onClicked: {
-                var isEditor = root.globalSignalsObject.getEditorStatus();
-                if (!isEditor){
-                    root.globalSignalsObject.tabAdded5("Настройки клиента","client_settings","","");
-                    if (opened) {
-                        root.globalSignalsObject.hideLeftMenu()
-                        root.isSameMenuExpanded = true
-                    }
-                    else {
-                        root.globalSignalsObject.showLeftMenu()
-                        root.isSameMenuExpanded = false
-                    }
-                }
+                root.globalSignalsObject.tabAdded5("Настройки клиента","client_settings","","");
+                root.globalSignalsObject.leftMenuOpened = false;
             }
         }
         IVMenuButton {
@@ -416,14 +359,7 @@ Rectangle
             toolTipText: "Полный экран"
             onClicked: {
                 root.Window.window.visibility = Window.FullScreen;
-                if (opened) {
-                    root.globalSignalsObject.hideLeftMenu()
-                    root.isSameMenuExpanded = true
-                }
-                else {
-                    root.globalSignalsObject.showLeftMenu()
-                    root.isSameMenuExpanded = false
-                }
+                root.globalSignalsObject.leftMenuOpened = false;
             }
         }
         Label
@@ -437,7 +373,6 @@ Rectangle
         }
     }
 
-    onGlobalSignalsObjectChanged: myConn.target = globalSignalsObject
     function createWindow1(sender, path, hasWindow, info) {
         var comp, win
         if (hasWindow === false){

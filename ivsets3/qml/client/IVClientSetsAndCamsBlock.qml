@@ -5,715 +5,279 @@ import QtQuick.Layouts 1.3
 import QtQml.Models 2.1
 import QtQuick.Window 2.3
 import QtGraphicalEffects 1.0
+import QtQuick.Dialogs 1.1
+
 import iv.plugins.loader 1.0
 import iv.sets.sets3 1.0
-import QtQuick.Dialogs 1.1
 import iv.colors 1.0
 import iv.controls 1.0
 
+Rectangle {
+    id: root
 
-Rectangle
-{
-    id:root
-    property bool opened: false
-    property bool isNeedCustom: true
-    IvVcliSetting
-    {
-        id:sourcesWidth
-        name:"sourcesList.width"
-    }
-    IvVcliSetting
-    {
-        id:sourcesCurrent
-        name:"sourcesList.currentView"
-    }
-    onOpenedChanged: {
-        if(opened)
-        {
-//            if(sourcesWidth.value !== "")
-//            {
-//                var newWidth = parseFloat(sourcesWidth.value);
-//                root.width=newWidth;
-//                return;
-//            }
-            if(_width>=328 && _width<=500)
-            {
-                root.expandWidth = _width;
-                root.width= _width;
-            }
-            else
-            {
-                if(_width>500)
-                {
-                    root.expandWidth = 500;
-                    root.width= root.expandWidth;
-                }
-                if(_width<328)
-                {
-                    root.expandWidth = 328;
-                    root.width= root.expandWidth;
-                }
-            }
+    property var globSignalsObject
 
-        }
-        else
-        {
-            root.width=0;
-        }
-    }
-    property real expandWidth: 328
+    readonly property real isize: interfaceSize.value !== "" ? parseFloat(interfaceSize.value) : 1
+
+    implicitWidth: 364
+    implicitHeight: 700
+
+    color: IVColors.get("Colors/Background new/BgContextMenuThemed")
+
     IvVcliSetting {
         id: interfaceSize
         name: 'interface.size'
-        Component.onCompleted:
-        {
-            var valllllue = interfaceSize.value;
-        }
-        onValueChanged:
-        {
-            var valllllue = interfaceSize.value;
-        }
-    }
-    property real isize: interfaceSize.value !== "" ? parseFloat(interfaceSize.value) : 1
-    readonly property string mainColor: !root.isNeedCustom?IVColors.get("Colors/Background new/BgFormPrimaryThemed"):IVColors.get("Colors/Background new/BgContextMenuThemed")
-    gradient:
-        Gradient
-        {
-            GradientStop { position: 0.0; color: IVColors.get("Colors/Background new/BgFormPrimaryThemed")}
-            GradientStop { position: 0.05; color: mainColor }
-        }
-    visible: opacity > 0
-    opacity: 1//width/expandWidth
-    width:  opened?root.expandWidth:0
-    Behavior on width {
-        NumberAnimation { duration: 100; easing.type: Easing.InOutQuad }
-    }
-    Component.onDestruction:
-    {
-        root.globSignalsObject.clearView();
     }
 
-
-    property var selectedGroup: null
-    property var fromListView: null
-    property var toListView: null
-    property string setName: ""
-
-    property var globSignalsObject: null
-    property bool isSetsHidden: false
-    property bool isCamsHidden: false
-    onGlobSignalsObjectChanged:
-    {
-        if(root.globSignalsObject !== null & root.globSignalsObject !== undefined)
-        {
-          //myGlobConnect.target = Qt.binding(function() {return root.globSignalsObject;});
-        }
-    }
-    MessageDialog {
-        id: messageDialogSave
-        width: 200
-        height: 80
-        title: "Сохранение набора"
-        property string setName: ""
-        visible: false
-        standardButtons: StandardButton.Apply
-        onApply:
-        {
-        }
-    }
-    MessageDialog {
-        id: messageDialog
-        width: 200
-        height: 80
-        title: "Удаление набора!"
-       // text: "Вы действительно хотите удалить выбранный набор: "+messageDialog.setName+"?"
-        property var itemPath
-        visible: false
-        standardButtons: StandardButton.Yes | StandardButton.No
-        onYes: {
-            var setName = devices.get(itemPath).getProp("name_")
-            root.globSignalsObject.tabRemoved2(setName);
-            customSets.deleteSet(setName);
-            devices.remove(itemPath)
-            messageDialog.close();
-        }
-        onNo: messageDialog.close()
-    }
-
-    property bool isEditor: false
-    Connections
-    {
-        id:myConn
+    Connections {
         target: root.globSignalsObject
-        onShowSetsAndCams:
-        {
-            sourcesOpened.value = "true";
-            root.opened = true;
-        }
-        onHideSetsAndCams:
-        {
-            sourcesOpened.value = "false";
-            root.opened = false
-        }
-        onTabEditedOn:
-        {
-            root.isEditor = true;
-            root.opened = true
-            listLoader.create1(cntAdaptive.currentIndex);
-
-        }
-        onTabEditedOff:
-        {
-            root.isEditor = false;
+        onSetSaved: {
             reloadTimer.start();
-
-
         }
-        onSetNameChanged:
-        {
-            root.setName = newSetName;
+        onServerSetSaved: {
             reloadTimer.start();
-
+        }
+        onSetRemoved: {
+            reloadTimer.start();
         }
     }
-    Rectangle
-    {
-        id: commonRect
-        color: "transparent"
-        anchors.fill: parent
-        anchors.topMargin: 8
-        anchors.leftMargin: 8
-        anchors.rightMargin: 8
-        Rectangle
-        {
-            id: camsAndSetsLabelRect
-            color: "transparent"
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            height: 48 * root.isize
-            Rectangle
-            {
-                id: textRect
-                color: "transparent"
-                anchors.left: parent.left
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                //anchors.right: dotsButton.left
-                Text
-                {
-                    id: camsSetstext
+
+    ColumnLayout {
+        id: contentLayout
+        anchors {
+            fill: parent
+            topMargin: 8
+            leftMargin: 16
+            rightMargin: 6
+        }
+        spacing: 4
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.rightMargin: 10
+            spacing: 4
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 0
+
+                Text {
                     text:"Источники"
                     font: IVColors.getFont("Subtitle accent")
-                    anchors.fill: parent
-                    anchors.leftMargin: 8
                     color: IVColors.get("Colors/Text new/TxPrimaryThemed")
-                    verticalAlignment: Text.AlignVCenter
                 }
-            }
-            IVButton
-            {
-                id: closePanelBtn
-                source: "new_images/x-close"
-                toolTipText: "Закрыть источники"
-                type: IVButton.Type.Helper
-                anchors.top: parent.top
-                anchors.right:  parent.right
-                anchors.bottom: parent.bottom
-                visible:root.isNeedCustom
-                width: root.isNeedCustom?24* root.isize:0
-                onClicked:
-                {
-                    root.globSignalsObject.hideSetsAndCams()
-                    //customSets.getEvents();
+
+                Item {
+                    Layout.fillWidth: true
                 }
-            }
-            IvVcliSetting
-            {
-                id:settingsViewtype
-                name:"settings.sets.view_type"
-            }
-            IvVcliSetting
-            {
-                id: settingsType
-                name: "settings.sets.type"
-            }
 
-        }
-        Rectangle
-        {
-            id: allRect
-            color: "transparent"
-            anchors.top: camsAndSetsLabelRect.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.topMargin: 8* root.isize
-            height: root.isNeedCustom?40* root.isize:0
-            visible: root.isNeedCustom
-            Column
-            {
-                width: 332* root.isize
-                anchors.topMargin: 0
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: 40* root.isize
-                Rectangle {
-                    width: parent.width
-                    height: 40
-                    color: "transparent"
-                    radius: 12
+                IVButton {
+                    Layout.preferredWidth: 32 * root.isize
+                    Layout.preferredHeight: 32 * root.isize
 
-                    IVSegmentedControl {
-                        id: allBtn
-                        width: parent.width
-                        height: 40* root.isize
-                        property var oldIndex
-                        enabled: true
-                        visible:root.opened
-                        anchors {
-                            horizontalCenter: parent.horizontalCenter
-                            bottom: parent.bottom
-                            margins: 0
-                        }
-                        model: allModel
-                        onCurrentIndexChanged: allModel.get(currentIndex).type
-                        Component.onCompleted: {
-                            switch (settingsType.value)
-                            {
-                                case "all": oldIndex = currentIndex = 0; break
-                                case "added": oldIndex = currentIndex = 1; break
-                                default: oldIndex = currentIndex = 0; break
-                            }
-                        }
-                        onEnabledChanged:
-                        {
-                            if (enabled)
-                            {
-                                currentIndex = oldIndex
-                            }
-                            else
-                            {
-                                oldIndex = currentIndex
-                                currentIndex = typeModel.count-1
-                            }
-                        }
-                    }
-                    ListModel
-                    {
-                        id:allModel
-                        ListElement
-                        {
-                            type:"all"
-                            text:"Все"
-                        }
-                        ListElement
-                        {
-                            type:"added"
-                            text:"В наборе"
-                        }
+                    source: "new_images/x-close"
+                    toolTipText: "Закрыть источники"
+                    type: IVButton.Type.Helper
+                    onClicked: {
+                        root.globSignalsObject.setsAndCamsBlockOpened = false;
                     }
                 }
             }
-        }
-        Rectangle
-        {
-            id:groupRect
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: allRect.bottom
-            height: 72* root.isize
-            color: "transparent"
 
-            ListModel {
-                id:adaptiveModel
-//                ListElement
-//                {
-//                    type:"flat"
-//                    iconName:"new_images/list"
-//                    text:"Плоская"
-//                }
-//                ListElement
-//                {
-//                    type:"fact"
-//                    iconName:"new_images/fact_list"
-//                    text:"Фактическая"
-//                }
-//                ListElement
-//                {
-//                    type:"custom"
-//                    iconName:"new_images/list_custom"
-//                    text:"Моя"
-//                }
-                Component.onCompleted:
-                {
-                    adaptiveModel.append({type:"flat",iconName:"new_images/list",text:"Плоская"});
-                    adaptiveModel.append({type:"fact",iconName:"new_images/fact_list",text:"Фактическая"});
-                    if(root.isNeedCustom)
-                    {
-                        adaptiveModel.append({type:"custom",iconName:"new_images/list_custom",text:"Моя"});
-                    }
-                }
-            }
-            Rectangle
-            {
-                id:rectViewlabel
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                color: "transparent"
-                height: 16* root.isize
+            // IVSegmentedControl {
+            //     Layout.fillWidth: true
+            //     Layout.preferredHeight: 40 * root.isize
+
+            //     radius: 8 * root.isize
+            //     currentIndex: 0
+
+            //     model: ListModel {
+            //         ListElement {
+            //             type: "all"
+            //             text: "Все"
+            //         }
+            //         ListElement {
+            //             type: "added"
+            //             text: "В наборе"
+            //         }
+            //     }
+
+            //     IvVcliSetting {
+            //         id: settingsType
+            //         name: "settings.sets.type"
+            //     }
+            // }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
                 Label {
                     color: IVColors.get("Colors/Text new/TxSecondaryThemed")
-                    text:"Группировка"
                     font: IVColors.getFont("Subtext")
-
-                    anchors.left: parent.left
-                    anchors.top: parent.top
+                    text:"Группировка"
                 }
-            }
-            Timer
-            {
-                id:currttt
-                triggeredOnStart: false
-                interval: 200
-                running: false
-                repeat: false
-                onTriggered:
-                {
-                    if(sourcesCurrent.value !== "")
-                    {
-                        var currAdaptive = parseInt(sourcesCurrent.value);
-                        if(currAdaptive<0 && currAdaptive>2)
-                        {
-                            currAdaptive = 0;
+
+                IVSegmentedControlAdaptive {
+                    id: cntAdaptive
+
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 40 * root.isize
+
+                    currentIndex: 0
+                    model: ListModel {
+                        ListElement {
+                            type: "flat"
+                            iconName: "new_images/list"
+                            text: "Плоская"
                         }
-                        cntAdaptive.currentIndex = currAdaptive;
+                        ListElement {
+                            type: "fact"
+                            iconName: "new_images/fact_list"
+                            text: "Фактическая"
+                        }
+                        ListElement {
+                            type: "custom"
+                            iconName: "new_images/list_custom"
+                            text: "Пользовательская"
+                        }
+                    }
+                    onCurrentIndexChanged: {
+                        sourcesCurrent.value = cntAdaptive.currentIndex.toString();
+                    }
+                    Component.onCompleted: {
+                        if (sourcesCurrent.value !== "") {
+                            const currAdaptive = clamp(parseInt(sourcesCurrent.value), 0, model.count - 1);
+                            cntAdaptive.currentIndex = currAdaptive;
+                        }
+                    }
+
+                    function clamp(value, min, max) {
+                        return Math.max(min, Math.min(value, max));
+                    }
+
+                    IvVcliSetting {
+                        id: sourcesCurrent
+                        name: "sourcesList.currentView"
                     }
                 }
             }
 
-            IVSegmentedControlAdaptive
-            {
-                id:cntAdaptive
-                anchors.topMargin: 8
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: rectViewlabel.bottom
-                height: 40* root.isize
-                model: adaptiveModel
-                currentIndex:0
-                onCurrentIndexChanged:
-                {
-                    //reloadTimer.start();
-                    listLoader.create1(cntAdaptive.currentIndex);
-                    sourcesCurrent.value = cntAdaptive.currentIndex.toString();
-                }
-                Component.onCompleted:
-                {
-                    currttt.start();
-                }
-            }
-        }
-        Rectangle
-        {
-            id:searchRect
-            height: 32* root.isize
-           // width: parent.width
-            color:"transparent"
-            anchors {
-                top:groupRect.bottom
-                left: parent.left
-                right: parent.right
-                topMargin: 2
-            }
-            IVInputField
-            {
-                id: searchField
-                //height: 32
-                size: IVInputField.Size.Small
-                anchors
-                {
-                    left:parent.left
-                    bottom:parent.bottom
-                    top:parent.top
-                    right:hideshowBtn.left
-                }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
 
-                source: "new_images/search-md"
-                placeholderText: "Найти по названию"
-                onTextChanged: filterDelay.restart()
-//                Timer // ст. Площадь Восс
-//                {
-//                    id: filterDelay2
-//                    interval: 100
-//                    triggeredOnStart: false
-//                    repeat: false
-//                    onTriggered:
-//                    {
-//                        listLoader.sourcesList.searchSignal();
-//                    }
-//                }
+                IVInputField {
+                    id: searchField
 
-                Timer
-                {
-                    id: filterDelay
-                    interval: 300
-                    triggeredOnStart: false
-                    repeat: false
-                    onTriggered:
-                    {
-                        if(root.isEditor && listLoader.currIndex !==1 )
-                        {
-                            devicesCameras.search3(searchField.text);
+                    Layout.fillWidth: true
+
+                    size: IVInputField.Size.Small
+                    source: "new_images/search-md"
+                    placeholderText: "Найти по названию"
+                    onTextChanged: {
+                        filterDelay.restart()
+                    }
+
+                    Timer {
+                        id: filterDelay
+                        interval: 300
+                        triggeredOnStart: false
+                        repeat: false
+                        onTriggered: {
+                            // if(root.isEditor && sourcesList.currentIndex !==1 ) {
+                            //     devicesCameras.search3(searchField.text);
+                            // }
+                            if (sourcesList.currentIndex === 2) {
+                                devicesCustom.search3(searchField.text);
+                            }
+                            else if(sourcesList.currentIndex === 1) {
+                                devicesFact.search3(searchField.text);
+                            }
+                            else if(sourcesList.currentIndex === 0) {
+                                devicesFlat.search3(searchField.text);
+                            }
+    //                        if(searchField.text === "") {
+    //                            devicesCameras.search3(searchField.text);
+    //                        }
+
+    //                        devicesFlat.search3(searchField.text);
+    //                        devicesFact.search3(searchField.text);
+    //                        devicesCustom.search3(searchField.text);
+    //                        devicesCameras.search3(searchField.text);
+                            //sourcesList.searchSignal();
+                            //filterDelay2.start();
+
+    //                        devicesFlat.remove();
+    //                        devicesFact.remove();
+    //                        devicesCustom.remove();
+    //                        devicesCameras.remove();
+    //                        devicesFlat.init("sources");
+    //                        devicesFact.init("fact");
+    //                        devicesCustom.init("custom");
                         }
-                        if(listLoader.currIndex ===2)
-                        {
-                            devicesCustom.search3(searchField.text);
-                        }
-                        else if(listLoader.currIndex ===1)
-                        {
-                            devicesFact.search3(searchField.text);
-                        }
-                        else if(listLoader.currIndex ===0)
-                        {
-                            devicesFlat.search3(searchField.text);
-                        }
-
-//                        if(searchField.text === "")
-//                        {
-//                            devicesCameras.search3(searchField.text);
-//                        }
-
-
-
-//                        devicesFlat.search3(searchField.text);
-//                        devicesFact.search3(searchField.text);
-//                        devicesCustom.search3(searchField.text);
-//                        devicesCameras.search3(searchField.text);
-                        //listLoader.sourcesList.searchSignal();
-                        //filterDelay2.start();
-
-//                        devicesFlat.remove();
-//                        devicesFact.remove();
-//                        devicesCustom.remove();
-//                        devicesCameras.remove();
-//                        devicesFlat.init("sources");
-//                        devicesFact.init("fact");
-//                        devicesCustom.init("custom");
                     }
                 }
-            }
-            Rectangle
-            {
-                id:hideshowBtn
-                width: 32* root.isize
-                height: 32* root.isize
-                anchors.right: parent.right
-                color: IVColors.get("Colors/Background new/BgFormTertiaryThemed")
-                radius:8* root.isize
-                visible: true
 
-                IVToolTip
-                {
-                    text:listLoader.sourcesList.isSameOpened?"Свернуть всё":"Развернуть всё"
-                    visible: coolapseMouse.containsMouse
-                }
-                IVImage
-                {
-                    id: customEdits
-                    property bool isExpand: false
-                    name: listLoader.sourcesList.isSameOpened?"new_images/collapse2":"new_images/max"
-                    //anchors.fill: parent
-                    width:32* root.isize
-                    height:32* root.isize
-                    anchors.centerIn: parent
-                    color:  IVColors.get("Colors/Text new/TxSecondaryThemed")
-                    MouseArea
-                    {
-                        anchors.fill: parent
-                        id:coolapseMouse
-                        onClicked:
-                        {
-                            if(listLoader.sourcesList.isSameOpened)
-                            {
-                                listLoader.sourcesList.closeAll();
-                            }
-                            else
-                            {
-                                listLoader.sourcesList.openAll();
-                            }
-                            //listLoader.sourcesList.setNeedCamsVisible = false;
+                IVButtonControl {
+                    Layout.preferredWidth: 32 * root.isize
+                    Layout.preferredHeight: 32 * root.isize
+
+                    type: IVButtonControl.Type.Helper
+                    source: sourcesList.isSameOpened ? "new_images/collapse2" : "new_images/collapse2_expand.svg"
+                    toolTipText: sourcesList.isSameOpened ? "Свернуть всё" : "Развернуть всё"
+
+                    onClicked: {
+                        if (sourcesList.isSameOpened) {
+                            sourcesList.closeAll();
+                        }
+                        else {
+                            sourcesList.openAll();
                         }
                     }
                 }
             }
         }
-        Rectangle
-        {
-            id: setsAndCamsCommonRect
-            color: "transparent"
-            anchors
-            {
-                top: searchRect.bottom
-                bottom: parent.bottom
-                left: parent.left
-                right: parent.right
-                topMargin: 16
-            }
-            Timer
-            {
-                id:reloadTimer
-                interval: 1000
-                triggeredOnStart: true
-                repeat: false
-                running: false
-                onTriggered:
-                {
-                    devicesFlat.remove();
-                    devicesFact.remove();
-                    devicesCustom.remove();
-                    devicesCameras.remove();
-                    devicesFlat.init("sources");
-                    devicesFact.init("fact");
-                    devicesCustom.init("custom");
-                    devicesCameras.init("cameras");
-//                    if(cntAdaptive.currentIndex ===2)
-//                    {
-//                        devices.init("custom");
-//                    }
-//                    else if(cntAdaptive.currentIndex ===1)
-//                    {
-//                        devices.init("fact");
-//                    }
-//                    else
-//                    {
-//                        devices.init("sources");
-//                    }
-                    listLoader.create1(cntAdaptive.currentIndex);
-                }
-            }
-            IVCustomSets
-            {
-                id: customSets
-                onCurrentUserChanged:
-                {
-                    root.globSignalsObject.clearView();
-                    root.globSignalsObject.userChanged(userName);
-                    reloadTimer.start();
-                }
-                Component.onCompleted: customSets.initWs();
-            }
-            IVTree {
-                id: devicesCameras
-                view: "all"
-                Component.onCompleted: {
-                    reloadTimer.start();
-                    //devicesCameras.init("cameras");
-                    //listLoader.create1();
-                }
-            }
-            IVTree {
-                id: devicesFlat
-                view: "all"
-                Component.onCompleted: {
 
-                   // devicesFlat.init("sources");
-                    //listLoader.create1();
+        IVSourcesListFlat {
+            id: sourcesList
+
+            readonly property int currentIndex: cntAdaptive.currentIndex
+
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            globSignalsObject: root.globSignalsObject
+            customSets: customSets
+            devices: {
+                switch (currentIndex) {
+                case 2: return devicesCustom;
+                case 1: return devicesFact;
+                case 0: return devicesFlat;
                 }
+                return null;
             }
-            IVTree {
-                id: devicesCustom
-                view: "all"
-                Component.onCompleted: {
 
-                    //devicesCustom.init("custom");
-                    //listLoader.create1();
-                }
+            onDevicesChanged: {
+                filterDelay.start();
             }
-            IVTree {
-                id: devicesFact
-                view: "all"
-                Component.onCompleted: {
+        }
 
-                   // devicesFact.init("flat");
-                    //listLoader.create1();
-                }
-            }
-            Loader
-            {
-                id:listLoader
-                anchors.fill: parent
-                property int currIndex: 0
-                property var sourcesList: null
-//                source: {
-//                    switch(cntAdaptive.currentIndex)
-//                    {
-//                        case 0: return "IVSourcesListFlat.qml"
-//                        case 1: return "IVSourcesListFlat.qml"
-//                        case 2: return "IVSourcesListFlat.qml"
-//                    }
-//                }
-                function create1(ind)
-                {
-                    listLoader.currIndex = ind;
+        Loader {
+            Layout.preferredHeight: 48 * root.isize
+            Layout.fillWidth: true
 
-                    if(ind === 2)
-                    {
-                        // devices.init("custom");
-                    }
-                    else if(ind === 1)
-                    {
-                        // devices.init("fact");
-                    }
-                    else if(ind === 0)
-                    {
-                        // devices.init("sources");
-                    }
+            active: false
+            visible: active
 
-                    listLoader.source = "";
-                    listLoader.source = "IVSourcesListFlat.qml";
-                }
-
-                onStatusChanged:
-                {
-                    if(listLoader.status === Loader.Ready)
-                    {
-                        listLoader.sourcesList = listLoader.item;
-                        listLoader.item.globSignalsObject = root.globSignalsObject;
-                        listLoader.item.customSets = customSets;
-                        listLoader.item.messageDialog = messageDialog;
-
-                        if(listLoader.currIndex ===2)
-                        {
-                            listLoader.item.devices = devicesCustom;
-                        }
-                        else if(listLoader.currIndex ===1)
-                        {
-                            listLoader.item.devices = devicesFact;
-                        }
-                        else if(listLoader.currIndex ===0)
-                        {
-                            listLoader.item.devices = devicesFlat;
-                        }
-                        filterDelay.start();
-                    }
-                }
-            }
-            Rectangle
-            {
+            sourceComponent: Rectangle {
                 id: listDownPanel
-                visible: false
-                height: visible ? 48 * root.isize : 0
+
+                property int selected: -1
+
                 color: IVColors.get("Colors/Background new/BgFormAccent")
                 radius: 16 * root.isize
-                property int selected: -1
-                anchors {
-                    left: parent.left
-                    right: parent.right
-                    bottom: parent.bottom
-                    bottomMargin: 8 * root.isize
-                }
+
                 MouseArea {
                     id: selectedChb
                     width: 24 * root.isize
@@ -856,7 +420,7 @@ Rectangle
                             }
                         }
 
-                        root.globSignalsObject.hideSetsAndCams();
+                        root.globSignalsObject.setsAndCamsBlockOpened = false;
                     }
                 }
 
@@ -912,6 +476,57 @@ Rectangle
                 }
             }
         }
+    }
 
+    Timer {
+        id:reloadTimer
+        interval: 1000
+        onTriggered: {
+            devicesFlat.remove();
+            devicesFact.remove();
+            devicesCustom.remove();
+            devicesCameras.remove();
+            devicesFlat.init("sources");
+            devicesFact.init("fact");
+            devicesCustom.init("custom");
+            devicesCameras.init("cameras");
+        }
+    }
+    IVCustomSets {
+        id: customSets
+        onCurrentUserChanged: {
+            root.globSignalsObject.userChanged(userName);
+            reloadTimer.start();
+        }
+        Component.onCompleted: customSets.initWs();
+    }
+    IVTree {
+        id: devicesCameras
+        view: "all"
+        Component.onCompleted: {
+            reloadTimer.start();
+            //devicesCameras.init("cameras");
+        }
+    }
+    IVTree {
+        id: devicesFlat
+        view: "all"
+        Component.onCompleted: {
+           // devicesFlat.init("sources");
+        }
+    }
+    IVTree {
+        id: devicesCustom
+        view: "all"
+        Component.onCompleted: {
+            //devicesCustom.init("custom");
+        }
+    }
+    IVTree {
+        id: devicesFact
+        view: "all"
+        Component.onCompleted: {
+           // devicesFact.init("flat");
+        }
     }
 }

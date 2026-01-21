@@ -10,7 +10,6 @@ iv_version(${PROJECT_VERSION})
 set(IVOUTPUT_RELATIVE_DIRECTORY qtplugins/iv/viewers/archiveplayer)
 set(FILETOCOPY
     "${CMAKE_SOURCE_DIR}/other/qmldir"
-    "${CMAKE_SOURCE_DIR}/qml/ActiveExportsButton.qml"
     "${CMAKE_SOURCE_DIR}/qml/ArchiveControls.qml"
     "${CMAKE_SOURCE_DIR}/qml/ArchiveMarker.qml"
     "${CMAKE_SOURCE_DIR}/qml/CommonArchiveCameraBar.qml"

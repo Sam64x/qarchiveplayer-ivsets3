@@ -12,16 +12,17 @@ import iv.plugins.loader 1.0
 Rectangle
 {
     id:root
+
+    signal miniClicked()
+    property real isize: 1
+    property real margin: 8 * root.isize
+
     width: content.width + margin*2
     height: 48 * root.isize
     radius: 12 * isize
     color: IVColors.get("Colors/Background new/BgFormOverVideo")
     visible: opacity > 0
-    signal miniClicked()
-    property var globalSignalsObject: null
-    property string tabName: ""
-    property real isize: 1
-    property real margin: 8 * root.isize
+
     Behavior on opacity {
         NumberAnimation {
             duration: 200;
@@ -29,12 +30,6 @@ Rectangle
         }
     }
 
-    Connections
-    {
-        id: myConn
-        target: root.globalSignalsObject
-        onTabSelected5: root.tabName = tabname;
-    }
     Row {
         id: content
         spacing: 8 * root.isize

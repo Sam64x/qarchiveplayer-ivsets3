@@ -17,10 +17,19 @@ Item {
     property real isize: 1
     property int commonScale: 0
     property var sharedCurrentDate: null
+    property var startDate: null
+    property var endDate: null
+    property int periodTime: 0
 
     property var fullnessVisibility: ({})
     property var key2Frequency: ({})
     property bool showFullnessToggles: false
+    property var pendingBounds: null
+    property bool exportMode: false
+    property var exportStartTime: null
+    property var exportEndTime: null
+    property var exportBounds: ({ "left": null, "right": null })
+    property var exportCameraIds: []
 
     signal timeChanged(var date)
     signal boundsChanged(var bounds)
@@ -45,17 +54,23 @@ Item {
     }
 
     function updateViewWindow() {
-        if (!mainSlider || !mainSlider.timelineModelView || mainSlider.timelineModelView.count === 0) {
+        if (!mainSlider) {
             viewStart = null
             viewEnd = null
             return
         }
-        viewStart = mainSlider.timelineModelView.get(0)["start"]
-        viewEnd = mainSlider.timelineModelView.get(mainSlider.timelineModelView.count - 1)["end"]
+        var bounds = mainSlider.viewBounds || (mainSlider.getViewBounds ? mainSlider.getViewBounds() : null)
+        if (!bounds || !bounds.left || !bounds.right) {
+            viewStart = null
+            viewEnd = null
+            return
+        }
+        viewStart = bounds.left
+        viewEnd = bounds.right
     }
 
     function syncSliderBounds(startDate, endDate) {
-        if (!mainSlider || !mainSlider.setBounds || !mainSlider.ready)
+        if (!mainSlider || !mainSlider.setBounds)
             return
 
         if (!(startDate instanceof Date) || isNaN(startDate.getTime()))
@@ -73,8 +88,28 @@ Item {
             right = temp
         }
 
-        mainSlider.setBounds(left, right)
-        mainSlider.boundsChanged()
+        var now = mainSlider.nowDateTime || new Date()
+        var centerMs = Math.round((left.getTime() + right.getTime()) / 2)
+        if (centerMs > now.getTime())
+            centerMs = now.getTime()
+
+        if (!mainSlider.currentDate || !mainSlider.currentDate.getTime ||
+                mainSlider.currentDate.getTime() !== centerMs) {
+            mainSlider.canAutoMove = true
+            mainSlider.currentDate = new Date(centerMs)
+        }
+
+        var beforeMs = Math.max(0, centerMs - left.getTime())
+        var afterMs = Math.max(0, right.getTime() - centerMs)
+        if (mainSlider.scaleForOffsets && mainSlider.setScale)
+            mainSlider.setScale(mainSlider.scaleForOffsets(beforeMs, afterMs))
+
+        if (mainSlider.ready) {
+            mainSlider.setBounds(left, right)
+            mainSlider.boundsChanged()
+        } else {
+            pendingBounds = { "left": left, "right": right }
+        }
     }
 
     function setScale(scaleIndex) {
@@ -115,6 +150,40 @@ Item {
         var updatedVisibility = Object.assign({}, fullnessVisibility)
         updatedVisibility[playerKey] = visible
         fullnessVisibility = updatedVisibility
+        updateExportCameraIds()
+    }
+
+    function updateExportCameraIds() {
+        var ids = []
+        for (var i = 0; i < playersList.length; ++i) {
+            var player = playersList[i]
+            if (!player)
+                continue
+            var key = visibilityKeyForPlayer(player, i)
+            if (fullnessVisibility[key] === false)
+                continue
+            if (player.cameraId)
+                ids.push(player.cameraId)
+        }
+        exportCameraIds = ids
+    }
+
+    function setExportBounds(startTime, endTime) {
+        if (!(startTime instanceof Date) || isNaN(startTime.getTime()) ||
+                !(endTime instanceof Date) || isNaN(endTime.getTime()))
+            return
+
+        var left = startTime
+        var right = endTime
+        if (right < left) {
+            var temp = left
+            left = right
+            right = temp
+        }
+
+        exportStartTime = left
+        exportEndTime = right
+        exportBounds = { "left": left, "right": right }
     }
 
     onPlayersChanged: {
@@ -152,6 +221,7 @@ Item {
             updatedVisibility[key] = existing
         }
         fullnessVisibility = updatedVisibility
+        updateExportCameraIds()
     }
 
     IVSeparator {
@@ -454,14 +524,14 @@ Item {
                                     calendBody.end = root.endDate
                                 }
                             }
-                            C.IVButton {
+                            C.IVButtonControl {
                                 id: acceptButton
                                 text: calendBody.startStr.length > 0 ?
                                       "Отобразить " + calendBody.startStr + " - " + calendBody.endStr :
                                       "Интервал не задан"
                                 Layout.fillWidth: true
-                                type: IVButton.Type.Primary
-                                size: IVButton.Size.Small
+                                type: C.IVButton.Type.Primary
+                                size: C.IVButton.Size.Big
                                 enabled: calendBody.startStr !== "" && calendBody.endStr !== ""
                                 onClicked: {
                                     if (root.checkedCount > 0) {
@@ -476,16 +546,10 @@ Item {
                                     root.startDate = calendBody.start
                                     root.endDate   = calendBody.end
                                     root.periodTime = root.endDate - root.startDate
-
+                                    root.syncSliderBounds(root.startDate, root.endDate)
                                     timeFieldLayout.fromText = Qt.formatDateTime(root.startDate, "dd.MM.yyyy hh:mm:ss")
                                     timeFieldLayout.toText = Qt.formatDateTime(root.endDate, "dd.MM.yyyy hh:mm:ss")
-
-                                    periodsModel.updateChecked()
-
                                     calendar.close()
-                                    loadBanner.opacity = 1
-                                    if (updateEvtTimer.running) updateEvtTimer.restart()
-                                    ivevent.init(root.startDate, root.endDate, root.filter)
                                 }
                             }
                         }
@@ -564,6 +628,7 @@ Item {
                     radius: 0
                     size: C.IVButtonControl.Size.Small
                     type: C.IVButtonControl.Type.Secondary
+                    toolTipText: Language.getTranslate("Add left period","Добавить период слева")
                     source: "new_images/add left period"
                     onClicked: {
                         if (!mainSlider || !mainSlider.currentDate)
@@ -590,6 +655,7 @@ Item {
                     size: C.IVButtonControl.Size.Small
                     type: C.IVButtonControl.Type.Secondary
                     source: "new_images/add right period"
+                    toolTipText: Language.getTranslate("Add right period","Добавить период справа")
                     onClicked: {
                         if (!mainSlider || !mainSlider.currentDate)
                             return
@@ -607,10 +673,50 @@ Item {
             Layout.fillHeight: true
             Layout.fillWidth: true
             hoverEnabled: true
+            clip: true
             propagateComposedEvents: true
+            cursorShape: mainSlider && mainSlider.dragging ? Qt.ClosedHandCursor :
+                         containsMouse ? Qt.OpenHandCursor :
+                                         Qt.ArrowCursor
 
-            onClicked: {
+            property bool dragActive: false
+            property bool didDrag: false
+            property real lastDragX: 0
+            property real dragDistance: 0
+            property real dragThreshold: 3
+            property real hoverX: mainSlider && mainSlider.hoverActive ? mainSlider.hoverX : mouseX
+            property bool hoverActive: mainSlider && mainSlider.hoverActive ? true : containsMouse
+
+            onPressed: {
                 if (!mainSlider)
+                    return
+                if (exportMode && (leftHandle.containsMouse || rightHandle.containsMouse))
+                    return
+                dragActive = true
+                didDrag = false
+                dragDistance = 0
+                lastDragX = mouseX
+                mainSlider.startExternalDrag()
+            }
+
+            onPositionChanged: {
+                if (!dragActive || !mainSlider)
+                    return
+                var deltaX = mouseX - lastDragX
+                lastDragX = mouseX
+                dragDistance += Math.abs(deltaX)
+                if (dragDistance >= dragThreshold)
+                    didDrag = true
+                mainSlider.dragTimelineBy(deltaX)
+            }
+
+            onReleased: {
+                if (!dragActive || !mainSlider)
+                    return
+                dragActive = false
+                mainSlider.endExternalDrag()
+
+                if (didDrag)
                     return
 
                 var mappedX = commonPanelMa.mouseX + mainSlider.viewportOffset()
@@ -619,10 +725,28 @@ Item {
                 mainSlider.currentDate = mainSlider.xToTime(clampedX)
             }
 
+            onDoubleClicked: {
+                if (!mainSlider)
+                    return
+                if (dragActive) {
+                    dragActive = false
+                    didDrag = false
+                    mainSlider.endExternalDrag()
+                }
+                exportMode = true
+                var defaultWidth = 80 * root.isize
+                var maxX = Math.min(mainSlider.nowX - mainSlider.viewportOffset(), commonPanelMa.width)
+                if (!isFinite(maxX) || maxX <= 0)
+                    maxX = commonPanelMa.width
+                var startX = Math.max(0, Math.min(mouseX - defaultWidth / 2, maxX - defaultWidth))
+                var endX = Math.min(startX + defaultWidth, maxX)
+                exportSelection.setBounds(startX, endX)
+            }
+
             Label {
                 id: previewDate
 
-                property var date: mainSlider.xToTime(commonPanelMa.mouseX +
+                property var date: mainSlider.xToTime(commonPanelMa.hoverX +
                                                     mainSlider.viewportOffset())
                 property var dayNames: [
                     Language.getTranslate("Su","Вс"),
@@ -660,8 +784,15 @@ Item {
                 font: IVColors.getFont("Label")
                 z: mainSlider.z + 2
                 anchors.top: translucentSliderRect.top
-                anchors.horizontalCenter: translucentSliderRect.horizontalCenter
-                visible: commonPanelMa.containsMouse
+                x: {
+                    var targetCenter = translucentSliderRect.x + translucentSliderRect.width / 2
+                    var minX = 0
+                    var maxX = commonPanelMa.width - width
+                    if (maxX < minX)
+                        return minX
+                    return Math.min(Math.max(targetCenter - width / 2, minX), maxX)
+                }
+                visible: commonPanelMa.hoverActive && !(commonPanelMa.dragActive && commonPanelMa.didDrag)
                 background: Rectangle{
                     color: IVColors.get("Colors/Background new/BgModalInverse")
                     border.color: "black"
@@ -672,13 +803,163 @@ Item {
 
             Rectangle {
                 id: translucentSliderRect
+                visible: commonPanelMa.hoverActive && !(commonPanelMa.dragActive && commonPanelMa.didDrag)
                 width: 2
                 height: parent.height
                 z: mainSlider.z + 1
-                x: commonPanelMa.mouseX
+                x: commonPanelMa.hoverX
                 opacity: 0.6
-                visible: commonPanelMa.containsMouse
                 color: IVColors.get("Colors/Background new/BgModalInverse")
+            }
+
+            Item {
+                id: exportSelection
+
+                anchors.fill: parent
+                z: mainSlider ? mainSlider.z + 2 : 1
+                visible: root.exportMode
+
+                property real leftX: 0
+                property real rightX: 0
+                property real minWidth: 12 * root.isize
+                property real handleWidth: 6 * root.isize
+
+                function maxSelectableX() {
+                    if (!mainSlider)
+                        return commonPanelMa.width
+                    var maxX = Math.min(mainSlider.nowX - mainSlider.viewportOffset(), commonPanelMa.width)
+                    if (!isFinite(maxX) || maxX <= 0)
+                        maxX = commonPanelMa.width
+                    return maxX
+                }
+
+                function clampX(value) {
+                    var maxX = maxSelectableX()
+                    return Math.max(0, Math.min(value, maxX))
+                }
+
+                function setBounds(left, right) {
+                    applyBounds(left, right, true)
+                }
+
+                function applyBounds(left, right, shouldUpdateTimes) {
+                    var clampedLeft = clampX(left)
+                    var clampedRight = clampX(right)
+                    if (clampedRight - clampedLeft < minWidth) {
+                        clampedRight = Math.min(clampedLeft + minWidth, maxSelectableX())
+                        if (clampedRight - clampedLeft < minWidth)
+                            clampedLeft = Math.max(0, clampedRight - minWidth)
+                    }
+                    leftX = Math.min(clampedLeft, clampedRight)
+                    rightX = Math.max(clampedLeft, clampedRight)
+                    if (shouldUpdateTimes)
+                        updateTimes()
+                }
+
+                function updateTimes() {
+                    if (!mainSlider)
+                        return
+                    var leftTime = mainSlider.xToTime(leftX + mainSlider.viewportOffset())
+                    var rightTime = mainSlider.xToTime(rightX + mainSlider.viewportOffset())
+                    root.setExportBounds(leftTime, rightTime)
+                }
+
+                function syncFromTimes() {
+                    if (!root.exportStartTime || !root.exportEndTime || !mainSlider)
+                        return
+                    var leftTime = root.exportStartTime
+                    var rightTime = root.exportEndTime
+                    var left = mainSlider.timeToX(leftTime) - mainSlider.viewportOffset()
+                    var right = mainSlider.timeToX(rightTime) - mainSlider.viewportOffset()
+                    if (!isFinite(left) || !isFinite(right))
+                        return
+                    applyBounds(left, right, false)
+                }
+
+                Rectangle {
+                    id: exportFrame
+
+                    x: exportSelection.leftX
+                    z: mainSlider.z + 1
+                    width: Math.max(exportSelection.minWidth, exportSelection.rightX - exportSelection.leftX)
+                    height: parent.height
+                    color: "#9747FF"
+                    opacity: 0.2
+                }
+
+                Rectangle {
+                    width: 1
+                    height: parent.height
+                    color: "#9747FF"
+                    anchors.left: exportFrame.left
+                }
+
+                Rectangle {
+                    width: 1
+                    height: parent.height
+                    color: "#9747FF"
+                    anchors.right: exportFrame.right
+                }
+
+                MouseArea {
+                    id: leftHandle
+                    width: exportSelection.handleWidth
+                    preventStealing: true
+                    height: parent.height
+                    x: exportSelection.leftX - width / 2
+                    cursorShape: Qt.SizeHorCursor
+                    property real pressLeftX: 0
+                    property real pressParentX: 0
+                    onPressed: {
+                        mouse.accepted = true
+                        pressLeftX = exportSelection.leftX
+                        pressParentX = mouse.x + leftHandle.x
+                    }
+                    onPositionChanged: {
+                        var currentParentX = mouse.x + leftHandle.x
+                        var delta = currentParentX - pressParentX
+                        var newLeft = pressLeftX + delta
+                        var maxLeft = exportSelection.rightX - exportSelection.minWidth
+                        exportSelection.leftX = exportSelection.clampX(Math.min(newLeft, maxLeft))
+                        exportSelection.updateTimes()
+                    }
+                }
+
+                MouseArea {
+                    id: rightHandle
+                    width: exportSelection.handleWidth
+                    preventStealing: true
+                    height: parent.height
+                    x: exportSelection.rightX - width / 2
+                    cursorShape: Qt.SizeHorCursor
+                    property real pressRightX: 0
+                    property real pressParentX: 0
+                    onPressed: {
+                        mouse.accepted = true
+                        pressRightX = exportSelection.rightX
+                        pressParentX = mouse.x + rightHandle.x
+                    }
+                    onPositionChanged: {
+                        var currentParentX = mouse.x + rightHandle.x
+                        var delta = currentParentX - pressParentX
+                        var newRight = pressRightX + delta
+                        var minRight = exportSelection.leftX + exportSelection.minWidth
+                        exportSelection.rightX = exportSelection.clampX(Math.max(newRight, minRight))
+                        exportSelection.updateTimes()
+                    }
+                }
+
+                Connections {
+                    target: mainSlider
+                    onViewBoundsChanged: exportSelection.syncFromTimes()
+                    onCurrentDateChanged: exportSelection.syncFromTimes()
+                    onTimeline_modelChanged: exportSelection.syncFromTimes()
+                }
+
+                Connections {
+                    target: root
+                    onExportBoundsChanged: exportSelection.syncFromTimes()
+                }
             }
 
             Item {
@@ -744,8 +1025,14 @@ Item {
                     setInterval: true
 
                     onReadyChanged: {
-                        if (ready)
+                        if (ready) {
                             timeFieldLayout.updateFieldsFromSlider()
+                            if (root.pendingBounds) {
+                                mainSlider.setBounds(root.pendingBounds.left, root.pendingBounds.right)
+                                mainSlider.boundsChanged()
+                                root.pendingBounds = null
+                            }
+                        }
                     }
 
                     onFirstBorderTimeChanged: timeFieldLayout.updateFieldsFromSlider()
@@ -773,6 +1060,11 @@ Item {
                     }
                 }
 
+                Connections {
+                    target: mainSlider
+                    onViewBoundsChanged: root.updateViewWindow()
+                }
+
                 Repeater {
                     model: playersList
                     Layout.fillWidth: true
@@ -792,6 +1084,7 @@ Item {
             }
         }
     }
+
     Component.onCompleted: {
         updateViewWindow()
         timeFieldLayout.updateFieldsFromSlider()
