@@ -73,12 +73,6 @@ Item {
             else {
                 root.globalSignalsObject.setToArchive();
             }
-
-        }
-
-        onZonesAdded: function(setname, zone) {
-            const params = JSON.parse(zone).params;
-            IVSetsManager.activeSet.addZoneContentToFirstEmptyZone(params.key2.value[0], params.running.value[0]);
         }
 
         onRemoveZoneContent: function(indexInSet) {

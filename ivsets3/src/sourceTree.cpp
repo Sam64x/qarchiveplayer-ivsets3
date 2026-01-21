@@ -5,12 +5,8 @@ SourceTree::SourceTree(QObject *parent) : QObject(parent)
     St2_FUNCT_St2(100);
     //qDebug()<< "SourceTree::SourceTree(" << this->parent() << ")" << "=" << this;
     setProp("checkState", 0);
-    setProp("visible", true);
-    setProp("opened", false);
-    _opened = false;
     if (this->parent() != nullptr) {
         connect(this, SIGNAL(childrenChanged()), parent, SIGNAL(childrenChanged()));
-        //qDebug()<< "SourceTree signals connected to parent";
     }
 }
 
@@ -504,7 +500,7 @@ void SourceTree::init(const QString &type)
         addChildItem(camsGroup);
         addChildItem(mapsGroup);
     }
-    if (type == "sources")
+    else if (type == "sources")
     {
         QDir newSetsDir;
         if (!newSetsDir.exists("databases")) newSetsDir.cdUp();
@@ -523,46 +519,31 @@ void SourceTree::init(const QString &type)
         QDir mapsDir(newSetsDir.absolutePath());
         mapsDir.cd("maps");
 
-
-
-        //file:///C:/Users/INTEGRA/OneDrive/Desktop/ffmpeg_test/2024_03_23-win-x64/2024_03_23/databases/mapData
-
         QFile file(QString(camsDir.absolutePath() + QDir::separator() + "cameras"));
         file.open(QFile::ReadOnly);
-       // qDebug()<< "Open file:"<< file.fileName();
         QJsonArray camsArr = QJsonDocument::fromJson(file.readAll()).array();
         file.close();
 
         file.setFileName(QString(setsDir.absolutePath() + QDir::separator() + "sets"));
         file.open(QFile::ReadOnly);
-        //qDebug()<< "Open file:"<< file.fileName();
         QJsonArray setsArr = QJsonDocument::fromJson(file.readAll()).array();
         file.close();
 
 //        file.setFileName(QString(remSetsDir.absolutePath() + QDir::separator() + "remote_sets"));
 //        file.open(QFile::ReadOnly);
-//        //qDebug()<< "Open file:"<< file.fileName();
 //        QJsonArray remSetsArr = QJsonDocument::fromJson(file.readAll()).array();
 //        file.close();
 
         file.setFileName(QString(mapsDir.absolutePath() + QDir::separator() + "maps"));
         file.open(QFile::ReadOnly);
-       // qDebug()<< "Open file:"<< file.fileName();
         QJsonArray mapsArray = QJsonDocument::fromJson(file.readAll()).array();
         file.close();
-
-       // qDebug()<< "MAPS ARRAY ========" << mapsArray.size();
-
-
 
         SourceTree* setsGroup = new SourceTree(this);
         setsGroup->setProp("name_", "Наборы");
         setsGroup->setProp("type", "sets");
         setsGroup->setProp("view_type", "group");
         setsGroup->setProp("visible", true);
-
-
-
 
         SourceTree* camsGroup = new SourceTree(this);
         camsGroup->setProp("name_", "Камеры");
@@ -634,10 +615,8 @@ void SourceTree::init(const QString &type)
             }
             camsGroup->addChildItem(item);
         }
-        if(mapsArray.size()>0) // дописать код для разных ответов ws тттттттттттттттттттттттттттттттттттттттттттттттттттттттттт
+        if(mapsArray.size()>0) // дописать код для разных ответов ws
         {
-            // qDebug()<< "MAPS ARRAY 0 SIZE = ";
-
             auto t = mapsArray[0].toArray();
             if(t.size()>0)
             {
@@ -646,7 +625,6 @@ void SourceTree::init(const QString &type)
                 {
                     SourceTree* item = new SourceTree(mapsGroup);
                     QString __key2 = i.toString();
-                   // qDebug()<<__key2;
                     QStringList files = __key2.split( "/" );
                     QString neededWord = files.value( files.length()-1 );
                     if(neededWord.contains(".json"))
@@ -665,7 +643,6 @@ void SourceTree::init(const QString &type)
                 {
                     SourceTree* item = new SourceTree(mapsGroup);
                     QString __key2 = i.toString();
-                   // qDebug()<<__key2;
                     QStringList files = __key2.split( "/" );
                     QString neededWord = files.value( files.length()-1 );
                     if(neededWord.contains(".json"))

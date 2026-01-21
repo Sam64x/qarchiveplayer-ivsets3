@@ -29,19 +29,6 @@ Rectangle {
         name: 'interface.size'
     }
 
-    Connections {
-        target: root.globSignalsObject
-        onSetSaved: {
-            reloadTimer.start();
-        }
-        onServerSetSaved: {
-            reloadTimer.start();
-        }
-        onSetRemoved: {
-            reloadTimer.start();
-        }
-    }
-
     ColumnLayout {
         id: contentLayout
         anchors {
@@ -141,6 +128,11 @@ Rectangle {
                             iconName: "new_images/list_custom"
                             text: "Пользовательская"
                         }
+                        // ListElement {
+                        //     type: "cameras"
+                        //     iconName: "new_images/list_custom"
+                        //     text: "Камеры"
+                        // }
                     }
                     onCurrentIndexChanged: {
                         sourcesCurrent.value = cntAdaptive.currentIndex.toString();
@@ -185,36 +177,9 @@ Rectangle {
                         triggeredOnStart: false
                         repeat: false
                         onTriggered: {
-                            // if(root.isEditor && sourcesList.currentIndex !==1 ) {
-                            //     devicesCameras.search3(searchField.text);
-                            // }
-                            if (sourcesList.currentIndex === 2) {
-                                devicesCustom.search3(searchField.text);
+                            if (sourcesList.devices) {
+                                sourcesList.devices.search3(searchField.text);
                             }
-                            else if(sourcesList.currentIndex === 1) {
-                                devicesFact.search3(searchField.text);
-                            }
-                            else if(sourcesList.currentIndex === 0) {
-                                devicesFlat.search3(searchField.text);
-                            }
-    //                        if(searchField.text === "") {
-    //                            devicesCameras.search3(searchField.text);
-    //                        }
-
-    //                        devicesFlat.search3(searchField.text);
-    //                        devicesFact.search3(searchField.text);
-    //                        devicesCustom.search3(searchField.text);
-    //                        devicesCameras.search3(searchField.text);
-                            //sourcesList.searchSignal();
-                            //filterDelay2.start();
-
-    //                        devicesFlat.remove();
-    //                        devicesFact.remove();
-    //                        devicesCustom.remove();
-    //                        devicesCameras.remove();
-    //                        devicesFlat.init("sources");
-    //                        devicesFact.init("fact");
-    //                        devicesCustom.init("custom");
                         }
                     }
                 }
@@ -228,12 +193,7 @@ Rectangle {
                     toolTipText: sourcesList.isSameOpened ? "Свернуть всё" : "Развернуть всё"
 
                     onClicked: {
-                        if (sourcesList.isSameOpened) {
-                            sourcesList.closeAll();
-                        }
-                        else {
-                            sourcesList.openAll();
-                        }
+                        sourcesList.switchExpandFlag();
                     }
                 }
             }
@@ -242,24 +202,29 @@ Rectangle {
         IVSourcesListFlat {
             id: sourcesList
 
-            readonly property int currentIndex: cntAdaptive.currentIndex
+            readonly property var currentTab: cntAdaptive.model.get(cntAdaptive.currentIndex)
+            readonly property var devicesMap: (function() {
+                const map = {};
+                map["flat"]     = devicesFlat;
+                map["fact"]     = devicesFact;
+                map["custom"]   = devicesCustom;
+                // map["cameras"]  = devicesCameras;
+                return map;
+            })()
 
             Layout.fillWidth: true
             Layout.fillHeight: true
 
             globSignalsObject: root.globSignalsObject
             customSets: customSets
-            devices: {
-                switch (currentIndex) {
-                case 2: return devicesCustom;
-                case 1: return devicesFact;
-                case 0: return devicesFlat;
-                }
-                return null;
-            }
+            devices: devicesMap[currentTab.type]
 
             onDevicesChanged: {
                 filterDelay.start();
+            }
+
+            onSetRemoved: {
+                root.updateSetsList();
             }
         }
 
@@ -401,22 +366,10 @@ Rectangle {
                         for (var i = 0; i < devices.getCount(settingsType.value); i++) {
                             var el = devices.get([1,i])
                             if (el.getProp("checkState") > 0) {
-                                var x = 1, y = 1
-                                var dx = 8, dy = 8
-                                var cols = 32, rows = 32
-                                var item = customSets.getTypePreset(el.getProp("type"), "key2", "string", el.getProp("name_"));
-                                var _zoneObj = {} // customSets.getZZZone(el.getProp("type"), el.getProp("name_"))
-                                _zoneObj["x"] = x
-                                _zoneObj["y"] = y
-                                _zoneObj["dx"] = dx
-                                _zoneObj["dy"] = dy
-                                _zoneObj["type"] = el.getProp("type")
-                                _zoneObj["params"] = item.params
-                                _zoneObj["qml_path"] = item.qml_path
-                                root.globSignalsObject.zonesAdded("",JSON.stringify(_zoneObj));
-                                x += dx
-                                y += (x > 32 ? dy : 0)
-                                x = x%cols
+                                const item = customSets.getTypePreset(el.getProp("type"), "key2", "string", el.getProp("name_"));
+                                const key2 = item.params.key2.value[0];
+                                const running = item.params.running.value[0];
+                                IVSetsManager.activeSet.addZoneContentToFirstEmptyZone(key2, running);
                             }
                         }
 
@@ -478,36 +431,46 @@ Rectangle {
         }
     }
 
-    Timer {
-        id:reloadTimer
-        interval: 1000
-        onTriggered: {
-            devicesFlat.remove();
-            devicesFact.remove();
-            devicesCustom.remove();
-            devicesCameras.remove();
-            devicesFlat.init("sources");
-            devicesFact.init("fact");
-            devicesCustom.init("custom");
-            devicesCameras.init("cameras");
+    function updateSetsList() {
+        devicesFlat.remove();
+        devicesFact.remove();
+        devicesCustom.remove();
+        // devicesCameras.remove();
+        devicesFlat.init("sources");
+        devicesFact.init("fact");
+        devicesCustom.init("custom");
+        // devicesCameras.init("cameras");
+    }
+
+    Connections {
+        target: root.globSignalsObject
+        onSetSaved: {
+            updateSetsList();
+        }
+        onServerSetSaved: {
+            updateSetsList();
+        }
+        onSetRemoved: {
+            updateSetsList();
         }
     }
+
     IVCustomSets {
         id: customSets
         onCurrentUserChanged: {
             root.globSignalsObject.userChanged(userName);
-            reloadTimer.start();
+            updateSetsList();
         }
         Component.onCompleted: customSets.initWs();
     }
-    IVTree {
-        id: devicesCameras
-        view: "all"
-        Component.onCompleted: {
-            reloadTimer.start();
-            //devicesCameras.init("cameras");
-        }
-    }
+    // IVTree {
+    //     id: devicesCameras
+    //     view: "all"
+    //     Component.onCompleted: {
+    //         updateSetsList();
+    //         //devicesCameras.init("cameras");
+    //     }
+    // }
     IVTree {
         id: devicesFlat
         view: "all"

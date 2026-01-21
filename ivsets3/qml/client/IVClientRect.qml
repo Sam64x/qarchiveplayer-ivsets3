@@ -145,7 +145,6 @@ Rectangle {
         signal setToArchive()
         signal setToRealtime()
 
-        signal zonesAdded(string setname, string zone)
         signal tabAdded5(string tabname, string type,string id,string viewType)
         signal tabSelected5(string tabname, string type,string id,string viewType)
         signal tabRemoved2(string tabname)
@@ -181,5 +180,4 @@ Rectangle {
         signal tabAdded4(string tabname, string type,string id,string key2)
         signal tabSelected4(string tabname, string type,string id,string key2) // испускается только в onTabAdded4
     }
-
 }

@@ -30,9 +30,21 @@ public:
                                  bool exportImagePipeline,
                                  ImagePipeline* imagePipeline,
                                  const QString& wsUrl);
+    Q_INVOKABLE void restartExport(int index);
     Q_INVOKABLE void removeExport(int index);
 
 private:
+    void loadCache();
+    void saveCache() const;
+    QString cachePath() const;
+    void attachControllerHandlers(ExportController* controller, WebSocketClient* client);
+    void startControllerExport(ExportController* controller,
+                               const QString& cameraId,
+                               const QDateTime& fromLocal,
+                               const QDateTime& toLocal,
+                               const QString& archiveId,
+                               const QString& outputPath,
+                               const QString& format);
     void updatePreview(ExportController* controller);
     void updateSizeBytes(ExportController* controller);
 

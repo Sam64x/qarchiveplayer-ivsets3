@@ -792,7 +792,9 @@ Item {
                         return minX
                     return Math.min(Math.max(targetCenter - width / 2, minX), maxX)
                 }
-                visible: commonPanelMa.hoverActive && !(commonPanelMa.dragActive && commonPanelMa.didDrag)
+                visible: commonPanelMa.hoverActive
+                         && !(commonPanelMa.dragActive && commonPanelMa.didDrag)
+                         && !(leftHandle.pressed || rightHandle.pressed)
                 background: Rectangle{
                     color: IVColors.get("Colors/Background new/BgModalInverse")
                     border.color: "black"
@@ -803,7 +805,9 @@ Item {
 
             Rectangle {
                 id: translucentSliderRect
-                visible: commonPanelMa.hoverActive && !(commonPanelMa.dragActive && commonPanelMa.didDrag)
+                visible: commonPanelMa.hoverActive
+                         && !(commonPanelMa.dragActive && commonPanelMa.didDrag)
+                         && !(leftHandle.pressed || rightHandle.pressed)
                 width: 2
                 height: parent.height
                 z: mainSlider.z + 1

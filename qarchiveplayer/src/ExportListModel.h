@@ -3,6 +3,7 @@
 #include <QAbstractListModel>
 #include <QPointer>
 #include <QVector>
+#include <QDateTime>
 
 class ExportController;
 class WebSocketClient;
@@ -38,10 +39,21 @@ public:
     struct Item {
         QPointer<ExportController> controller;
         QPointer<WebSocketClient> client;
+        QString cacheId;
         QString path;
         QString cameraName;
         QString timeText;
         QString exportDate;
+        QDateTime fromLocal;
+        QDateTime toLocal;
+        QString archiveId;
+        QString format;
+        int maxChunkDurationMinutes {0};
+        qint64 maxChunkFileSizeBytes {0};
+        bool exportPrimitives {false};
+        bool exportCameraInformation {false};
+        bool exportImagePipeline {false};
+        QString wsUrl;
         int status {0};
         int progress {0};
         QString preview;
@@ -60,8 +72,14 @@ public:
     void setGeneralProgress(int value);
 
     void addItem(const Item& item);
+    void appendItem(const Item& item);
     void removeItem(int row);
     int indexOfController(const ExportController* controller) const;
+
+    QVector<Item> items() const;
+    const Item* itemAt(int row) const;
+
+    void replaceItem(int row, const Item& item);
 
     void updatePreview(int row, const QString& preview);
     void updateSizeBytes(int row, qint64 sizeBytes);

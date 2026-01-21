@@ -97,8 +97,27 @@ void ExportListModel::addItem(const Item& item)
 
     m_items.push_front(item);
     const auto controller = item.controller;
-    connect(controller, &ExportController::statusChanged, this, &ExportListModel::updateGeneralStatus);
-    connect(controller, &ExportController::exportProgressChanged, this, &ExportListModel::updateGeneralProgress);
+    if (controller) {
+        connect(controller, &ExportController::statusChanged, this, &ExportListModel::updateGeneralStatus);
+        connect(controller, &ExportController::exportProgressChanged, this, &ExportListModel::updateGeneralProgress);
+    }
+
+    endInsertRows();
+
+    emit countChanged();
+}
+
+void ExportListModel::appendItem(const Item& item)
+{
+    const int row = m_items.size();
+    beginInsertRows(QModelIndex(), row, row);
+
+    m_items.push_back(item);
+    const auto controller = item.controller;
+    if (controller) {
+        connect(controller, &ExportController::statusChanged, this, &ExportListModel::updateGeneralStatus);
+        connect(controller, &ExportController::exportProgressChanged, this, &ExportListModel::updateGeneralProgress);
+    }
 
     endInsertRows();
 
@@ -130,6 +149,46 @@ int ExportListModel::indexOfController(const ExportController* controller) const
     }
 
     return -1;
+}
+
+QVector<ExportListModel::Item> ExportListModel::items() const
+{
+    return m_items;
+}
+
+const ExportListModel::Item* ExportListModel::itemAt(int row) const
+{
+    if (row < 0 || row >= m_items.size())
+        return nullptr;
+    return &m_items[row];
+}
+
+void ExportListModel::replaceItem(int row, const Item& item)
+{
+    if (row < 0 || row >= m_items.size())
+        return;
+
+    m_items[row] = item;
+    const auto controller = item.controller;
+    if (controller) {
+        connect(controller, &ExportController::statusChanged, this, &ExportListModel::updateGeneralStatus);
+        connect(controller, &ExportController::exportProgressChanged, this, &ExportListModel::updateGeneralProgress);
+    }
+    updateGeneralStatus();
+    updateGeneralProgress();
+
+    emit dataChanged(index(row), index(row), {
+                                                 ControllerRole,
+                                                 ClientRole,
+                                                 PathRole,
+                                                 CameraNameRole,
+                                                 TimeTextRole,
+                                                 ExportDateRole,
+                                                 StatusRole,
+                                                 ProgressRole,
+                                                 PreviewRole,
+                                                 SizeBytesRole
+                                             });
 }
 
 void ExportListModel::updatePreview(int row, const QString& preview)
@@ -168,13 +227,13 @@ void ExportListModel::updateCompletion(int row, int status, int progress, const 
     item.client = nullptr;
 
     emit dataChanged(index(row), index(row), {
-        StatusRole,
-        ProgressRole,
-        PreviewRole,
-        SizeBytesRole,
-        ControllerRole,
-        ClientRole
-    });
+                                                 StatusRole,
+                                                 ProgressRole,
+                                                 PreviewRole,
+                                                 SizeBytesRole,
+                                                 ControllerRole,
+                                                 ClientRole
+                                             });
 }
 
 void ExportListModel::updateGeneralStatus()

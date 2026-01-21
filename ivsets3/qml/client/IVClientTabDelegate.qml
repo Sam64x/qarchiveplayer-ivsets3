@@ -16,17 +16,17 @@ Rectangle {
     id: root
 
     property string viewType: ""
-    property string tabName: ""
+    property string name: ""
     property int innerIndex: -2
-    property string type:""
-    property string tabId:""
+    property string type: ""
+    property string tabId: ""
     property int currentIndex: -1
     property var globalSignalsObject: null
     property int modelSize: 0
 
-    signal rightClicked()
-    signal tabRemoveLeft(string tabname)
-    signal tabRemoveRight(string tabname)
+    signal removeTab()
+    signal tabRemoveLeft()
+    signal tabRemoveRight()
 
     implicitWidth: 160 * privates.isize
     implicitHeight: 32 * privates.isize
@@ -68,10 +68,8 @@ Rectangle {
     ]
 
     IVToolTip {
-        visible: ma8.containsMouse
-        text: root.type === "set"
-              ? privates.set && privates.set.name
-              : root.tabName
+        visible: tabNameLabel.truncated && tabMouseArea.containsMouse
+        text: tabNameLabel.text
     }
 
     RowLayout {
@@ -96,68 +94,28 @@ Rectangle {
             elide: Text.ElideRight
             text: root.type === "set"
                   ? privates.set && privates.set.name
-                  : root.tabName
+                  : root.name
             font: IVColors.getFont("Subtext accent")
         }
     }
 
-    IVContextMenu {
+    IVContextMenuControl {
         id: moreMenu
-
-        property bool isArchive: root.viewType === "archive"
 
         x: -20
         y: root.height
 
         bgColor : IVColors.get("Colors/Background new/BgContextMenuThemed")
+        closePolicy: Popup.CloseOnPressOutside
 
-        component: Item {
+        contentItem: Item {
             implicitWidth: 364 * privates.isize
             implicitHeight: moreMenuContentLayout.implicitHeight
 
             ColumnLayout {
                 id: moreMenuContentLayout
                 anchors.fill: parent
-                anchors.leftMargin: 16
-                anchors.rightMargin: 16
                 spacing: 8
-
-                function refreshMenu() {
-                    menuListModel.clear();
-                    if (privates.type2 === IVClientTabDelegate.Type.Set) {
-                        const text = !moreMenu.isArchive ? "Перейти в архив" : "Перейти в реалтайм";
-                        menuListModel.append({text: text, icon: "new_images/toArchiveBtn", enabled: true })
-                    }
-                    if (root.innerIndex > 0) {
-                        menuListModel.append({
-                                                 text: "Закрыть все вкладки слева",
-                                                 icon: "new_images/chevron-left-big",
-                                                 enabled: true
-                                             })
-                    }
-                    if (root.innerIndex !== root.modelSize - 1) {
-                        menuListModel.append({
-                                                 text: "Закрыть все вкладки справа",
-                                                 icon: "new_images/chevron-right-big",
-                                                 enabled: true
-                                             })
-                    }
-                    menuListModel.append({
-                                             text: "Закрыть",
-                                             icon: "new_images/x-close",
-                                             enabled: true
-                                         })
-                }
-
-                Connections {
-                    id: menuToRoot
-                    target: root
-                    onRightClicked: {
-                        moreMenuContentLayout.refreshMenu();
-                        moreMenu.open();
-
-                    }
-                }
 
                 IVInputField {
                     id: setNameField
@@ -231,51 +189,66 @@ Rectangle {
                     }
                 }
 
-                ListView {
-                    id: contextListView
+                function refreshMenu() {
+                    menuListModel.clear();
+                    if (privates.type2 === IVClientTabDelegate.Type.Set) {
+                        const text = !privates.isArchive ? "Перейти в архив" : "Перейти в реалтайм";
+                        menuListModel.append({
+                            text: text,
+                            icon: "new_images/toArchiveBtn",
+                            action: "switch_viewType"
+                        })
+                    }
+                    if (root.innerIndex > 0) {
+                        menuListModel.append({
+                            text: "Закрыть все вкладки слева",
+                            icon: "new_images/chevron-left-big",
+                            action: "close_left"
+                        })
+                    }
+                    if (root.innerIndex !== root.modelSize - 1) {
+                        menuListModel.append({
+                            text: "Закрыть все вкладки справа",
+                            icon: "new_images/chevron-right-big",
+                            action: "close_right"
+                        })
+                    }
+                    menuListModel.append({
+                        text: "Закрыть",
+                        icon: "new_images/x-close",
+                        action: "close"
+                    })
+                }
 
+                ListView {
                     Layout.fillWidth: true
                     Layout.preferredHeight: contentHeight
 
                     model: ListModel {
                         id: menuListModel
-
-                        Component.onCompleted:
-                        {
-                            moreMenuContentLayout.refreshMenu();
-                        }
                     }
 
                     delegate: IVContextMenuItem {
                         width: parent.width
-                        type: model.status ? model.status : IVContextMenuItem.Type.Default
-                        source: model.icon ? model.icon : ""
-                        text: model.text ? model.text : ""
-                        enabled: model.enabled !== undefined ? model.enabled : true
-                        onClicked: {
-                            if (text === "Перейти в архив")
-                            {
-                                root.globalSignalsObject.tabAdded5(root.tabName,root.type,root.tabId,"archive");
-                            }
-                            if (text === "Перейти в реалтайм")
-                            {
-                                root.globalSignalsObject.tabAdded5(root.tabName,root.type,root.tabId,"realtime");
-                            }
-                            if (text === "Закрыть все вкладки слева")
-                            {
-                                root.tabRemoveLeft(root.tabName);
-                            }
-                            if (text === "Закрыть все вкладки справа")
-                            {
-                                root.tabRemoveRight(root.tabName);
-                            }
-                            if (text === "Закрыть") {
-                                root.globalSignalsObject.tabRemoved2(root.tabName);
-                            }
 
-                            if (enabled) {
-                                moreMenu.close();
+                        source: model.icon
+                        text: model.text
+
+                        onClicked: {
+                            if (action === "switch_viewType") {
+                                const viewType = !privates.isArchive ? "archive" : "realtime";
+                                root.globalSignalsObject.tabAdded5(root.name, root.type, root.tabId, viewType);
                             }
+                            else if (action === "close_left") {
+                                root.tabRemoveLeft();
+                            }
+                            else if (action === "close_right") {
+                                root.tabRemoveRight();
+                            }
+                            else if (action === "close") {
+                                root.removeTab();
+                            }
+                            moreMenu.close();
                         }
                     }
                 }
@@ -283,23 +256,21 @@ Rectangle {
         }
     }
 
-    MouseArea
-    {
-        id:ma8
+    MouseArea {
+        id: tabMouseArea
+
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+
         onClicked: {
             if (mouse.button & Qt.RightButton) {
-                root.rightClicked();
+                moreMenuContentLayout.refreshMenu();
+                moreMenu.open();
             }
             else {
-                if (archive_fix2.value === "true") {
-                    root.globalSignalsObject.tabSelected5(root.tabName,root.type,root.tabId,"archive");
-                }
-                else {
-                    root.globalSignalsObject.tabSelected5(root.tabName,root.type,root.tabId,root.viewType);
-                }
+                const viewType = archive_fix2.value === "true" ? "archive" : root.viewType;
+                root.globalSignalsObject.tabSelected5(root.name, root.type, root.tabId, viewType);
             }
             root.globalSignalsObject.tabUniqId = root.toString();
         }

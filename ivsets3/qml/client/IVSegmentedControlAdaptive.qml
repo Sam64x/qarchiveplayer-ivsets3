@@ -49,7 +49,7 @@ Rectangle
         delegate: Rectangle {
             id: rect
             height: root.height
-            width: rect.selected? root.width * 0.66:root.width * 0.165
+            width: rect.selected? root.width * 0.66:root.width * 0.17
             radius: 8
             color: "transparent"
             property bool selected: root.currentIndex === model.index

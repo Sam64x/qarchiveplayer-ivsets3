@@ -13,7 +13,7 @@ Controls.IVButtonControl {
 
     horizontalPadding: 8
 
-    text: ExportManager.activeExportsModel.count || ""
+    text: ExportManager.activeExportsModel.count
     size: Controls.IVButtonControl.Size.Big
     type: Controls.IVButtonControl.Type.Tertiary
     checkable: true

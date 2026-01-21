@@ -197,10 +197,8 @@ Item {
                     }
 
                     delegate: IVClientTabDelegate {
-                        id: tabDelegate
-
                         viewType: model.view
-                        tabName: model.name
+                        name: model.name
                         innerIndex: model.index
                         type: model.type
                         tabId: model.tabId
@@ -208,28 +206,30 @@ Item {
                         globalSignalsObject: root.globalSignalsObject
                         modelSize: tabsListView.count
 
+                        onRemoveTab: {
+                            root.globalSignalsObject.tabRemoved2(name);
+                        }
+
                         onTabRemoveLeft: {
-                            var modelIndex = 0;
-                            for(var i = 0; i < openedTabsModel.count; i++) {
-                                const tab = openedTabsModel.get(i);
-                                if(tab.name === tabname) {
-                                    modelIndex = i;
-                                }
-                            }
+                            const modelIndex = findItemIndex();
                             openedTabsModel.remove(0, modelIndex);
                             openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
                         }
+
                         onTabRemoveRight: {
-                            var modelIndex = 0;
-                            for(var i = 0; i < openedTabsModel.count; i++) {
-                                if(openedTabsModel.get(i).name === tabname) {
-                                    modelIndex = i;
+                            const modelIndex = findItemIndex();
+                            const count = openedTabsModel.count - modelIndex - 1;
+                            openedTabsModel.remove(modelIndex + 1, count);
+                            openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
+                        }
+
+                        function findItemIndex() {
+                            const compareProperty = type === "set" ? "tabId" : "name";
+                            for (var i = 0; i < openedTabsModel.count; i++) {
+                                if (openedTabsModel.get(i)[compareProperty] === this[compareProperty]) {
+                                    return i;
                                 }
                             }
-                            var count = openedTabsModel.count - modelIndex - 1;
-                            openedTabsModel.remove(modelIndex + 1, count);
-
-                            openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
                         }
                     }
                 }
@@ -292,7 +292,7 @@ Item {
 
     IvVcliSetting {
         id: openedTabsSettings
-        name: root.Window.window.unique ? privates.userName+"#" + root.Window.window.unique + "#tabs#openedTabs" : ""
+        name: root.Window.window.unique ? privates.userName + "#" + root.Window.window.unique + "#tabs#openedTabs" : ""
     }
 
     IvVcliSetting {
@@ -347,10 +347,7 @@ Item {
     Timer {
         id: refreshModelTimer
 
-        running: false
-        triggeredOnStart: false
         interval: 500
-        repeat: false
 
         onTriggered: {
             var opTabs = openedTabsSettings.value;
@@ -459,11 +456,15 @@ Item {
                 root.globalSignalsObject.tabSelected5(currItem.name, currItem.type, currItem.tabId, currItem.view);
                 activeTabSettings.value = currItem.name;
             }
+
+            if (openedTabsModel.count === 0) {
+                root.globalSignalsObject.tabSelected5("", "", "", "");
+            }
+
             var tmpStr = privates.getStringFromModel(openedTabsModel);
             openedTabsSettings.value = tmpStr;
         }
-        onTabAdded4:
-        {
+        onTabAdded4: {
             var isFound = false;
             for(var i =0 ; i < openedTabsModel.count; i++) {
                 var tabName_ =  openedTabsModel.get(i).name;

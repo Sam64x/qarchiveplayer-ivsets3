@@ -8,14 +8,17 @@
 #include <QUuid>
 #include <QDebug>
 
-static QHash<int, IVSet::GridType> ServerClientGridTypeMap {
-    {0, IVSet::GridType::TopLeftFocus},
-    {1, IVSet::GridType::TwoHeaderFocus},
-    {2, IVSet::GridType::ThreeCornersPlusQuad},
-    {3, IVSet::GridType::CenterFocus},
-    {4, IVSet::GridType::QuadCenterFocus},
-    {5, IVSet::GridType::Quad}
-};
+static const QHash<int, IVSet::GridType>& serverClientGridTypeMap() {
+    static const QHash<int, IVSet::GridType> map {
+        {0, IVSet::GridType::TopLeftFocus},
+        {1, IVSet::GridType::TwoHeaderFocus},
+        {2, IVSet::GridType::ThreeCornersPlusQuad},
+        {3, IVSet::GridType::CenterFocus},
+        {4, IVSet::GridType::QuadCenterFocus},
+        {5, IVSet::GridType::Quad}
+    };
+    return map;
+}
 
 IVSetsManager* IVSetsManager::instance()
 {
@@ -121,7 +124,7 @@ IVSet* IVSetsManager::createSet(const QVariant &input)
     IVSet::IVSetConfig setConfig;
 
     setConfig.name = setName;
-    setConfig.gridType = ServerClientGridTypeMap.value(root["grid"].toInt(), IVSet::GridType::Custom);
+    setConfig.gridType = serverClientGridTypeMap().value(root["grid"].toInt(), IVSet::GridType::Custom);
     setConfig.horizontalCellCount = root["cols"].toInt();
     setConfig.verticalCellCount = root["rows"].toInt();
     setConfig.xRatio = root["ratioX"].toInt();
@@ -237,7 +240,7 @@ QString IVSetsManager::getSetConfigToSave(IVSet* set) const
 
     root["cols"] = set->horizontalCellCount();
     root["rows"] = set->verticalCellCount();
-    root["grid"] = ServerClientGridTypeMap.key(set->gridType());
+    root["grid"] = serverClientGridTypeMap().key(set->gridType());
     root["ratioX"] = set->xRatio();
     root["ratioY"] = set->yRatio();
     root["isuser"] = int(set->isUser());

@@ -170,6 +170,10 @@ Popup {
                          if (ExportManager)
                             ExportManager.removeExport(modelIndex)
                     }
+                    onRestartRequested: {
+                        if (ExportManager)
+                            ExportManager.restartExport(modelIndex)
+                    }
 
                     onSelectedPathChanged: {
                         updateFolderUrl();
@@ -202,20 +206,17 @@ Popup {
         id: privates
 
         function formatDateLabel(dateStr) {
-            // Парсим строку вида "dd.MM.yyyy"
             const parts = dateStr.split(".");
             if (parts.length !== 3) return dateStr;
 
             const day = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1; // месяцы в JS: 0–11
+            const month = parseInt(parts[1], 10) - 1;
             const year = parseInt(parts[2], 10);
 
             const date = new Date(year, month, day);
 
-            // Проверяем корректность
             if (isNaN(date.getTime())) return dateStr;
 
-            // Получаем начало "сегодня" и "вчера" (без времени)
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);

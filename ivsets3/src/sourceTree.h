@@ -12,17 +12,6 @@
 class SourceTree :   public QObject
 {
     Q_OBJECT
-    QString m_view;
-    QList<SourceTree *> m_children;
-
-
-
-
-
-public:
-    explicit SourceTree(QObject *parent = nullptr);
-    ~SourceTree();
-
 
     Q_PROPERTY(QList<QObject*> children READ childrenAsQObject NOTIFY childrenChanged)
     // общие свойства, такие как имя, тип, тип отображения, видимость в списке
@@ -38,8 +27,12 @@ public:
     Q_PROPERTY(QString groupId_ READ groupId_ WRITE setGroupId_ NOTIFY groupId_Changed)
     Q_PROPERTY(bool isLocal_ READ isLocal_ WRITE setIsLocal_ NOTIFY isLocal_Changed)
 
-    Q_INVOKABLE void search(QString searchText);
-    Q_INVOKABLE void search2(QString searchText);
+public:
+    explicit SourceTree(QObject *parent = nullptr);
+    ~SourceTree();
+
+    Q_INVOKABLE void search(QString searchText); // not used
+    Q_INVOKABLE void search2(QString searchText); // not used
     Q_INVOKABLE void search3(QString searchText);
     Q_INVOKABLE void setProp(const QString&, QVariant);
     Q_INVOKABLE QVariant getProp(const QString &);
@@ -48,11 +41,10 @@ public:
     Q_INVOKABLE int getCurrentCount();
     Q_INVOKABLE void addGroupFromQml(SourceTree* parent,QString name);
     Q_INVOKABLE SourceTree *get(QVariantList);
-    Q_INVOKABLE void remove(QVariantList);
+    Q_INVOKABLE void remove(QVariantList); // mb not used
     Q_INVOKABLE void remove(int = -1);
-    Q_INVOKABLE QVariantList getRows();
+    Q_INVOKABLE QVariantList getRows(); // not used
 
-public:
     QQueue<SourceTree*> getAll(SourceTree* item);
     bool searchBrunch(SourceTree* item, QString searchText);
     void setRecProperty(SourceTree* item,QString propertyName, bool value);
@@ -89,20 +81,8 @@ public:
     void setIsLocal_(bool isLocal);
     bool isLocal_();
 
-private:
-    QString _name;
-    QString _type;
-    QString _view_type;
-    QString _setId_;
-    QString _groupId_;
-    bool _visible;
-    bool _opened;
-    bool _isLocal_;
-
-public slots:
     void setView(QString&);
     void addChildItem(SourceTree*);
-
 
 signals:
     void childrenChanged();
@@ -117,8 +97,18 @@ signals:
     void groupId_Changed();
     void isLocal_Changed();
 
+private:
+    QString m_view;
+    QList<SourceTree *> m_children;
 
-
+    QString _name;
+    QString _type;
+    QString _view_type;
+    QString _setId_;
+    QString _groupId_;
+    bool _visible {true};
+    bool _opened {false};
+    bool _isLocal_;
 
 };
 
