@@ -42,7 +42,7 @@ Rectangle
         running: true
         onTriggered:
         {
-            var cams = customSets.getCameras();
+            var cams = IVCustomSets.getCameras();
             //camsModel.append({key2:"1"});
             var camsArray = [];
             try
@@ -62,10 +62,6 @@ Rectangle
     Connections
     {
         id:myGlobConnect
-    }
-    IVCustomSets
-    {
-        id:customSets
     }
     Rectangle
     {

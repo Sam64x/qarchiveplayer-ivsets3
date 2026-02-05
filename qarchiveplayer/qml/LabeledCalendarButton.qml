@@ -116,9 +116,10 @@ Row {
 
             property date _now: new Date()
             property date _nowMinus5: new Date(_now.getTime() - 5 * 60 * 1000)
+            property date selectedDateTime: _nowMinus5
 
-            property string chosenDate: Qt.formatDate(_nowMinus5, "dd.MM.yyyy")
-            property string chosenTime: Qt.formatTime(_nowMinus5, "hh:mm:ss")
+            property string chosenDate: Qt.formatDate(selectedDateTime, "dd.MM.yyyy")
+            property string chosenTime: Qt.formatTime(selectedDateTime, "hh:mm:ss")
 
 
             signal setCurrTimeCommand
@@ -140,7 +141,6 @@ Row {
                     C.IVInputField {
                         id: dateInputField
                         Layout.fillWidth: true
-                        text: chosenDate + " " + chosenTime
                         name: "Перейти к"
                         mask: "00.00.0000 00:00:00"
                         onTextEdited: {
@@ -150,24 +150,31 @@ Row {
                         onInputAccepted:{
                             if (isCorrect) {
                                 var ds = Date.fromLocaleString(Qt.locale(), text, "dd.MM.yyyy hh:mm:ss")
-                                calendBody.currentDate = ds
+                                calendar.selectedDateTime = ds
                             }
+                        }
+                        Binding {
+                            target: dateInputField
+                            property: "text"
+                            value: Qt.formatDateTime(calendar.selectedDateTime, "dd.MM.yyyy hh:mm:ss")
+                            when: !dateInputField.activeFocus
                         }
                     }
                     C.IVCalendar {
                         id: calendBody
                         width: 390
                         selectable: false
-                        currentDate: new Date(calendar.getTimestamp())
+                        currentDate: calendar.selectedDateTime
                         onCurrentDateChanged: {
-                            calendar.chosenDate = Qt.formatDate(currentDate, "dd.MM.yyyy")
-                            calendar.chosenTime = Qt.formatTime(currentDate, "hh:mm:ss")
-                            dateInputField.text = Qt.formatDateTime(currentDate, "dd.MM.yyyy hh:mm:ss")
+                            if (!calendar.selectedDateTime || !calendar.selectedDateTime.getTime ||
+                                    calendar.selectedDateTime.getTime() !== currentDate.getTime()) {
+                                calendar.selectedDateTime = currentDate
+                            }
                             if (updateTimeFromCalendar) updateTimeFromCalendar()
                         }
                         Connections {
                             target: calendar
-                            onSetNewDate: calendBody.currentDate = newDate
+                            onSetNewDate: calendar.selectedDateTime = newDate
                         }
                     }
                 }

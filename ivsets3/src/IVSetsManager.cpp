@@ -76,7 +76,7 @@ IVSet* IVSetsManager::createNewSet(const QString& setName)
     setConfig.xRatio = 16;
     setConfig.yRatio = 9;
 
-    auto* newSet = new IVSet(this, "new_tab", true, setConfig, {});
+    auto* newSet = new IVSet(this, "new_set", true, setConfig, {});
     newSet->updateZones();
 
     _sets.push_back(newSet);
@@ -93,6 +93,19 @@ IVSet* IVSetsManager::getSet(const QString& setId) const
         }
     }
     return nullptr;
+}
+
+int calculateRemainder(int cellCount) {
+    if (60 % cellCount == 0) {
+        return 60 / cellCount;
+    }
+    else if (64 % cellCount == 0) {
+        return 64 / cellCount;
+    }
+    else if (56 % cellCount == 0) {
+        return 56 / cellCount;
+    }
+    return 1;
 }
 
 IVSet* IVSetsManager::createSet(const QVariant &input)
@@ -175,6 +188,12 @@ IVSet* IVSetsManager::createSet(const QVariant &input)
         setConfig.slotCount = (zones.size() - 4) / 4 + 1;
     }
 
+    const int horizontalCellRemainder = calculateRemainder(setConfig.horizontalCellCount);
+    const int verticalCellRemainder = calculateRemainder(setConfig.verticalCellCount);
+
+    setConfig.horizontalCellCount *= horizontalCellRemainder;
+    setConfig.verticalCellCount *= verticalCellRemainder;
+
     QList<IVZone::IVZoneConfig> zonesConfigs;
     for (int i = 0; i < zones.size(); i++) {
         const auto zoneVal = zones.at(i);
@@ -184,10 +203,10 @@ IVSet* IVSetsManager::createSet(const QVariant &input)
             IVZone::IVZoneConfig zoneConfig;
 
             zoneConfig.setIndex = i;
-            zoneConfig.startXCell = zone["x"].toInt() - 1;
-            zoneConfig.startYCell = zone["y"].toInt() - 1;
-            zoneConfig.capturedHorizontalCellCount = zone["dx"].toInt();
-            zoneConfig.capturedVerticalCellCount = zone["dy"].toInt();
+            zoneConfig.startXCell = (zone["x"].toInt() - 1) * horizontalCellRemainder;
+            zoneConfig.startYCell = (zone["y"].toInt() - 1) * verticalCellRemainder;
+            zoneConfig.capturedHorizontalCellCount = zone["dx"].toInt() * horizontalCellRemainder;
+            zoneConfig.capturedVerticalCellCount = zone["dy"].toInt() * verticalCellRemainder;
             zoneConfig.type = zone["type"].toString();
 
             QJsonObject params = zone["params"].toObject();
@@ -244,9 +263,7 @@ QString IVSetsManager::getSetConfigToSave(IVSet* set) const
     root["ratioX"] = set->xRatio();
     root["ratioY"] = set->yRatio();
     root["isuser"] = int(set->isUser());
-    root["setId"] = !set->isUser() || set->id() == "new_set"
-                        ? QUuid::createUuid().toString()
-                        : set->id();
+    root["setId"] = set->id();
     root["setName"] = set->name();
 
     QJsonArray zonesArray;

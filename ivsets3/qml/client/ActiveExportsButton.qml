@@ -3,17 +3,17 @@ import QtQuick 2.11
 import QtQuick.Controls 2.4
 import QtQuick.Layouts 1.11
 
-import ArchiveComponents 1.0
+import iv.colors 1.0
 import iv.singletonLang 1.0
 import iv.controls 1.0 as Controls
-import iv.colors 1.0
+import iv.viewers.archiveplayer 1.0 as ArchivePlayerModule
 
 Controls.IVButtonControl {
     id: control
 
     horizontalPadding: 8
 
-    text: ExportManager.activeExportsModel.count
+    text: ArchivePlayerModule.ExportManager.activeExportsModel.count || ""
     size: Controls.IVButtonControl.Size.Big
     type: Controls.IVButtonControl.Type.Tertiary
     checkable: true
@@ -23,7 +23,7 @@ Controls.IVButtonControl {
     toolTipVisible: !artiveExportMenu.opened && toolTipText.length > 0 && hovered
 
     source: {
-        switch (ExportManager.activeExportsModel.generalStatus) {
+        switch (ArchivePlayerModule.ExportManager.activeExportsModel.generalStatus) {
         case 0:
         case 2:
             return "new_images/archive";
@@ -49,7 +49,7 @@ Controls.IVButtonControl {
             visible: active
 
             function updateActiveBinding() {
-                active = Qt.binding(function() { return ExportManager.activeExportsModel.generalStatus === 1; })
+                active = Qt.binding(function() { return ArchivePlayerModule.ExportManager.activeExportsModel.generalStatus === 1; })
             }
 
             Component.onCompleted: {
@@ -61,7 +61,9 @@ Controls.IVButtonControl {
                 implicitHeight: 24
 
                 Canvas {
-                    readonly property int progress: ExportManager ? ExportManager.activeExportsModel.generalProgress : 0
+                    readonly property int progress: ArchivePlayerModule.ExportManager
+                                                    ? ArchivePlayerModule.ExportManager.activeExportsModel.generalProgress
+                                                    : 0
                     readonly property var strokeStyle: IVColors.get("Colors/Text new/TxContrast")
                     readonly property var fillStyle: IVColors.get("Colors/Text new/TxContrast")
 
@@ -123,7 +125,7 @@ Controls.IVButtonControl {
                 sourceSize: Qt.size(imageSize, imageSize)
                 fillMode : Image.PreserveAspectFit
                 color: {
-                    switch (ExportManager.activeExportsModel.generalStatus) {
+                    switch (ArchivePlayerModule.ExportManager.activeExportsModel.generalStatus) {
                     case 3:
                     case 4:
                         return IVColors.get("Colors/Text new/TxCritical");
@@ -157,7 +159,7 @@ Controls.IVButtonControl {
         id: uploadAndErrorSwitcher
         interval: 1000
         repeat: true
-        running: ExportManager.activeExportsModel.generalStatus === 4
+        running: ArchivePlayerModule.ExportManager.activeExportsModel.generalStatus === 4
         onTriggered: {
             progressCircleLoader.active ^= true;
         }

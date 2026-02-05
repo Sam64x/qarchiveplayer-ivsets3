@@ -96,15 +96,13 @@ Item {
 
         onTabSelected5: function (tabName, type, setId, viewType) {
             if (type === "camera") {
-                var item = customSets.getTypePreset(type, "key2", "string", tabName);
-                cameraLoader.key2 = item.params.key2.value[0];
-                cameraLoader.running = item.params.running.value[0];
+                cameraLoader.key2 = tabName;
+                cameraLoader.running = true;
                 cameraLoader.isRealtime = viewType === 'realtime';
             }
 
             if (type === "map") {
-                const data = customSets.getTypePreset("map", "jsonDataFileName", "string", tabName);
-                mapLoader.jsonDataFileName = data ? data.params.jsonDataFileName.value[0] : ""
+                mapLoader.jsonDataFileName = tabName;
             }
 
             if (type === "set") {
@@ -114,13 +112,6 @@ Item {
             }
 
             privates.tabType = type;
-        }
-    }
-
-    IVCustomSets {
-        id: customSets
-        Component.onCompleted: {
-            customSets.initWs();
         }
     }
 

@@ -1,115 +1,164 @@
 #ifndef SOURCETREE_H
 #define SOURCETREE_H
 
-#include <QtQml>
 #include <QObject>
-#include <QDebug>
-#include <iv_threads.h>
-#include "iv_threads_pool.h"
-#include <iv_stable.h>
-#include <QAbstractItemModel>
+#include <QHash>
 
-class SourceTree :   public QObject
+class SourceTree : public QObject
 {
     Q_OBJECT
 
-    Q_PROPERTY(QList<QObject*> children READ childrenAsQObject NOTIFY childrenChanged)
     // общие свойства, такие как имя, тип, тип отображения, видимость в списке
-    Q_PROPERTY(QString view READ view WRITE setView NOTIFY viewChanged)
-    Q_PROPERTY(QString name READ name WRITE setName NOTIFY nameChanged)
-    Q_PROPERTY(QString type READ type WRITE setType NOTIFY typeChanged)
-    Q_PROPERTY(QString view_type READ view_type WRITE setView_type NOTIFY view_typeChanged)
-    Q_PROPERTY(bool opened READ opened WRITE setOpened NOTIFY openedChanged)
-    Q_PROPERTY(bool visible READ visible WRITE setVisible NOTIFY visibleChanged)
+    Q_PROPERTY(QString name READ name NOTIFY nameChanged)
+    Q_PROPERTY(QString type READ type NOTIFY typeChanged)
+    Q_PROPERTY(QString viewType READ viewType NOTIFY viewTypeChanged)
+    Q_PROPERTY(bool visible READ visible NOTIFY visibleChanged)
 
-    //специфические свойства, такие как id набора, id группы, локальный ли набор
-    Q_PROPERTY(QString setId_ READ setId_ WRITE setSetId_ NOTIFY setId_Changed)
-    Q_PROPERTY(QString groupId_ READ groupId_ WRITE setGroupId_ NOTIFY groupId_Changed)
-    Q_PROPERTY(bool isLocal_ READ isLocal_ WRITE setIsLocal_ NOTIFY isLocal_Changed)
+    //уникальное свойство для viewType == "group"
+    Q_PROPERTY(QList<QObject*> children READ childrenAsQObject NOTIFY childrenChanged)
+    Q_PROPERTY(bool opened READ opened WRITE setOpened NOTIFY openedChanged)
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(int unavailableCount READ unavailableCount NOTIFY unavailableCountChanged)
+    Q_PROPERTY(QString groupColor READ groupColor NOTIFY groupColorChanged)
+
+    //уникальное свойство для viewType == "item"
+    Q_PROPERTY(bool selected READ selected NOTIFY selectedChanged)
+    Q_PROPERTY(bool available READ available NOTIFY availableChanged)
+
+    //уникальное свойство для type == "set"
+    Q_PROPERTY(QString setId READ setId NOTIFY setIdChanged)
+    Q_PROPERTY(bool isLocal READ isLocal NOTIFY isLocalChanged)
+
+    //уникальное свойство для главного SourceTree
+    Q_PROPERTY(int sourcesCount READ sourcesCount NOTIFY sourcesCountChanged)
+    Q_PROPERTY(int selectedCamerasCount READ calculateSelectedCamerasCount NOTIFY selectedCamerasCountChanged)
+    Q_PROPERTY(int selectedMapsCount READ calculateSelectedMapsCount NOTIFY selectedMapsCountChanged)
 
 public:
     explicit SourceTree(QObject *parent = nullptr);
-    ~SourceTree();
 
-    Q_INVOKABLE void search(QString searchText); // not used
-    Q_INVOKABLE void search2(QString searchText); // not used
-    Q_INVOKABLE void search3(QString searchText);
-    Q_INVOKABLE void setProp(const QString&, QVariant);
-    Q_INVOKABLE QVariant getProp(const QString &);
-    Q_INVOKABLE void init(const QString&);
-    Q_INVOKABLE int getCount(QString = "", int = -1);
-    Q_INVOKABLE int getCurrentCount();
-    Q_INVOKABLE void addGroupFromQml(SourceTree* parent,QString name);
-    Q_INVOKABLE SourceTree *get(QVariantList);
-    Q_INVOKABLE void remove(QVariantList); // mb not used
-    Q_INVOKABLE void remove(int = -1);
-    Q_INVOKABLE QVariantList getRows(); // not used
+    QString name() const;
+    void setName(const QString& name);
 
-    QQueue<SourceTree*> getAll(SourceTree* item);
-    bool searchBrunch(SourceTree* item, QString searchText);
-    void setRecProperty(SourceTree* item,QString propertyName, bool value);
-    QString view();
-    QList<SourceTree*> children();
-    const QList<QObject*> childrenAsQObject() const;
-    const bool hasChild() const;
+    QString type() const;
+    void setType(const QString& type);
 
-    void addRec(QJsonArray array,SourceTree* item);
-    SourceTree* findRec(SourceTree* item, QString name);
-    QString _searchText;
+    QString viewType() const;
+    void setViewType(const QString& value);
 
-    void setName(QString name);
-    QString name();
-
-    void setOpened(bool opened);
-    bool opened();
-
+    bool visible() const;
     void setVisible(bool visible);
-    bool visible();
 
-    void setType(QString type);
-    QString type();
+    QList<QObject*> childrenAsQObject() const;
 
-    void setView_type(QString view_type);
-    QString view_type();
+    bool opened() const;
+    void setOpened(bool opened);
 
-    void setSetId_(QString setId);
-    QString setId_();
+    int count() const;
+    void setCount(int value);
 
-    void setGroupId_(QString groupId);
-    QString groupId_();
+    int unavailableCount() const;
+    void setUnavailableCount(int value);
 
-    void setIsLocal_(bool isLocal);
-    bool isLocal_();
+    QString groupColor() const;
+    void setGroupColor(const QString& value);
 
-    void setView(QString&);
+    bool selected() const;
+    void setSelected(bool value);
+
+    bool available() const;
+    void setAvailable(bool value);
+
+    QString setId() const;
+    void setSetId(const QString& value);
+
+    bool isLocal() const;
+    void setIsLocal(bool isLocal);
+
+    int sourcesCount() const;
+    int calculateSelectedCamerasCount() const;
+    int calculateSelectedMapsCount() const;
+    Q_INVOKABLE void updateSelectedCameras(const QString& name, bool value);
+    Q_INVOKABLE void updateSelectedMaps(const QString& name, bool value);
+    Q_INVOKABLE void clearSelection();
+    Q_INVOKABLE void changeCameraSelected(const QString& name, bool value);
+    Q_INVOKABLE void changeMapSelected(const QString& name, bool value);
+    Q_INVOKABLE void clearSourcesSelection();
+    Q_INVOKABLE QStringList getSelectedCameras() const;
+
+    Q_INVOKABLE void switchExpandAll(bool value);
+
+    void clearChildren();
     void addChildItem(SourceTree*);
+
+    Q_INVOKABLE void search(QString searchText);
+    void showAll(SourceTree* root, bool openGroups = false);
+    void filterNodeRecursively(SourceTree* item, QString searchText);
+
+    Q_INVOKABLE void initSources();
+    Q_INVOKABLE void initFlat();
+    Q_INVOKABLE void initFact();
+    Q_INVOKABLE void initCustom();
 
 signals:
     void childrenChanged();
-    void viewChanged();
     void hasChildChanged();
     void nameChanged();
     void typeChanged();
-    void view_typeChanged();
+    void viewTypeChanged();
     void openedChanged();
+    void countChanged();
+    void unavailableCountChanged();
     void visibleChanged();
-    void setId_Changed();
-    void groupId_Changed();
-    void isLocal_Changed();
+    void isLocalChanged();
+    void setIdChanged();
+    void groupColorChanged();
+    void selectedChanged();
+    void availableChanged();
+    void sourcesCountChanged();
+    void selectedCamerasCountChanged();
+    void selectedMapsCountChanged();
 
 private:
-    QString m_view;
-    QList<SourceTree *> m_children;
+    struct CustomGroupConfig {
+        QString id;
+        QString name;
+        QString parentId;
+        QString color;
+    };
+
+    SourceTree* createCameraItem(SourceTree* group, const QString& name) const;
+    SourceTree* createMapItem(SourceTree* group, const QString& name) const;
+    SourceTree* createSetItem(SourceTree* parent, const QJsonObject& setObject) const;
+    SourceTree* createServerObject(QJsonObject serverObject, SourceTree* item);
+    void createCustomGroupRecursed(SourceTree* parent,
+                                   const QString& parentId,
+                                   QList<CustomGroupConfig>& itemGroupsHash,
+                                   QHash<QString, QList<QString>>& groupsSetsHash,
+                                   QHash<QString, QJsonObject>& setsHash);
+
+    QList<SourceTree *> _children;
 
     QString _name;
     QString _type;
-    QString _view_type;
-    QString _setId_;
-    QString _groupId_;
+    QString _viewType;
     bool _visible {true};
     bool _opened {false};
-    bool _isLocal_;
+    int _count {0};
+    int _unavailableCount {0};
+    bool _isLocal {false};
+    QString _setId;
+    QString _groupColor;
+    bool _selected {false};
+    bool _available {false};
 
+    struct ItemConfig {
+        bool selected {false};
+        bool available {false};
+    };
+
+    QHash<QString, ItemConfig> _camerasSources;
+    QHash<QString, ItemConfig> _mapsSources;
 };
 
 #endif // SOURCETREE_H

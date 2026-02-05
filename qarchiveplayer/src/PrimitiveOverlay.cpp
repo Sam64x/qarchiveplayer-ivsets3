@@ -24,6 +24,17 @@ void PrimitiveOverlay::setPrimitives(const QVariantList& prims)
     update();
 }
 
+void PrimitiveOverlay::setContentRect(const QRectF& rect)
+{
+    if (m_contentRect == rect)
+        return;
+
+    m_contentRect = rect;
+    m_geometryDirty = true;
+    emit contentRectChanged();
+    update();
+}
+
 void PrimitiveOverlay::geometryChanged(const QRectF& newGeometry, const QRectF& oldGeometry)
 {
     QQuickItem::geometryChanged(newGeometry, oldGeometry);
@@ -107,8 +118,13 @@ QSGNode* PrimitiveOverlay::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
         delete ch;
     }
 
-    const float w = static_cast<float>(width());
-    const float h = static_cast<float>(height());
+    const QRectF drawRect = m_contentRect.isNull()
+        ? QRectF(0.0, 0.0, width(), height())
+        : m_contentRect;
+    const float w = static_cast<float>(drawRect.width());
+    const float h = static_cast<float>(drawRect.height());
+    const float x0 = static_cast<float>(drawRect.x());
+    const float y0 = static_cast<float>(drawRect.y());
 
     for (int i = 0; i < required; ++i) {
         auto* node = static_cast<QSGGeometryNode*>(root->childAtIndex(i));
@@ -122,7 +138,9 @@ QSGNode* PrimitiveOverlay::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
         QSGGeometry::Point2D* verts = geom->vertexDataAsPoint2D();
         for (int j = 0; j < prim.points.size(); ++j) {
             const QPointF& p = prim.points.at(j);
-            verts[j].set(static_cast<float>(p.x() * w), static_cast<float>((1.0 - p.y()) * h));
+            verts[j].set(
+                x0 + static_cast<float>(p.x() * w),
+                y0 + static_cast<float>((1.0 - p.y()) * h));
         }
 
         node->setGeometry(geom);

@@ -23,7 +23,7 @@ Rectangle
     }
     Component.onCompleted:
     {
-        var setsList = customSets.getSetsList();
+        var setsList = IVCustomSets.getSetsList();
         var setsListArray = JSON.parse(setsList);
         {
             setsModel.append({name:setsListArray[setName]});
@@ -35,7 +35,7 @@ Rectangle
         onSetNameChanged:
         {
             var oldIndex = 0;
-            var setsList = customSets.getSetsList();
+            var setsList = IVCustomSets.getSetsList();
             setsModel.clear();
 
             var setsListArray = JSON.parse(setsList);
@@ -53,11 +53,6 @@ Rectangle
         }
 
     }
-    IVCustomSets
-    {
-        id:customSets
-    }
-
 
     Rectangle
     {
@@ -125,7 +120,7 @@ Rectangle
                         var setName = "Набор "+(setsModel.count+1);
                         setsModel.append({name:setName});
                         setsListView.currentIndex = setsModel.count-1;
-                        customSets.saveSet(setName,setName,"{\"cols\":32,\"rows\":32,\"zones\":[]}");
+                        IVCustomSets.saveSet(setName,setName,"{\"cols\":32,\"rows\":32,\"zones\":[]}");
                         root.globSignalsObject.setAdded(setName);
                     }
                     onEntered:
@@ -210,7 +205,7 @@ Rectangle
                     hoverEnabled: true
                     onClicked:
                     {
-                        customSets.syncSets();
+                        IVCustomSets.syncSets();
                     }
                     onEntered:
                     {
@@ -248,7 +243,7 @@ Rectangle
 
                 onYes:
                 {
-                    customSets.deleteSet(messageDialog.setName);
+                    IVCustomSets.deleteSet(messageDialog.setName);
                     var newIndex = setsListView.currentIndex-1;
                     if(newIndex<0)
                     {

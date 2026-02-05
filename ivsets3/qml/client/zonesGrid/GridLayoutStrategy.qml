@@ -83,7 +83,12 @@ Item {
                     if (!key2 || !running) {
                         return;
                     }
-                    IVSetsManager.activeSet.addZoneContent(zoneIndexTo, key2, running)
+                    if (dragData.replaceContent) {
+                        IVSetsManager.activeSet.replaceZoneContent(zoneIndexTo, key2, running)
+                    }
+                    else {
+                        IVSetsManager.activeSet.addZoneContent(zoneIndexTo, key2, running)
+                    }
                 }
             }
         }

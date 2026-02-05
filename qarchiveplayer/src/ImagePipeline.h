@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QImage>
+#include <QFutureWatcher>
 #include <algorithm>
 #include <functional>
 #include "Nv12Frame.h"
@@ -27,10 +28,7 @@ public:
         int saturation = 50;
     };
 
-    explicit ImagePipeline(QObject* parent = nullptr) : QObject(parent)
-    {
-        loadSettings();
-    }
+    explicit ImagePipeline(QObject* parent = nullptr);
 
     QString cameraId() const { return m_cameraId; }
     void setCameraId(const QString& id);
@@ -79,6 +77,8 @@ private:
     static QString settingsGroup();
 
     void loadSettings();
+    void scheduleLoadSettings(const QString& cameraId);
+    static Settings loadSettingsSnapshot(const QString& cameraId);
     void saveSettings() const;
 
     QString m_cameraId;
@@ -88,4 +88,6 @@ private:
 
 private:
     Settings m_s;
+    int m_settingsToken {0};
+    QFutureWatcher<Settings> m_settingsWatcher;
 };

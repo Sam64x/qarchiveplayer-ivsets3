@@ -34,10 +34,6 @@ Rectangle
         signal setPresset3()
     }
 
-    IVCustomSets
-    {
-        id:customSets
-    }
     Rectangle
     {
         id:setsBlockRect

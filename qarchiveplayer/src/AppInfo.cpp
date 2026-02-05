@@ -16,6 +16,7 @@
 #include <QVariant>
 #include <QDebug>
 #include <QStandardPaths>
+#include <QtConcurrent/QtConcurrentRun>
 
 #include "ws.h"
 #include <future>
@@ -37,6 +38,30 @@ AppInfo::AppInfo(QObject* parent)
 
     connect(&m_watcher, &QFileSystemWatcher::fileChanged, this, &AppInfo::onFileChanged);
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &AppInfo::onDirChanged);
+    connect(&m_wsUrlWatcher, &QFutureWatcher<QString>::finished, this, [this]() {
+        if (!m_wsUrlWatcher.isFinished())
+            return;
+        const int token = m_wsUrlWatcher.property("token").toInt();
+        if (token != m_wsUrlToken)
+            return;
+        const QString response = m_wsUrlWatcher.result();
+        // qInfo() << "AppInfo: net source response" << response;
+        const QString primarySnapshot = m_primaryIp.isEmpty() ? m_ip : m_primaryIp;
+        const QString subAddressIp = extractSubAddressIp(response, primarySnapshot);
+        if (!subAddressIp.isEmpty()) {
+            // qInfo() << "AppInfo: using subordinate archive ip" << subAddressIp;
+            setActiveIp(subAddressIp);
+        } else {
+            // qInfo() << "AppInfo: subordinate archive ip not found, reverting to primary" << primarySnapshot;
+            setActiveIp(primarySnapshot);
+        }
+        m_wsUrlInFlightKey2.clear();
+        if (!m_wsUrlPendingKey2.isEmpty()) {
+            const QString nextKey2 = m_wsUrlPendingKey2;
+            m_wsUrlPendingKey2.clear();
+            refreshWsUrlForKey2(nextKey2);
+        }
+    });
 
     ensureWatching();
     reloadSettings();
@@ -118,6 +143,10 @@ void AppInfo::updateIp(const QString& newIp)
     m_primaryIp = newIp;
     setActiveIp(newIp);
     refreshActiveArchiveIp();
+    const auto keys = m_wsIpByKey2.keys();
+    for (const auto& key : keys) {
+        requestWsUrlForKey2(key);
+    }
 }
 
 void AppInfo::setActiveIp(const QString& newIp)
@@ -180,6 +209,10 @@ void AppInfo::setWsPort(int port)
     m_wsPort = port;
     emit wsPortChanged();
     recomputeWsUrl();
+    const auto keys = m_wsIpByKey2.keys();
+    for (const auto& key : keys) {
+        updateWsUrlForKey2(key, m_wsIpByKey2.value(key));
+    }
 }
 
 void AppInfo::setWsPath(const QString& path)
@@ -189,21 +222,30 @@ void AppInfo::setWsPath(const QString& path)
     m_wsPath = np;
     emit wsPathChanged();
     recomputeWsUrl();
+    const auto keys = m_wsIpByKey2.keys();
+    for (const auto& key : keys) {
+        updateWsUrlForKey2(key, m_wsIpByKey2.value(key));
+    }
 }
 
 void AppInfo::recomputeWsUrl()
 {
-    QString newUrl;
-    if (!m_ip.isEmpty()) {
-        newUrl = QStringLiteral("ws://%1:%2%3")
-        .arg(m_ip)
-            .arg(m_wsPort)
-            .arg(m_wsPath);
-    }
+    const QString newUrl = buildWsUrlForIp(m_ip);
     if (newUrl != m_wsUrl) {
         m_wsUrl = newUrl;
         emit wsUrlChanged();
     }
+}
+
+QString AppInfo::buildWsUrlForIp(const QString& ip) const
+{
+    if (ip.isEmpty())
+        return {};
+
+    return QStringLiteral("ws://%1:%2%3")
+        .arg(ip)
+        .arg(m_wsPort)
+        .arg(m_wsPath);
 }
 
 QString AppInfo::wsCallIp() const
@@ -233,7 +275,7 @@ void AppInfo::setArchiveKey2(const QString& key2)
 void AppInfo::refreshActiveArchiveIp()
 {
     if (m_archiveKey2.isEmpty()) {
-        qInfo() << "AppInfo: archive key2 is empty, using primary ip" << m_primaryIp;
+        // qInfo() << "AppInfo: archive key2 is empty, using primary ip" << m_primaryIp;
         setActiveIp(m_primaryIp);
         return;
     }
@@ -247,37 +289,165 @@ void AppInfo::refreshWsUrlForKey2(const QString& key2)
         m_primaryIp = m_ip;
 
     if (key2.isEmpty()) {
-        qInfo() << "AppInfo: key2 is empty, using primary ip" << m_primaryIp;
+        // qInfo() << "AppInfo: key2 is empty, using primary ip" << m_primaryIp;
         setActiveIp(m_primaryIp);
         return;
     }
 
     const QString callIp = m_primaryIp.isEmpty() ? wsCallIp() : m_primaryIp;
     if (callIp.isEmpty()) {
-        qWarning() << "AppInfo: no IP available to query net source";
+        // qWarning() << "AppInfo: no IP available to query net source";
         setActiveIp(m_primaryIp);
         return;
     }
 
-    const std::string params = QString("{\"key2\":\"%1\"}").arg(key2).toStdString();
-
-    iv::ws_ws ws_zna_ip;
-    qInfo() << "AppInfo: requesting net source for key2" << key2 << "via ip" << callIp;
-    std::future<std::string> ft_zna_ip = ws_zna_ip.call(callIp.toStdString(), "arc_info_status:get_net_source", params, "", NULL);
-
-    ft_zna_ip.wait();
-    const QString ws_zna_ip_res = QString::fromStdString(ft_zna_ip.get());
-
-    qInfo() << "AppInfo: net source response" << ws_zna_ip_res;
-
-    const QString subAddressIp = extractSubAddressIp(ws_zna_ip_res, m_primaryIp);
-    if (!subAddressIp.isEmpty()) {
-        qInfo() << "AppInfo: using subordinate archive ip" << subAddressIp;
-        setActiveIp(subAddressIp);
-    } else {
-        qInfo() << "AppInfo: subordinate archive ip not found, reverting to primary" << m_primaryIp;
-        setActiveIp(m_primaryIp);
+    if (m_wsUrlWatcher.isRunning()) {
+        if (m_wsUrlInFlightKey2 == key2)
+            return;
+        m_wsUrlPendingKey2 = key2;
+        return;
     }
+
+    startWsUrlLookup(key2, callIp);
+}
+
+QString AppInfo::wsUrlForKey2(const QString& key2) const
+{
+    if (key2.isEmpty())
+        return m_wsUrl;
+
+    return m_wsUrlByKey2.value(key2);
+}
+
+QStringList AppInfo::wsIpsForKey2(const QString& key2) const
+{
+    return m_wsIpsByKey2.value(key2);
+}
+
+void AppInfo::selectWsIpForKey2(const QString& key2, const QString& ip)
+{
+    const QString normalizedKey2 = key2.trimmed();
+    const QString trimmedIp = ip.trimmed();
+    if (normalizedKey2.isEmpty() || trimmedIp.isEmpty())
+        return;
+
+    m_wsIpOverrideByKey2.insert(normalizedKey2, trimmedIp);
+    updateWsUrlForKey2(normalizedKey2, trimmedIp);
+}
+
+void AppInfo::clearWsIpOverrideForKey2(const QString& key2)
+{
+    const QString normalizedKey2 = key2.trimmed();
+    if (normalizedKey2.isEmpty())
+        return;
+
+    if (m_wsIpOverrideByKey2.remove(normalizedKey2) > 0) {
+        requestWsUrlForKey2(normalizedKey2);
+    }
+}
+
+void AppInfo::requestWsUrlForKey2(const QString& key2)
+{
+    const QString normalizedKey2 = key2.trimmed();
+    const QString primarySnapshot = m_primaryIp.isEmpty() ? m_ip : m_primaryIp;
+    const QString overrideIp = m_wsIpOverrideByKey2.value(normalizedKey2);
+    if (!overrideIp.isEmpty()) {
+        updateWsUrlForKey2(normalizedKey2, overrideIp);
+        return;
+    }
+    if (normalizedKey2.isEmpty()) {
+        updateWsUrlForKey2(normalizedKey2, primarySnapshot);
+        return;
+    }
+
+    const QString callIp = m_primaryIp.isEmpty() ? wsCallIp() : m_primaryIp;
+    if (callIp.isEmpty()) {
+        updateWsUrlForKey2(normalizedKey2, primarySnapshot);
+        return;
+    }
+
+    const int token = ++m_wsUrlLookupToken;
+    m_wsUrlTokenByKey2.insert(normalizedKey2, token);
+
+    if (auto existing = m_wsUrlWatchers.take(normalizedKey2)) {
+        existing->deleteLater();
+    }
+
+    auto watcher = new QFutureWatcher<QString>(this);
+    watcher->setProperty("key2", normalizedKey2);
+    watcher->setProperty("token", token);
+    m_wsUrlWatchers.insert(normalizedKey2, watcher);
+
+    connect(watcher, &QFutureWatcher<QString>::finished, this, [this, watcher]() {
+        if (!watcher->isFinished())
+            return;
+        const QString key2 = watcher->property("key2").toString();
+        const int token = watcher->property("token").toInt();
+        if (m_wsUrlTokenByKey2.value(key2) != token) {
+            watcher->deleteLater();
+            return;
+        }
+
+        const QString response = watcher->result();
+        qDebug() << "AppInfo: app_info_status response" << response;
+        const QStringList ips = extractArchiveIps(response);
+        if (!ips.isEmpty()) {
+            m_wsIpsByKey2.insert(key2, ips);
+            emit wsIpsForKey2Changed(key2, ips);
+        }
+        const QString primarySnapshot = m_primaryIp.isEmpty() ? m_ip : m_primaryIp;
+        const QString subAddressIp = extractSubAddressIp(response, primarySnapshot);
+        const QString selectedIp = subAddressIp.isEmpty() ? primarySnapshot : subAddressIp;
+        updateWsUrlForKey2(key2, selectedIp);
+        m_wsUrlWatchers.remove(key2);
+        watcher->deleteLater();
+    });
+
+    auto fut = QtConcurrent::run([callIp, normalizedKey2]() -> QString {
+        const std::string params = QString("{\"key2\":\"%1\"}").arg(normalizedKey2).toStdString();
+        iv::ws_ws ws_zna_ip;
+        std::future<std::string> ft_zna_ip =
+            ws_zna_ip.call(callIp.toStdString(), "arc_info_status:get_net_source", params, "", NULL);
+        ft_zna_ip.wait();
+        return QString::fromStdString(ft_zna_ip.get());
+    });
+    watcher->setFuture(fut);
+}
+
+void AppInfo::updateWsUrlForKey2(const QString& key2, const QString& ip)
+{
+    const QString newUrl = buildWsUrlForIp(ip);
+    if (newUrl.isEmpty()) {
+        if (m_wsUrlByKey2.contains(key2)) {
+            m_wsUrlByKey2.remove(key2);
+            m_wsIpByKey2.remove(key2);
+            emit wsUrlForKey2Changed(key2, QString());
+        }
+        return;
+    }
+
+    m_wsIpByKey2.insert(key2, ip);
+    if (m_wsUrlByKey2.value(key2) != newUrl) {
+        m_wsUrlByKey2.insert(key2, newUrl);
+        emit wsUrlForKey2Changed(key2, newUrl);
+    }
+}
+
+void AppInfo::startWsUrlLookup(const QString& key2, const QString& callIp)
+{
+    m_wsUrlInFlightKey2 = key2;
+    const int token = ++m_wsUrlToken;
+    m_wsUrlWatcher.setProperty("token", token);
+    // qInfo() << "AppInfo: requesting net source for key2" << key2 << "via ip" << callIp;
+    auto fut = QtConcurrent::run([callIp, key2]() -> QString {
+        const std::string params = QString("{\"key2\":\"%1\"}").arg(key2).toStdString();
+        iv::ws_ws ws_zna_ip;
+        std::future<std::string> ft_zna_ip =
+            ws_zna_ip.call(callIp.toStdString(), "arc_info_status:get_net_source", params, "", NULL);
+        ft_zna_ip.wait();
+        return QString::fromStdString(ft_zna_ip.get());
+    });
+    m_wsUrlWatcher.setFuture(fut);
 }
 
 void AppInfo::reloadCacheDb()
@@ -300,7 +470,7 @@ QString AppInfo::readCacheValue(const QString& key)
     }
 
     if (!db.isOpen() && !db.open()) {
-        qWarning() << "AppInfo: can't open cache db" << m_cacheDbPath << db.lastError().text();
+        // qWarning() << "AppInfo: can't open cache db" << m_cacheDbPath << db.lastError().text();
         return {};
     }
 
@@ -309,7 +479,7 @@ QString AppInfo::readCacheValue(const QString& key)
     q.bindValue(QStringLiteral(":name"), key);
 
     if (!q.exec()) {
-        qWarning() << "AppInfo: query failed for" << key << q.lastError().text();
+        // qWarning() << "AppInfo: query failed for" << key << q.lastError().text();
         return {};
     }
 
@@ -359,7 +529,7 @@ QString AppInfo::extractSubAddressIp(const QString& response, const QString& pri
     const QJsonDocument doc = QJsonDocument::fromJson(response.toUtf8(), &err);
 
     if (err.error != QJsonParseError::NoError) {
-        qWarning() << "AppInfo: failed to parse net source response" << err.errorString();
+        // qWarning() << "AppInfo: failed to parse net source response" << err.errorString();
         return {};
     }
 
@@ -369,7 +539,7 @@ QString AppInfo::extractSubAddressIp(const QString& response, const QString& pri
     } else if (doc.isArray()) {
         results = doc.array();
     } else {
-        qWarning() << "AppInfo: unexpected net source response format";
+        // qWarning() << "AppInfo: unexpected net source response format";
         return {};
     }
 
@@ -407,6 +577,41 @@ QString AppInfo::extractSubAddressIp(const QString& response, const QString& pri
     }
 
     return {};
+}
+
+QStringList AppInfo::extractArchiveIps(const QString& response) const
+{
+    if (response.isEmpty())
+        return {};
+
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(response.toUtf8(), &err);
+    if (err.error != QJsonParseError::NoError)
+        return {};
+
+    QJsonArray results;
+    if (doc.isObject()) {
+        results = doc.object().value(QStringLiteral("result")).toArray();
+    } else if (doc.isArray()) {
+        results = doc.array();
+    } else {
+        return {};
+    }
+
+    QStringList ips;
+    for (const auto& resultVal : results) {
+        const auto resArray = resultVal.toObject().value(QStringLiteral("res")).toArray();
+        for (const auto& resVal : resArray) {
+            const auto addresses = resVal.toObject().value(QStringLiteral("address")).toArray();
+            for (const auto& addressVal : addresses) {
+                const QString ip = addressVal.toObject().value(QStringLiteral("ip")).toString();
+                if (!ip.isEmpty() && !ips.contains(ip))
+                    ips.append(ip);
+            }
+        }
+    }
+
+    return ips;
 }
 
 QString AppInfo::pickPlatformValue(const QJsonObject& obj) const
@@ -470,7 +675,3 @@ void AppInfo::loadCacheValues()
         emit snapshotSaveDirectoryChanged();
     }
 }
-
-
-
-

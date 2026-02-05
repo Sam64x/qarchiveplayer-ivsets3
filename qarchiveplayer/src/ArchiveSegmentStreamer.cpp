@@ -9,17 +9,20 @@
 #include <QCoreApplication>
 #include <QRegularExpression>
 #include <QDebug>
+#include <QLoggingCategory>
 #include <QtConcurrent/QtConcurrentRun>
 #include <QStandardPaths>
 #include <QSet>
 #include <QSettings>
 #include <QDate>
 #include <QElapsedTimer>
+#include <QThread>
 #include <limits>
 #include <iterator>
 #include <utility>
+#include <mutex>
 
-static QSet<qint64> s_failedSegments;
+Q_LOGGING_CATEGORY(lcArchiveStreamerInit, "archive.streamer.init")
 
 static inline QString fmtLocalHMSms(const QDateTime &utc)
 {
@@ -38,6 +41,42 @@ static QSettings makeSettings()
         QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
         + "/archive_times.ini";
     return QSettings(path, QSettings::IniFormat);
+}
+
+static QThreadPool& sharedArchiveStreamerPool()
+{
+    static QThreadPool pool;
+    static std::once_flag once;
+    std::call_once(once, []() {
+        pool.setMaxThreadCount(qMax(1, qMin(2, QThread::idealThreadCount() - 1)));
+        pool.setExpiryTimeout(-1);
+        class LowPriInit : public QRunnable {
+        public:
+            void run() override { QThread::currentThread()->setPriority(QThread::LowPriority); }
+        };
+        pool.start(new LowPriInit());
+    });
+    return pool;
+}
+
+static const qint64 kFailedSegmentTtlMs = 2 * 60 * 1000;
+
+static QThreadPool& sharedArchiveDecodePool()
+{
+    static QThreadPool pool;
+    static std::once_flag once;
+    std::call_once(once, []() {
+        const int cores = QThread::idealThreadCount();
+        const int maxThreads = std::max(1, std::min(4, cores > 0 ? cores : 4));
+        pool.setMaxThreadCount(maxThreads);
+        pool.setExpiryTimeout(-1);
+        class DecodePriInit : public QRunnable {
+        public:
+            void run() override { QThread::currentThread()->setPriority(QThread::NormalPriority); }
+        };
+        pool.start(new DecodePriInit());
+    });
+    return pool;
 }
 
 QDateTime ArchiveSegmentStreamer::loadLastArchiveTime(const QString& cameraId,
@@ -80,16 +119,24 @@ QDateTime ArchiveSegmentStreamer::parseIsoUtc(const QString& s)
 
 void ArchiveSegmentStreamer::init(const QString& cameraId, const QString& archiveId)
 {
-    QDateTime savedUtc = loadLastArchiveTime(cameraId, archiveId);
-
-    QDateTime atLocal;
-    if (savedUtc.isValid()) {
-        atLocal = savedUtc.toLocalTime();
-    } else {
-        atLocal = QDateTime::currentDateTime().addSecs(-5 * 60);
-    }
-
-    requestPreviewAt(cameraId, atLocal, archiveId);
+    m_pendingInitCameraId = cameraId;
+    m_pendingInitArchiveId = archiveId;
+    const int token = ++m_initToken;
+    m_initWatcher.setProperty("token", token);
+    if (m_initWatcher.isRunning())
+        m_initWatcher.cancel();
+    m_initElapsed.restart();
+    auto fut = QtConcurrent::run(m_pool, [cameraId, archiveId]() {
+        QElapsedTimer timer;
+        timer.start();
+        QDateTime savedUtc = loadLastArchiveTime(cameraId, archiveId);
+        // qCDebug(lcArchiveStreamerInit)
+        //    << "loadLastArchiveTime camera" << cameraId
+        //    << "archive" << archiveId
+        //    << "elapsedMs" << timer.elapsed();
+        return savedUtc;
+    });
+    m_initWatcher.setFuture(fut);
 }
 
 void ArchiveSegmentStreamer::setClient(WebSocketClient* client)
@@ -182,6 +229,11 @@ void ArchiveSegmentStreamer::setExternalClock(bool v)
     }
 }
 
+qint64 ArchiveSegmentStreamer::currentFrameTimeMs() const
+{
+    return m_currentAtUtc.isValid() ? m_currentAtUtc.toMSecsSinceEpoch() : 0;
+}
+
 QDateTime ArchiveSegmentStreamer::effectiveAnchorUtc() const
 {
     if (m_externalClock && m_externalClockAtUtc.isValid())
@@ -200,15 +252,8 @@ ArchiveSegmentStreamer::ArchiveSegmentStreamer(QObject* parent)
 {
     Nv12Frame::registerMetaType();
 
-    m_pool.setMaxThreadCount(qMax(1, qMin(2, QThread::idealThreadCount()-1)));
-    m_pool.setExpiryTimeout(-1);
-
-    class LowPriInit : public QRunnable {
-    public:
-        void run() override { QThread::currentThread()->setPriority(QThread::LowPriority); }
-    };
-    m_pool.start(new LowPriInit());
-    m_pool.waitForDone();
+    m_pool = &sharedArchiveStreamerPool();
+    m_decodePool = &sharedArchiveDecodePool();
 
     m_frames.setMaxDurationMs(m_bufMaxDurationMs);
     m_frames.setMaxFrames(m_bufMaxFrames);
@@ -229,7 +274,52 @@ ArchiveSegmentStreamer::ArchiveSegmentStreamer(QObject* parent)
     m_gopPacerTimer.setInterval(40);
     m_gopPacerTimer.stop();
 
+    connect(&m_inflightWatchdog, &QTimer::timeout, this, [this]() {
+        if (!m_running)
+            return;
+        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+        const int staleMs = 1500;
+        if (m_segmentInflight)
+            clearStaleSegmentInflight(staleMs);
+        const bool hadListInflight = m_segmentsListInflight;
+        clearStaleSegmentsListInflight(nowMs, staleMs);
+        if (hadListInflight && !m_segmentsListInflight) {
+            if (m_mode == Mode::Realtime) {
+                reevaluateSegmentsWindow();
+            } else if (m_mode == Mode::Preview && m_previewAtUtc.isValid()) {
+                const qint64 span = std::max<qint64>(8000, m_defaultGopMs * 4);
+                Window w;
+                w.fromUtc = m_previewAtUtc.addMSecs(-span);
+                w.toUtc   = m_previewAtUtc.addMSecs(+span);
+                requestSegmentsWindow(w);
+            }
+        }
+        maybeRecoverFromStall(nowMs);
+    });
+    m_inflightWatchdog.setTimerType(Qt::CoarseTimer);
+    m_inflightWatchdog.setInterval(200);
+    m_inflightWatchdog.start();
+
     connect(&m_parseWatcher, SIGNAL(finished()), this, SLOT(onParseSegmentsFinished()));
+    connect(&m_initWatcher, &QFutureWatcher<QDateTime>::finished, this, [this]() {
+        const int token = m_initWatcher.property("token").toInt();
+        if (token != m_initToken)
+            return;
+        const QDateTime savedUtc = m_initWatcher.result();
+        const QString cameraId = m_pendingInitCameraId;
+        const QString archiveId = m_pendingInitArchiveId;
+        QDateTime atLocal;
+        if (savedUtc.isValid()) {
+            atLocal = savedUtc.toLocalTime();
+        } else {
+            atLocal = QDateTime::currentDateTime().addSecs(-5 * 60);
+        }
+        // qCDebug(lcArchiveStreamerInit)
+        //     << "init complete camera" << cameraId
+        //     << "archive" << archiveId
+        //     << "elapsedMs" << m_initElapsed.elapsed();
+        requestPreviewAt(cameraId, atLocal, archiveId);
+    });
 
     m_reevaluateTimer.setSingleShot(true);
     m_reevaluateTimer.setTimerType(Qt::CoarseTimer);
@@ -245,6 +335,15 @@ ArchiveSegmentStreamer::ArchiveSegmentStreamer(QObject* parent)
         const Window pending = m_pendingWindowRequest;
         m_hasPendingWindowRequest = false;
         requestSegmentsWindow(pending);
+    });
+
+    m_saveDebounce.setSingleShot(true);
+    m_saveDebounce.setTimerType(Qt::CoarseTimer);
+    connect(&m_saveDebounce, &QTimer::timeout, this, [this]() {
+        if (!m_pendingSaveUtc.isValid())
+            return;
+        scheduleSaveLastArchiveTime(m_pendingSaveCameraId, m_pendingSaveArchiveId, m_pendingSaveUtc);
+        m_pendingSaveUtc = QDateTime();
     });
 
     m_perfDiagnostics = (qEnvironmentVariableIntValue("ARCHIVE_STREAMER_DIAG") > 0);
@@ -335,15 +434,11 @@ void ArchiveSegmentStreamer::reevaluateSegmentsWindow()
     const Window target = computeTargetWindow(anchorUtc, m_playbackSpeed);
     if (!target.isValid()) return;
 
-    qint64& lastWinReqAt = m_lastWinReqAt;
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
 
     if (m_segmentsListInflight) {
         const int staleMs = 1500;
-        if (nowMs - lastWinReqAt > staleMs) {
-            m_segmentsListInflight = false;
-            ++m_parseGeneration;
-        } else {
+        if (!clearStaleSegmentsListInflight(nowMs, staleMs)) {
             scheduleReevaluate(60);
             return;
         }
@@ -383,7 +478,6 @@ void ArchiveSegmentStreamer::reevaluateSegmentsWindow()
     requestSegmentsWindow(target);
     m_segmentsListInflight = true;
     m_segmentsWindowRequested = target;
-    lastWinReqAt = nowMs;
     throttleMarkMs = nowMs;
 }
 
@@ -429,6 +523,7 @@ void ArchiveSegmentStreamer::requestSegmentsWindow(const Window& w)
     m_segmentsListInflight = true;
     m_segmentsWindowRequested = w;
     m_lastWindowReqMs = now;
+    m_lastWinReqAt = now;
 }
 
 void ArchiveSegmentStreamer::integrateSegmentsList(const QVector<QDateTime>& keysUtc)
@@ -483,14 +578,14 @@ void ArchiveSegmentStreamer::integrateSegmentsList(const QVector<QDateTime>& key
         const int stop  = qMin<int>(local.size(), center + aheadCount + 1);
         for (int i = start; i < stop; ++i) {
             const qint64 k = local[i];
-            if (m_decodedKfMs.contains(k) || m_requestedKfMs.contains(k) || s_failedSegments.contains(k)) continue;
+            if (m_decodedKfMs.contains(k) || m_requestedKfMs.contains(k) || isFailedSegment(k)) continue;
             m_plannedKfQueue.enqueue(k);
         }
     } else {
         const int start = qMax(0, center - backCount);
         for (int i = center; i >= start; --i) {
             const qint64 k = local[i];
-            if (m_decodedKfMs.contains(k) || m_requestedKfMs.contains(k) || s_failedSegments.contains(k)) continue;
+            if (m_decodedKfMs.contains(k) || m_requestedKfMs.contains(k) || isFailedSegment(k)) continue;
             m_plannedKfQueue.enqueue(k);
         }
     }
@@ -499,12 +594,12 @@ void ArchiveSegmentStreamer::integrateSegmentsList(const QVector<QDateTime>& key
         const qint64 aMs = toEpochMs(m_pendingStepAnchorUtc);
         qint64 stepKey = (m_pendingStepDir > 0) ? findNextKnownKeyAfter(aMs)
                                                 : findPrevKnownKeyBefore(aMs);
-        while (stepKey != 0 && s_failedSegments.contains(stepKey)) {
+        while (stepKey != 0 && isFailedSegment(stepKey)) {
             stepKey = (m_pendingStepDir > 0) ? findNextKnownKeyAfter(stepKey)
                                              : findPrevKnownKeyBefore(stepKey);
         }
         if (stepKey != 0 && !m_decodedKfMs.contains(stepKey) &&
-            !m_requestedKfMs.contains(stepKey) && !s_failedSegments.contains(stepKey)) {
+            !m_requestedKfMs.contains(stepKey) && !isFailedSegment(stepKey)) {
             QQueue<qint64> reordered;
             reordered.enqueue(stepKey);
             while (!m_plannedKfQueue.isEmpty()) {
@@ -545,14 +640,7 @@ void ArchiveSegmentStreamer::integrateSegmentsList(const QVector<QDateTime>& key
         }
         m_requestedKfMs.swap(pr);
     }
-    {
-        QSet<qint64> pf;
-        for (auto it = s_failedSegments.constBegin(); it != s_failedSegments.constEnd(); ++it) {
-            const qint64 v = *it;
-            if (v >= minKeep && v <= maxKeep) pf.insert(v);
-        }
-        s_failedSegments.swap(pf);
-    }
+    pruneFailedSegmentsForSource(QDateTime::currentMSecsSinceEpoch(), minKeep, maxKeep);
 
     pruneDecodedToFrameBuffer();
     pumpNextSegmentRequest();
@@ -650,16 +738,8 @@ void ArchiveSegmentStreamer::onGopPacerTick()
 
     if (m_segmentInflight) {
         const int staleMs = 1500;
-        if (m_lastSegmentSendMs != 0 && nowMs - m_lastSegmentSendMs <= staleMs) return;
-
-
-        m_segmentInflight = false;
-        if (m_lastRequestedAtMs != 0) {
-            m_requestedKfMs.remove(m_lastRequestedAtMs);
-            s_failedSegments.insert(m_lastRequestedAtMs);
-            m_lastRequestedAtMs = 0;
-        }
-        ++m_queueGeneration;
+        if (!clearStaleSegmentInflight(staleMs))
+            return;
     }
 
     if (m_plannedKfQueue.isEmpty()) {
@@ -675,7 +755,7 @@ void ArchiveSegmentStreamer::onGopPacerTick()
 
     while (!m_plannedKfQueue.isEmpty()) {
         const qint64 ms = m_plannedKfQueue.dequeue();
-        if (s_failedSegments.contains(ms)) continue;
+        if (isFailedSegment(ms)) continue;
         if (m_decodedKfMs.contains(ms) || m_requestedKfMs.contains(ms)) continue;
 
         m_requestedKfMs.insert(ms);
@@ -792,6 +872,78 @@ void ArchiveSegmentStreamer::updateTimeStrings(const QDateTime& tsUtc, bool thro
     m_lastTimeUiUpdateMs = nowMs;
 }
 
+void ArchiveSegmentStreamer::noteFrameReady(const QDateTime& tsUtc)
+{
+    if (!tsUtc.isValid())
+        return;
+    m_lastFrameReadyMs = QDateTime::currentMSecsSinceEpoch();
+}
+
+bool ArchiveSegmentStreamer::maybeRecoverFromStall(qint64 nowMs)
+{
+    if (!m_running || m_mode != Mode::Realtime || m_paused)
+        return false;
+    if (qFuzzyCompare(m_playbackSpeed, 0.0))
+        return false;
+
+    const qint64 lastActivityMs = (m_lastFrameReadyMs != 0) ? m_lastFrameReadyMs : m_lastStreamStartMs;
+    if (lastActivityMs == 0)
+        return false;
+
+    const qint64 stallMs = 2500;
+    const qint64 hardStallMs = 8000;
+    const qint64 elapsedMs = nowMs - lastActivityMs;
+    if (elapsedMs < stallMs)
+        return false;
+
+    const bool hardStall = elapsedMs >= hardStallMs;
+    const qint64 recentNetworkMs = std::max(m_lastSegmentSendMs, m_lastWinReqAt);
+    if (!hardStall && recentNetworkMs != 0 && (nowMs - recentNetworkMs) < stallMs)
+        return false;
+
+    if (m_lastStallRecoverMs != 0 && (nowMs - m_lastStallRecoverMs) < stallMs)
+        return false;
+
+    m_lastStallRecoverMs = nowMs;
+    ++m_queueGeneration;
+
+    if (m_fullDecodeCancel) m_fullDecodeCancel->store(true);
+    if (m_previewDecodeCancel) m_previewDecodeCancel->store(true);
+    clearPendingDecodes();
+
+    m_segmentInflight = false;
+    m_segmentsListInflight = false;
+    m_previewInflight = false;
+    m_plannedKfQueue.clear();
+    m_requestedKfMs.clear();
+    m_lastRequestedAtMs = 0;
+    m_inflightAtMs = 0;
+    m_lastSegmentSendMs = 0;
+    m_segmentsWindowRequested = Window();
+
+    const QDateTime anchorUtc = effectiveAnchorUtc().isValid()
+        ? effectiveAnchorUtc()
+        : QDateTime::currentDateTimeUtc();
+    const Window w = computeTargetWindow(anchorUtc, m_playbackSpeed);
+    if (w.isValid())
+        requestSegmentsWindow(w);
+
+    const qint64 atMs = toEpochMs(anchorUtc);
+    if (atMs != 0) {
+        m_inflightGeneration = m_queueGeneration;
+        m_inflightAtMs = atMs;
+        m_requestedKfMs.insert(atMs);
+        m_lastRequestedAtMs = atMs;
+        requestSegmentAtUtcForced(anchorUtc);
+        m_segmentInflight = true;
+    }
+
+    if (!m_gopPacerTimer.isActive())
+        m_gopPacerTimer.start(std::max(1, computeGopPaceMs()));
+
+    return true;
+}
+
 void ArchiveSegmentStreamer::delayStart(const QString& cameraId,
                                         const QDateTime& atLocalTime,
                                         const QString& archiveId)
@@ -897,9 +1049,11 @@ void ArchiveSegmentStreamer::startStreamAt(const QString& cameraId,
         m_archiveId = archiveId;
     }
 
-    m_mode    = Mode::Realtime;
-    m_running = true;
+    setState(Mode::Realtime, true, false);
     m_frames.setDropFromFront(signDirection() >= 0);
+    m_lastStreamStartMs = QDateTime::currentMSecsSinceEpoch();
+    m_lastFrameReadyMs = 0;
+    m_lastStallRecoverMs = 0;
 
     if (m_perfDiagnostics) {
         m_perfStats = PerfStats{};
@@ -959,10 +1113,12 @@ void ArchiveSegmentStreamer::startStreamAt(const QString& cameraId,
             }
             m_decodedKfMs.swap(pruned);
         }
+        pruneFailedSegmentsForSource(QDateTime::currentMSecsSinceEpoch(), minKeep, maxKeep);
     } else {
         m_decodedKfMs.clear();
         m_knownKfMs.clear();
         m_nextKfMs.clear();
+        clearFailedSegmentsForSource();
     }
 
     m_segmentsWindowRequested = Window();
@@ -983,8 +1139,6 @@ void ArchiveSegmentStreamer::startStreamAt(const QString& cameraId,
         m_previewAtUtc = QDateTime();
         m_previewSegmentAtUtc = QDateTime();
     }
-
-    m_paused = false; emit pausedChanged(false);
 
     m_currentAtUtc = atUtc;
     saveLastArchiveTime(m_cameraId, m_archiveId, atUtc);
@@ -1017,6 +1171,7 @@ void ArchiveSegmentStreamer::startStreamAt(const QString& cameraId,
             const QDateTime ts = m_frames.timeAt(idx);
             if (ts.isValid()) {
                 m_currentAtUtc = ts;
+                noteFrameReady(ts);
                 emit frameReadyNv12(m_frames.at(idx), ts);
                 updatePrimitivesForTime(ts);
 
@@ -1029,7 +1184,7 @@ void ArchiveSegmentStreamer::startStreamAt(const QString& cameraId,
                 if (key != 0 && !m_segmentInflight &&
                     !m_requestedKfMs.contains(key) &&
                     !m_decodedKfMs.contains(key) &&
-                    !s_failedSegments.contains(key)) {
+                    !isFailedSegment(key)) {
                     m_inflightGeneration = m_queueGeneration;
                     m_inflightAtMs = key;
                     m_requestedKfMs.insert(key);
@@ -1056,9 +1211,7 @@ void ArchiveSegmentStreamer::stopStream()
     {
         saveLastArchiveTime(m_cameraId, m_archiveId, m_currentAtUtc);
     }
-    m_running = false;
-    m_paused  = true;
-    emit pausedChanged(true);
+    setState(Mode::None, false, true);
 
     m_playbackTimer.stop();
     m_gopPacerTimer.stop();
@@ -1077,18 +1230,21 @@ void ArchiveSegmentStreamer::stopStream()
     m_decodeWatcher.setFuture(QFuture<QVector<Nv12Frame>>());
     m_previewDecodeWatcher.setFuture(QFuture<QVector<Nv12Frame>>());
 
-    m_mode = Mode::None;
     m_plannedKfQueue.clear();
     m_requestedKfMs.clear();
     m_decodedKfMs.clear();
     m_knownKfMs.clear();
     m_nextKfMs.clear();
+    clearFailedSegmentsForSource();
 
     m_segmentInflight = false;
     m_segmentsListInflight = false;
     m_segmentsWindowRequested = Window();
     m_lastRequestedAtMs = 0;
     m_previewInflight = false;
+    m_lastFrameReadyMs = 0;
+    m_lastStreamStartMs = 0;
+    m_lastStallRecoverMs = 0;
 
     if (!m_currentPrimitives.isEmpty()) {
         m_currentPrimitives.clear();
@@ -1298,6 +1454,7 @@ void ArchiveSegmentStreamer::setPlaybackSpeed(double speed)
         const QDateTime ts = m_frames.timeAt(safeIdx);
         if (ts.isValid()) {
             m_currentAtUtc = ts;
+            noteFrameReady(ts);
             emit frameReadyNv12(m_frames.at(safeIdx), ts);
             updatePrimitivesForTime(ts);
         }
@@ -1315,6 +1472,7 @@ void ArchiveSegmentStreamer::externalSync(const QDateTime& atLocalTime)
     if (!atLocalTime.isValid())
         return;
 
+    setStreamState(StreamState::Syncing);
     m_externalClockAtUtc = atLocalTime.toUTC();
 
     const int n = m_frames.size();
@@ -1337,6 +1495,7 @@ void ArchiveSegmentStreamer::externalSync(const QDateTime& atLocalTime)
         const QDateTime ts = m_frames.timeAt(m_currentFrameIndex);
         if (ts.isValid()) {
             m_currentAtUtc = ts;
+            noteFrameReady(ts);
             emit frameReadyNv12(m_frames.at(m_currentFrameIndex), ts);
             updateTimeStrings(ts, false);
             updatePrimitivesForTime(ts);
@@ -1361,6 +1520,8 @@ void ArchiveSegmentStreamer::externalSync(const QDateTime& atLocalTime)
 
     if (!m_gopPacerTimer.isActive())
         m_gopPacerTimer.start(std::max(1, computeGopPaceMs()));
+
+    setState(m_mode, m_running, m_paused);
 }
 
 void ArchiveSegmentStreamer::onPlaybackTimeout()
@@ -1388,6 +1549,7 @@ void ArchiveSegmentStreamer::onPlaybackTimeout()
     const QDateTime ts = m_frames.timeAt(m_currentFrameIndex);
     if (ts.isValid()) {
         m_currentAtUtc = ts;
+        noteFrameReady(ts);
         emit frameReadyNv12(m_frames.at(m_currentFrameIndex), ts);
         updateTimeStrings(ts, true);
         updatePrimitivesForTime(ts);
@@ -1461,7 +1623,7 @@ void ArchiveSegmentStreamer::parseSegmentsAsync(const QJsonArray& arr)
     if (m_perfDiagnostics)
         m_parseTimer.start();
 
-    auto fut = QtConcurrent::run(&m_pool, [arr]() -> QVector<QDateTime> {
+    auto fut = QtConcurrent::run(m_pool, [arr]() -> QVector<QDateTime> {
         QVector<QDateTime> keys;
         keys.reserve(arr.size());
         for (int i = 0; i < arr.size(); ++i) {
@@ -1751,7 +1913,7 @@ void ArchiveSegmentStreamer::onTextMessage(const QString& msg)
         }
 
         if (badKeyMs != 0) {
-            s_failedSegments.insert(badKeyMs);
+            markFailedSegment(badKeyMs);
             m_requestedKfMs.remove(badKeyMs);
             if (badKeyMs == m_lastRequestedAtMs) m_lastRequestedAtMs = 0;
         }
@@ -1759,7 +1921,7 @@ void ArchiveSegmentStreamer::onTextMessage(const QString& msg)
         if (m_mode == Mode::Preview) {
             while (!m_plannedKfQueue.isEmpty()) {
                 const qint64 next = m_plannedKfQueue.dequeue();
-                if (s_failedSegments.contains(next)) continue;
+                if (isFailedSegment(next)) continue;
                 m_previewSegmentAtUtc = fromEpochMs(next);
                 QJsonObject segQuery{
                     {"camera_id",  m_cameraId},
@@ -1833,16 +1995,16 @@ void ArchiveSegmentStreamer::onTextMessage(const QString& msg)
                 const QDateTime chosen = keys[qBound(0, best, keys.size() - 1)];
 
                 m_plannedKfQueue.clear();
-                if (best - 1 >= 0 && !s_failedSegments.contains(toEpochMs(keys[best - 1])))
+                if (best - 1 >= 0 && !isFailedSegment(toEpochMs(keys[best - 1])))
                     m_plannedKfQueue.enqueue(toEpochMs(keys[best - 1]));
-                if (best + 1 < keys.size() && !s_failedSegments.contains(toEpochMs(keys[best + 1])))
+                if (best + 1 < keys.size() && !isFailedSegment(toEpochMs(keys[best + 1])))
                     m_plannedKfQueue.enqueue(toEpochMs(keys[best + 1]));
 
                 m_previewSegmentAtUtc = chosen;
 
                 const qint64 chosenMs = toEpochMs(chosen);
                 if (m_decodedKfMs.contains(chosenMs) || m_requestedKfMs.contains(chosenMs) ||
-                    s_failedSegments.contains(chosenMs)) {
+                    isFailedSegment(chosenMs)) {
                     m_segmentsListInflight = false;
                     return;
                 }
@@ -1866,7 +2028,7 @@ void ArchiveSegmentStreamer::onTextMessage(const QString& msg)
 
         if (m_previewSegmentAtUtc.isValid() && !m_previewInflight) {
             const qint64 key = toEpochMs(m_previewSegmentAtUtc);
-            if (!s_failedSegments.contains(key) &&
+            if (!isFailedSegment(key) &&
                 !m_requestedKfMs.contains(key) &&
                 !m_decodedKfMs.contains(key)) {
                 QJsonObject segQuery{
@@ -1970,7 +2132,7 @@ void ArchiveSegmentStreamer::startFullDecodeOrQueue(QByteArray&& bin, int genera
     if (m_perfDiagnostics)
         m_fullDecodeTimer.start();
 
-    QFuture<QVector<Nv12Frame>> fut = QtConcurrent::run(&m_pool, [bin = std::move(bin), cancel]() mutable {
+    QFuture<QVector<Nv12Frame>> fut = QtConcurrent::run(m_decodePool, [bin = std::move(bin), cancel]() mutable {
         if (cancel && cancel->load()) return QVector<Nv12Frame>{};
 
         VideoSegmentDecoder dec;
@@ -2009,7 +2171,7 @@ void ArchiveSegmentStreamer::startPreviewDecodeOrQueue(QByteArray&& bin, qint64 
     m_previewDecodeCancel = std::make_shared<std::atomic_bool>(false);
     const auto cancel = m_previewDecodeCancel;
 
-    QFuture<QVector<Nv12Frame>> fut = QtConcurrent::run(&m_pool, [bin = std::move(bin), cancel]() mutable {
+    QFuture<QVector<Nv12Frame>> fut = QtConcurrent::run(m_decodePool, [bin = std::move(bin), cancel]() mutable {
         if (cancel && cancel->load()) return QVector<Nv12Frame>{};
 
         VideoSegmentDecoder dec;
@@ -2066,9 +2228,7 @@ void ArchiveSegmentStreamer::requestPreviewAt(const QString& cameraId,
     if (!m_client || cameraId.isEmpty() || archiveId.isEmpty() || !atLocalTime.isValid())
         return;
 
-    m_mode    = Mode::Preview;
-    m_paused  = true;
-    m_running = true;
+    setState(Mode::Preview, true, true);
     m_reevaluateTimer.stop();
     m_requestWindowTimer.stop();
     m_hasPendingWindowRequest = false;
@@ -2094,7 +2254,10 @@ void ArchiveSegmentStreamer::requestPreviewAt(const QString& cameraId,
 
     m_previewAtUtc   = atLocalTime.toUTC();
     m_previewSegmentAtUtc = m_previewAtUtc;
-    saveLastArchiveTime(m_cameraId, m_archiveId, m_previewAtUtc);
+    m_pendingSaveCameraId = m_cameraId;
+    m_pendingSaveArchiveId = m_archiveId;
+    m_pendingSaveUtc = m_previewAtUtc;
+    m_saveDebounce.start(0);
     m_currentAtUtc   = QDateTime();
     m_currentTimeStr.clear();
     m_currentDateStr.clear();
@@ -2108,6 +2271,7 @@ void ArchiveSegmentStreamer::requestPreviewAt(const QString& cameraId,
     m_decodedKfMs.clear();
     m_knownKfMs.clear();
     m_nextKfMs.clear();
+    clearFailedSegmentsForSource();
 
     m_segmentsWindowRequested = Window();
     m_segmentsListInflight = false;
@@ -2132,12 +2296,34 @@ void ArchiveSegmentStreamer::requestPreviewAt(const QString& cameraId,
     };
     m_client->sendRequest(QJsonObject{{"segments", query}});
     m_segmentsListInflight = true;
+    m_lastWinReqAt = QDateTime::currentMSecsSinceEpoch();
+    m_lastWindowReqMs = m_lastWinReqAt;
+}
+
+void ArchiveSegmentStreamer::scheduleSaveLastArchiveTime(const QString& cameraId,
+                                                         const QString& archiveId,
+                                                         const QDateTime& utc)
+{
+    if (!utc.isValid())
+        return;
+    auto fut = QtConcurrent::run(m_pool, [cameraId, archiveId, utc]() {
+        QElapsedTimer timer;
+        timer.start();
+        saveLastArchiveTime(cameraId, archiveId, utc);
+        // qCDebug(lcArchiveStreamerInit)
+        //     << "saveLastArchiveTime camera" << cameraId
+        //     << "archive" << archiveId
+        //     << "elapsedMs" << timer.elapsed();
+    });
+    Q_UNUSED(fut);
 }
 
 bool ArchiveSegmentStreamer::stepOne(int dir)
 {
     if (dir == 0)
         return false;
+
+    setStreamState(StreamState::StepPending);
 
     const int n = m_frames.size();
     if (n > 0) {
@@ -2161,20 +2347,22 @@ bool ArchiveSegmentStreamer::stepOne(int dir)
     m_pendingStepDir       = dir;
     m_pendingStepAnchorUtc = anchor;
 
+    const int staleMs = 1500;
+    clearStaleSegmentInflight(staleMs);
     if (m_segmentInflight) {
         return true;
     }
 
     const qint64 aMs = toEpochMs(anchor);
     qint64 keyMs = (dir > 0 ? findNextKnownKeyAfter(aMs) : findPrevKnownKeyBefore(aMs));
-    while (keyMs != 0 && s_failedSegments.contains(keyMs)) {
+    while (keyMs != 0 && isFailedSegment(keyMs)) {
         keyMs = (dir > 0 ? findNextKnownKeyAfter(keyMs) : findPrevKnownKeyBefore(keyMs));
     }
 
     if (keyMs != 0) {
         if (!m_decodedKfMs.contains(keyMs) &&
             !m_requestedKfMs.contains(keyMs) &&
-            !s_failedSegments.contains(keyMs))
+            !isFailedSegment(keyMs))
         {
             m_inflightGeneration = m_queueGeneration;
             m_inflightAtMs = keyMs;
@@ -2316,6 +2504,7 @@ void ArchiveSegmentStreamer::appendDecodedGop(const QDateTime& gopStartUtc,
             const QDateTime nowTs = m_frames.timeAt(safeIdx);
             if (nowTs.isValid()) {
                 m_currentAtUtc = nowTs;
+                noteFrameReady(nowTs);
                 emit frameReadyNv12(m_frames.at(safeIdx), nowTs);
                 updatePrimitivesForTime(nowTs);
 
@@ -2366,7 +2555,7 @@ void ArchiveSegmentStreamer::onParseSegmentsFinished()
             if (key != 0 &&
                 !m_decodedKfMs.contains(key) &&
                 !m_requestedKfMs.contains(key) &&
-                !s_failedSegments.contains(key))
+                !isFailedSegment(key))
             {
                 m_inflightGeneration = m_queueGeneration;
                 m_inflightAtMs = key;
@@ -2440,7 +2629,7 @@ void ArchiveSegmentStreamer::onDecodeFinished()
                         }
                         if (!m_decodedKfMs.contains(k) &&
                             !m_requestedKfMs.contains(k) &&
-                            !s_failedSegments.contains(k))
+                            !isFailedSegment(k))
                         {
                             firstMissing = k;
                             break;
@@ -2530,6 +2719,7 @@ void ArchiveSegmentStreamer::onPreviewDecodeFinished()
         m_frames.appendBatch(QVector<Nv12Frame>{f}, QVector<QDateTime>{tsUtc});
         m_currentFrameIndex = 0;
         m_currentAtUtc = tsUtc;
+        noteFrameReady(tsUtc);
         emit frameReadyNv12(f, tsUtc);
         updatePrimitivesForTime(m_previewAtUtc.isValid() ? m_previewAtUtc : tsUtc);
     } else {
@@ -2551,17 +2741,17 @@ void ArchiveSegmentStreamer::onPreviewDecodeFinished()
 
     const qint64 key = m_previewSegmentAtUtc.isValid() ? toEpochMs(m_previewSegmentAtUtc) : 0;
     if (key != 0 && !m_previewInflight && !m_segmentInflight &&
-        !m_requestedKfMs.contains(key) && !m_decodedKfMs.contains(key) && !s_failedSegments.contains(key))
+        !m_requestedKfMs.contains(key) && !m_decodedKfMs.contains(key) && !isFailedSegment(key))
     {
         m_inflightGeneration = m_queueGeneration;
         m_inflightAtMs = key;
         m_requestedKfMs.insert(key);
         requestSegmentAtUtcForced(m_previewSegmentAtUtc);
         m_segmentInflight = true;
-    } else if (key != 0 && s_failedSegments.contains(key)) {
+    } else if (key != 0 && isFailedSegment(key)) {
         while (!m_plannedKfQueue.isEmpty()) {
             const qint64 next = m_plannedKfQueue.dequeue();
-            if (s_failedSegments.contains(next)) continue;
+            if (isFailedSegment(next)) continue;
             m_inflightGeneration = m_queueGeneration;
             m_inflightAtMs = next;
             m_requestedKfMs.insert(next);
@@ -2581,6 +2771,7 @@ bool ArchiveSegmentStreamer::stepToIndex(int idx)
     if (idx == m_currentFrameIndex) {
         const QDateTime ts = m_frames.timeAt(idx);
         if (ts.isValid()) {
+            noteFrameReady(ts);
             emit frameReadyNv12(m_frames.at(idx), ts);
             updatePrimitivesForTime(ts);
         }
@@ -2594,6 +2785,7 @@ bool ArchiveSegmentStreamer::stepToIndex(int idx)
     const QDateTime ts = m_frames.timeAt(m_currentFrameIndex);
     if (ts.isValid()) {
         m_currentAtUtc = ts;
+        noteFrameReady(ts);
         emit frameReadyNv12(m_frames.at(m_currentFrameIndex), ts);
         updatePrimitivesForTime(ts);
 
@@ -2620,7 +2812,7 @@ bool ArchiveSegmentStreamer::stepToIndex(int idx)
             } else if (neighborKey != 0 &&
                        !m_decodedKfMs.contains(neighborKey) &&
                        !m_requestedKfMs.contains(neighborKey) &&
-                       !s_failedSegments.contains(neighborKey)) {
+                       !isFailedSegment(neighborKey)) {
                 m_inflightGeneration = m_queueGeneration;
                 m_inflightAtMs = neighborKey;
                 m_requestedKfMs.insert(neighborKey);
@@ -2630,13 +2822,14 @@ bool ArchiveSegmentStreamer::stepToIndex(int idx)
         }
     }
 
+    setState(m_mode, m_running, m_paused);
     return true;
 }
 
 void ArchiveSegmentStreamer::handleSegmentDecodeFailure(qint64 atMs)
 {
     if (atMs != 0) {
-        s_failedSegments.insert(atMs);
+        markFailedSegment(atMs);
         m_requestedKfMs.remove(atMs);
         if (m_lastRequestedAtMs == atMs)
             m_lastRequestedAtMs = 0;
@@ -2647,7 +2840,7 @@ void ArchiveSegmentStreamer::handleSegmentDecodeFailure(qint64 atMs)
     if (m_mode == Mode::Preview) {
         while (!m_plannedKfQueue.isEmpty()) {
             const qint64 next = m_plannedKfQueue.dequeue();
-            if (s_failedSegments.contains(next))
+            if (isFailedSegment(next))
                 continue;
             if (m_requestedKfMs.contains(next))
                 continue;
@@ -2662,6 +2855,146 @@ void ArchiveSegmentStreamer::handleSegmentDecodeFailure(qint64 atMs)
         }
     } else if (m_mode == Mode::Realtime) {
         pumpNextSegmentRequest();
+    }
+}
+
+bool ArchiveSegmentStreamer::clearStaleSegmentInflight(qint64 staleMs)
+{
+    if (!m_segmentInflight)
+        return false;
+
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    if (m_lastSegmentSendMs != 0 && nowMs - m_lastSegmentSendMs <= staleMs)
+        return false;
+
+    m_segmentInflight = false;
+    m_staleSegmentResets += 1;
+    if (m_lastRequestedAtMs != 0) {
+        m_requestedKfMs.remove(m_lastRequestedAtMs);
+        markFailedSegment(m_lastRequestedAtMs);
+    }
+    if (m_inflightAtMs != 0)
+        m_inflightAtMs = 0;
+    m_lastRequestedAtMs = 0;
+    ++m_queueGeneration;
+    return true;
+}
+
+bool ArchiveSegmentStreamer::clearStaleSegmentsListInflight(qint64 nowMs, qint64 staleMs)
+{
+    if (!m_segmentsListInflight)
+        return true;
+    if (m_lastWinReqAt == 0 || nowMs - m_lastWinReqAt > staleMs) {
+        m_segmentsListInflight = false;
+        m_staleSegmentsListResets += 1;
+        ++m_parseGeneration;
+        return true;
+    }
+    return false;
+}
+
+void ArchiveSegmentStreamer::setState(Mode mode, bool running, bool paused)
+{
+    m_mode = mode;
+    m_running = running;
+    StreamState nextState = StreamState::Idle;
+    if (m_mode == Mode::Preview)
+        nextState = StreamState::Preview;
+    else if (m_mode == Mode::Realtime)
+        nextState = paused ? StreamState::PausedRealtime : StreamState::Realtime;
+    setStreamState(nextState);
+    if (m_paused != paused) {
+        m_paused = paused;
+        emit pausedChanged(m_paused);
+    }
+}
+
+void ArchiveSegmentStreamer::setStreamState(StreamState state)
+{
+    if (m_state == state)
+        return;
+    m_state = state;
+    emit stateChanged(m_state);
+}
+
+QString ArchiveSegmentStreamer::failedSegmentsKey() const
+{
+    if (m_cameraId.isEmpty() || m_archiveId.isEmpty())
+        return QString();
+    return m_cameraId + "|" + m_archiveId;
+}
+
+bool ArchiveSegmentStreamer::isFailedSegment(qint64 atMs)
+{
+    if (atMs == 0)
+        return false;
+    const QString key = failedSegmentsKey();
+    if (key.isEmpty())
+        return false;
+    auto it = m_failedSegments.find(key);
+    if (it == m_failedSegments.end())
+        return false;
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    auto segIt = it.value().find(atMs);
+    if (segIt == it.value().end())
+        return false;
+    if (segIt.value() <= nowMs) {
+        it.value().erase(segIt);
+        return false;
+    }
+    return true;
+}
+
+void ArchiveSegmentStreamer::markFailedSegment(qint64 atMs)
+{
+    if (atMs == 0)
+        return;
+    const QString key = failedSegmentsKey();
+    if (key.isEmpty())
+        return;
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    m_failedSegments[key].insert(atMs, nowMs + kFailedSegmentTtlMs);
+}
+
+void ArchiveSegmentStreamer::clearFailedSegmentsForSource()
+{
+    const QString key = failedSegmentsKey();
+    if (key.isEmpty())
+        return;
+    m_failedSegments.remove(key);
+}
+
+void ArchiveSegmentStreamer::pruneFailedSegmentsForSource(qint64 nowMs)
+{
+    const QString key = failedSegmentsKey();
+    if (key.isEmpty())
+        return;
+    auto it = m_failedSegments.find(key);
+    if (it == m_failedSegments.end())
+        return;
+    auto& map = it.value();
+    for (auto mIt = map.begin(); mIt != map.end();) {
+        if (mIt.value() <= nowMs)
+            mIt = map.erase(mIt);
+        else
+            ++mIt;
+    }
+}
+
+void ArchiveSegmentStreamer::pruneFailedSegmentsForSource(qint64 nowMs, qint64 minKeep, qint64 maxKeep)
+{
+    const QString key = failedSegmentsKey();
+    if (key.isEmpty())
+        return;
+    auto it = m_failedSegments.find(key);
+    if (it == m_failedSegments.end())
+        return;
+    auto& map = it.value();
+    for (auto mIt = map.begin(); mIt != map.end();) {
+        if (mIt.value() <= nowMs || mIt.key() < minKeep || mIt.key() > maxKeep)
+            mIt = map.erase(mIt);
+        else
+            ++mIt;
     }
 }
 
@@ -2755,7 +3088,9 @@ void ArchiveSegmentStreamer::maybeLogPerfSnapshot(const char* reason)
         << "known=" << m_knownKfMs.size()
         << "primitives=" << m_primitivesTimeline.size()
         << "segmentInflight=" << (m_segmentInflight ? 1 : 0)
-        << "segmentsListInflight=" << (m_segmentsListInflight ? 1 : 0);
+        << "segmentsListInflight=" << (m_segmentsListInflight ? 1 : 0)
+        << "staleSegmentResets=" << m_staleSegmentResets
+        << "staleSegmentsListResets=" << m_staleSegmentsListResets;
 }
 
 static QString safeName(const QString& s) {

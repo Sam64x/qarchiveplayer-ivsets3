@@ -29,8 +29,8 @@ Rectangle
     }
     Component.onCompleted:
     {
-        var _zTypes = customSets.getZoneTypes();
-        var _cameras = customSets.getCameras();
+        var _zTypes = IVCustomSets.getZoneTypes();
+        var _cameras = IVCustomSets.getCameras();
         try
         {
             //addZonesModel
@@ -45,10 +45,6 @@ Rectangle
         }
     }
 
-    IVCustomSets
-    {
-        id:customSets
-    }
     Connections
     {
         id:globSigConnection
@@ -57,7 +53,7 @@ Rectangle
         {
             root.setName = setname;
             root.isSetSelected = true;
-            root.setParams = JSON.parse(customSets.getZone(root.setName)).zones;
+            root.setParams = JSON.parse(IVCustomSets.getZone(root.setName)).zones;
 
             for(var zz in root.setParams)
             {

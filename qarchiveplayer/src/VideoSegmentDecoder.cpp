@@ -1,6 +1,7 @@
 #include "VideoSegmentDecoder.h"
 
 #include <QDebug>
+#include <QThread>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -149,6 +150,15 @@ static void initFfmpegLogFiltering()
         initialized = true;
         av_log_set_callback(filteredFfmpegLogCallback);
     }
+}
+
+static int computeDecoderThreadCount()
+{
+    const int cores = QThread::idealThreadCount();
+    if (cores <= 0)
+        return 2;
+    const int perDecoder = std::max(1, cores / 4);
+    return std::min(2, perDecoder);
 }
 
 }
@@ -311,7 +321,7 @@ QVector<VideoSegmentDecoder::DecodedNv12> VideoSegmentDecoder::decodeSegmentNV12
 
         dec->flags2      |= AV_CODEC_FLAG2_FAST;
         dec->thread_type  = FF_THREAD_FRAME | FF_THREAD_SLICE;
-        dec->thread_count = 0;
+        dec->thread_count = computeDecoderThreadCount();
 
         if (avcodec_open2(dec, codec, nullptr) < 0) break;
 
@@ -611,7 +621,7 @@ VideoSegmentDecoder::DecodedNv12 VideoSegmentDecoder::decodeFirstFrameNV12(const
 
         dec->flags2      |= AV_CODEC_FLAG2_FAST;
         dec->thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE;
-        dec->thread_count = 0;
+        dec->thread_count = computeDecoderThreadCount();
 
         if (avcodec_open2(dec, codec, nullptr) < 0) break;
 
@@ -824,7 +834,7 @@ bool VideoSegmentDecoder::ensureOpen()
         }
     }
 
-    m_ff->dec->thread_count = 0;
+    m_ff->dec->thread_count = computeDecoderThreadCount();
     m_ff->dec->thread_type  = FF_THREAD_FRAME | FF_THREAD_SLICE;
     m_ff->dec->flags2      |= AV_CODEC_FLAG2_FAST;
 

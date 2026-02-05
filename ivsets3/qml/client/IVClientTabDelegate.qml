@@ -171,20 +171,7 @@ Rectangle {
                         function saveSet(set) {
                             const config = IVSetsManager.getSetConfigToSave(set);
                             const configJson = JSON.parse(config);
-                            customSets.saveSet2(set.initName(),
-                                                configJson.setId,
-                                                set.name,
-                                                config);
-                            set.saveConfigAsDefault();
-                            if (!set.isUser) {
-                                const prevId = set.id;
-                                set.id = configJson.setId;
-                                set.isUser = true;
-                                root.globalSignalsObject.serverSetSaved(prevId, set.id, set.name);
-                            }
-                            else {
-                                root.globalSignalsObject.setSaved(set.id, set.name);
-                            }
+                            IVCustomSets.saveSet2(config);
                         }
                     }
                 }

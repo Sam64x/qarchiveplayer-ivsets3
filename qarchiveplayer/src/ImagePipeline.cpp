@@ -1,5 +1,6 @@
 #include <QSettings>
 #include <QStandardPaths>
+#include <QtConcurrent/QtConcurrentRun>
 #include "ImagePipeline.h"
 #include <type_traits>
 #include <cmath>
@@ -117,6 +118,20 @@ static QImage nv12ToRgb888_Templ(const Nv12Frame& f, Apply&& apply)
     return out;
 }
 
+ImagePipeline::ImagePipeline(QObject* parent)
+    : QObject(parent)
+{
+    connect(&m_settingsWatcher, &QFutureWatcher<Settings>::finished, this, [this]() {
+        const int token = m_settingsWatcher.property("token").toInt();
+        if (token != m_settingsToken)
+            return;
+        const Settings st = m_settingsWatcher.result();
+        m_s = sanitize(st);
+        emit settingsChanged();
+    });
+    scheduleLoadSettings(m_cameraId);
+}
+
 QString ImagePipeline::settingsPath()
 {
     return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
@@ -130,7 +145,7 @@ QString ImagePipeline::settingsGroupFor(const QString& cameraId)
     return QStringLiteral("ImagePipeline/%1").arg(cameraId);
 }
 
-void ImagePipeline::loadSettings(const QString& cameraId)
+ImagePipeline::Settings ImagePipeline::loadSettingsSnapshot(const QString& cameraId)
 {
     QSettings s(settingsPath(), QSettings::IniFormat);
     s.beginGroup(settingsGroupFor(cameraId));
@@ -142,7 +157,7 @@ void ImagePipeline::loadSettings(const QString& cameraId)
     st.contrast   = s.value("contrast",    50).toInt();
     st.saturation = s.value("saturation",  50).toInt();
     s.endGroup();
-    m_s = sanitize(st);
+    return st;
 }
 
 void ImagePipeline::saveSettings(const QString& cameraId) const
@@ -159,7 +174,7 @@ void ImagePipeline::saveSettings(const QString& cameraId) const
     s.sync();
 }
 
-void ImagePipeline::loadSettings() { loadSettings(m_cameraId); }
+void ImagePipeline::loadSettings() { m_s = sanitize(loadSettingsSnapshot(m_cameraId)); }
 void ImagePipeline::saveSettings() const { saveSettings(m_cameraId); }
 
 QImage ImagePipeline::nv12ToRgb888(
@@ -220,9 +235,18 @@ void ImagePipeline::setCameraId(const QString& id)
     if (m_cameraId == id)
         return;
     m_cameraId = id;
-    loadSettings(m_cameraId);
-    emit settingsChanged();
+    scheduleLoadSettings(m_cameraId);
     emit cameraIdChanged();
+}
+
+void ImagePipeline::scheduleLoadSettings(const QString& cameraId)
+{
+    const int token = ++m_settingsToken;
+    m_settingsWatcher.setProperty("token", token);
+    if (m_settingsWatcher.isRunning())
+        m_settingsWatcher.cancel();
+    auto fut = QtConcurrent::run([cameraId]() { return loadSettingsSnapshot(cameraId); });
+    m_settingsWatcher.setFuture(fut);
 }
 
 void ImagePipeline::setRgbR(int v)       { int nv = clamp255(v); if (m_s.r != nv) { m_s.r = nv; saveSettings(m_cameraId); emit settingsChanged(); } }

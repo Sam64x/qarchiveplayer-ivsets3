@@ -25,6 +25,21 @@ Rectangle {
 
     color: IVColors.get("Colors/Background new/BgFormPrimaryThemed")
 
+    focus: true
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Control) {
+            globSignalsObject.ctrlPressed = true;
+        }
+    }
+    Keys.onReleased: function(event) {
+        if (event.key === Qt.Key_Control) {
+            globSignalsObject.ctrlPressed = false;
+        }
+    }
+    Component.onCompleted: {
+        forceActiveFocus();
+    }
+
     IVClientLeftMenu {
         id: leftMenu
 
@@ -142,20 +157,21 @@ Rectangle {
     QtObject {
         id: globSignalsObject
 
+        property bool ctrlPressed: false
+
+        readonly property alias clientRect: root
+
         signal setToArchive()
         signal setToRealtime()
 
         signal tabAdded5(string tabname, string type,string id,string viewType)
         signal tabSelected5(string tabname, string type,string id,string viewType)
-        signal tabRemoved2(string tabname)
-        signal tabRemoveLeft(string tabname)
-        signal tabRemoveRight(string tabname)
+        signal tabRemoved2(string tabname, string tabType)
 
         property string tabType: ""
+        property string tabViewType: ""
 
         property string tabUniqId:""
-
-        signal userChanged(string userName);
 
         property bool leftMenuOpened: false
         property bool setsAndCamsBlockOpened: false
@@ -163,10 +179,6 @@ Rectangle {
         ///Для поддержки старых сигналов
         signal command1(string command, var sender, var params)
 
-        signal setSaved(string setId, string setName)
-        signal serverSetSaved(string prevSetId, string setId, string setName)
-        signal setRemoved(string setId, string setName)
-        signal newSetCreated(string setName, string setId)
         signal removeZoneContent(int indexInSet)
 
         onSetsAndCamsBlockOpenedChanged: {
@@ -174,6 +186,7 @@ Rectangle {
         }
         onTabSelected5: function (tabName, type, setId, viewType) {
             tabType = type;
+            tabViewType = viewType;
         }
 
         // Проверить на нужность

@@ -19,8 +19,12 @@ Row {
         type: C.IVButtonControl.Type.Secondary
         toolTipText: Language.getTranslate("Backward step","Шаг назад")
         onClicked: {
-            archiveStreamer.pauseStream()
-            archiveStreamer.stepFrameLeft();
+            if (archiveStreamer.stepFrameLeftSync) {
+                archiveStreamer.stepFrameLeftSync();
+            } else {
+                archiveStreamer.pauseStream()
+                archiveStreamer.stepFrameLeft();
+            }
         }
     }
 
@@ -35,8 +39,12 @@ Row {
         type: C.IVButtonControl.Type.Secondary
         toolTipText: Language.getTranslate("Forward step","Шаг вперёд")
         onClicked: {
-            archiveStreamer.pauseStream()
-            archiveStreamer.stepFrameRight();
+            if (archiveStreamer.stepFrameRightSync) {
+                archiveStreamer.stepFrameRightSync();
+            } else {
+                archiveStreamer.pauseStream()
+                archiveStreamer.stepFrameRight();
+            }
         }
     }
 }

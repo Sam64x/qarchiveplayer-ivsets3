@@ -14,30 +14,70 @@ Item {
 
     property var players: []
     property var playersList: []
-    property real isize: 1
     property int commonScale: 0
     property var sharedCurrentDate: null
+    property var localCurrentDate: null
     property var startDate: null
     property var endDate: null
     property int periodTime: 0
+    property bool initialBoundsApplied: false
+    property int scaleIndex
+
+    onScaleIndexChanged: {
+        if (mainSlider && mainSlider.ready) {
+            pendingScaleIndex = null
+        } else {
+            pendingScaleIndex = root.scaleIndex
+        }
+    }
 
     property var fullnessVisibility: ({})
     property var key2Frequency: ({})
     property bool showFullnessToggles: false
     property var pendingBounds: null
+    property var pendingScaleIndex: null
     property bool exportMode: false
     property var exportStartTime: null
     property var exportEndTime: null
     property var exportBounds: ({ "left": null, "right": null })
     property var exportCameraIds: []
+    property int maxVisiblePlayers: 4
 
     signal timeChanged(var date)
     signal boundsChanged(var bounds)
 
     readonly property var primaryPlayer: playersList.length > 0 ? playersList[0] : null
+    readonly property int timeFieldHeight: 54
+    readonly property int timelineHeaderHeight: 24
+    readonly property int sliderHeight: 32
+    readonly property int playerRowHeight: 32
+    readonly property int visiblePlayersCount: Math.min(playersList.length, maxVisiblePlayers)
+    readonly property int playersListHeight: visiblePlayersCount * playerRowHeight
 
     property var viewStart: null
     property var viewEnd: null
+    property bool suppressBoundsPropagation: false
+    property bool suppressTimePropagation: false
+
+    function adjustDate(startDate, index, add) {
+        var d = new Date(startDate), m = add ? 1 : -1
+        switch(index) {
+        case 0: d.setFullYear(d.getFullYear() + m); break
+        case 1: d.setMonth(d.getMonth() + m); break
+        case 2: d.setDate(d.getDate() + 7 * m); break
+        case 3: d.setDate(d.getDate() + m); break
+        case 4: d.setHours(d.getHours() + m); break
+        case 5: d.setMinutes(d.getMinutes() + 30 * m); break
+        case 6: d.setMinutes(d.getMinutes() + 10 * m); break
+        case 7: d.setMinutes(d.getMinutes() + m); break
+        }
+        return d
+    }
+
+    property alias mainSlider: mainSlider
+    property alias canAutoMove: mainSlider.canAutoMove
+
+    implicitHeight: timeFieldHeight + timelineHeaderHeight + sliderHeight + playersListHeight
 
     ListModel {
         id: periodsModel
@@ -60,17 +100,49 @@ Item {
             return
         }
         var bounds = mainSlider.viewBounds || (mainSlider.getViewBounds ? mainSlider.getViewBounds() : null)
-        if (!bounds || !bounds.left || !bounds.right) {
-            viewStart = null
-            viewEnd = null
+        if (bounds && bounds.left && bounds.right) {
+            viewStart = bounds.left
+            viewEnd = bounds.right
             return
         }
-        viewStart = bounds.left
-        viewEnd = bounds.right
+
+        var leftBorder = mainSlider.leftTimeBorder
+        var rightBorder = mainSlider.rightTimeBorder
+        if (leftBorder instanceof Date && rightBorder instanceof Date &&
+                !isNaN(leftBorder.getTime()) && !isNaN(rightBorder.getTime())) {
+            viewStart = leftBorder
+            viewEnd = rightBorder
+            return
+        }
+
+        viewStart = null
+        viewEnd = null
     }
 
+    function currentFrameDate() {
+        if (primaryPlayer && primaryPlayer.getFrameTime) {
+            var frameTime = primaryPlayer.getFrameTime()
+            if (frameTime > 0)
+                return new Date(frameTime)
+        }
+        return null
+    }
+
+    function syncSliderToFrameTime() {
+        if (!mainSlider)
+            return
+        var frameDate = currentFrameDate()
+        if (!frameDate)
+            return
+        if (!mainSlider.currentDate || !mainSlider.currentDate.getTime ||
+                mainSlider.currentDate.getTime() !== frameDate.getTime()) {
+            mainSlider.currentDate = frameDate
+        }
+    }
+
+
     function syncSliderBounds(startDate, endDate) {
-        if (!mainSlider || !mainSlider.setBounds)
+        if (!mainSlider)
             return
 
         if (!(startDate instanceof Date) || isNaN(startDate.getTime()))
@@ -88,31 +160,113 @@ Item {
             right = temp
         }
 
-        var now = mainSlider.nowDateTime || new Date()
-        var centerMs = Math.round((left.getTime() + right.getTime()) / 2)
-        if (centerMs > now.getTime())
-            centerMs = now.getTime()
+        root.startDate = left
+        root.endDate = right
 
+        var centerMs = Math.round((left.getTime() + right.getTime()) / 2)
         if (!mainSlider.currentDate || !mainSlider.currentDate.getTime ||
                 mainSlider.currentDate.getTime() !== centerMs) {
-            mainSlider.canAutoMove = true
             mainSlider.currentDate = new Date(centerMs)
         }
 
-        var beforeMs = Math.max(0, centerMs - left.getTime())
-        var afterMs = Math.max(0, right.getTime() - centerMs)
-        if (mainSlider.scaleForOffsets && mainSlider.setScale)
-            mainSlider.setScale(mainSlider.scaleForOffsets(beforeMs, afterMs))
+        mainSlider.leftTimeBorder = left
+        mainSlider.rightTimeBorder = right
 
         if (mainSlider.ready) {
-            mainSlider.setBounds(left, right)
             mainSlider.boundsChanged()
         } else {
-            pendingBounds = { "left": left, "right": right }
+            pendingBounds = { "left": left, "right": right, "suppressBounds": false }
         }
     }
 
+    function syncSliderViewBounds(startDate, endDate) {
+        if (!mainSlider)
+            return
+
+        if (!(startDate instanceof Date) || isNaN(startDate.getTime()))
+            return
+
+        if (!(endDate instanceof Date) || isNaN(endDate.getTime()))
+            return
+
+        var left = startDate
+        var right = endDate
+
+        if (right < left) {
+            var temp = left
+            left = right
+            right = temp
+        }
+
+        root.startDate = left
+        root.endDate = right
+        root.periodTime = root.endDate - root.startDate
+
+        var centerMs = Math.round((left.getTime() + right.getTime()) / 2)
+
+        root.suppressBoundsPropagation = true
+        root.suppressTimePropagation = true
+
+        if (!mainSlider.currentDate || !mainSlider.currentDate.getTime ||
+                mainSlider.currentDate.getTime() !== centerMs) {
+            mainSlider.currentDate = new Date(centerMs)
+        }
+
+        if (mainSlider.ready) {
+            mainSlider.leftTimeBorder = left
+            mainSlider.rightTimeBorder = right
+            mainSlider.boundsChanged()
+        } else {
+            pendingBounds = { "left": left, "right": right, "suppressBounds": true }
+        }
+
+        Qt.callLater(function() {
+            root.suppressBoundsPropagation = false
+            root.suppressTimePropagation = false
+        })
+    }
+
+    function applyInitialBoundsFromSharedDate() {
+        if (initialBoundsApplied || pendingBounds)
+            return
+        if (!mainSlider)
+            return
+        var centerDate = sharedCurrentDate instanceof Date && !isNaN(sharedCurrentDate.getTime())
+            ? sharedCurrentDate
+            : (localCurrentDate instanceof Date && !isNaN(localCurrentDate.getTime()) ? localCurrentDate : null)
+        if (!centerDate)
+            return
+        if (mainSlider.leftTimeBorder instanceof Date && mainSlider.rightTimeBorder instanceof Date) {
+            initialBoundsApplied = true
+            return
+        }
+
+        var dayMs = 24 * 60 * 60 * 1000
+        var centerMs = centerDate.getTime()
+        var leftMs = centerMs - dayMs / 2
+        var rightMs = centerMs + dayMs / 2
+        var nowMs = Date.now()
+        if (rightMs > nowMs) {
+            rightMs = nowMs
+            leftMs = rightMs - dayMs
+        }
+        if (rightMs < leftMs)
+            rightMs = leftMs
+
+        var left = new Date(leftMs)
+        var right = new Date(rightMs)
+        root.startDate = left
+        root.endDate = right
+        root.periodTime = root.endDate - root.startDate
+        root.syncSliderBounds(root.startDate, root.endDate)
+        timeFieldLayout.fromText = Qt.formatDateTime(root.startDate, "dd.MM.yyyy hh:mm:ss")
+        timeFieldLayout.toText = Qt.formatDateTime(root.endDate, "dd.MM.yyyy hh:mm:ss")
+
+        initialBoundsApplied = true
+    }
+
     function setScale(scaleIndex) {
+        root.scaleIndex = scaleIndex
         if (mainSlider && mainSlider.setScale)
             mainSlider.setScale(scaleIndex)
     }
@@ -224,6 +378,9 @@ Item {
         updateExportCameraIds()
     }
 
+    onSharedCurrentDateChanged: applyInitialBoundsFromSharedDate()
+    onLocalCurrentDateChanged: applyInitialBoundsFromSharedDate()
+
     IVSeparator {
         anchors.top: parent.top
         anchors.left: parent.left
@@ -238,7 +395,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: timelineArea.left
-        width: 370
+        width: 380
 
         RowLayout {
             id: timeFieldLayout
@@ -247,19 +404,20 @@ Item {
             property string toText: root.endDate ? Qt.formatDateTime(root.endDate, "dd.MM.yyyy hh:mm:ss") : ""
             property bool suppressFieldSync: false
 
-            Layout.preferredHeight: 54
+            Layout.preferredHeight: root.timeFieldHeight
             Layout.fillWidth: true
             Layout.leftMargin: 8
             Layout.rightMargin: 8
+            spacing: 4
 
             function updateFieldsFromSlider() {
-                if (!mainSlider || !mainSlider.getViewBounds || !mainSlider.ready)
+                if (!mainSlider || !mainSlider.ready)
                     return
 
-                var bounds = mainSlider.getViewBounds()
-                var haveBounds = bounds && bounds.left instanceof Date && bounds.right instanceof Date
-                                && !isNaN(bounds.left.getTime()) && !isNaN(bounds.right.getTime())
-                                && mainSlider.timelineModelView && mainSlider.timelineModelView.count > 0
+                var left = mainSlider.leftTimeBorder
+                var right = mainSlider.rightTimeBorder
+                var haveBounds = left instanceof Date && right instanceof Date
+                                && !isNaN(left.getTime()) && !isNaN(right.getTime())
 
                 if (!haveBounds) {
                     fromText = ""
@@ -267,8 +425,8 @@ Item {
                     return
                 }
 
-                fromText = Qt.formatDateTime(bounds.left, "dd.MM.yyyy hh:mm:ss")
-                toText = Qt.formatDateTime(bounds.right, "dd.MM.yyyy hh:mm:ss")
+                fromText = Qt.formatDateTime(left, "dd.MM.yyyy hh:mm:ss")
+                toText = Qt.formatDateTime(right, "dd.MM.yyyy hh:mm:ss")
             }
 
             function syncSliderBoundsFromFields(startText, endText) {
@@ -384,7 +542,7 @@ Item {
                     component: Component {
                         ColumnLayout {
                             id: col
-                            spacing: 8 * root.isize
+                            spacing: 8
                             width: 360
                             Text {
                                 text: "Выбрать период"
@@ -545,8 +703,7 @@ Item {
                                     }
                                     root.startDate = calendBody.start
                                     root.endDate   = calendBody.end
-                                    root.periodTime = root.endDate - root.startDate
-                                    root.syncSliderBounds(root.startDate, root.endDate)
+                                    root.syncSliderViewBounds(root.startDate, root.endDate)
                                     timeFieldLayout.fromText = Qt.formatDateTime(root.startDate, "dd.MM.yyyy hh:mm:ss")
                                     timeFieldLayout.toText = Qt.formatDateTime(root.endDate, "dd.MM.yyyy hh:mm:ss")
                                     calendar.close()
@@ -558,42 +715,57 @@ Item {
             }
         }
 
-        Repeater {
-            model: playersList
+        ScrollView {
+            id: key2Scroll
 
-            delegate: Item {
-                implicitHeight: 32
-                implicitWidth: parent.width
+            clip: true
+            background: null
+            Layout.fillWidth: true
+            Layout.preferredHeight: root.playersListHeight
+            ScrollBar.vertical.policy: playersList.length > root.maxVisiblePlayers ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
 
-                IVSeparator {
-                    anchors.top: parent.top
-                    width: parent.width
-                    height: 1
-                }
+            Column {
+                width: key2Scroll.availableWidth
+                spacing: 0
 
-                C.IVCheckBoxControl {
-                    id: key2CheckBox
+                Repeater {
+                    model: playersList
 
-                    property string visibilityKey: root.visibilityKeyForPlayer(modelData, index)
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 8
-                    implicitHeight: 32
-                    text: modelData && modelData.key2 ? modelData.key2 : ""
-                    checked: true
+                    delegate: Item {
+                        implicitHeight: root.playerRowHeight
+                        implicitWidth: parent.width
 
-                    function updateCheckedFromVisibility() {
-                        var shouldBeChecked = fullnessVisibility[visibilityKey] !== false
-                        if (checked !== shouldBeChecked)
-                            checked = shouldBeChecked
-                    }
+                        IVSeparator {
+                            anchors.top: parent.top
+                            width: parent.width
+                            height: 1
+                        }
 
-                    onCheckedChanged: setFullnessVisible(visibilityKey, checked)
+                        C.IVCheckBoxControl {
+                            id: key2CheckBox
 
-                    Connections {
-                        target: root
-                        onFullnessVisibilityChanged: key2CheckBox.updateCheckedFromVisibility()
+                            property string visibilityKey: root.visibilityKeyForPlayer(modelData, index)
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: 8
+                            implicitHeight: root.playerRowHeight
+                            text: modelData && modelData.key2 ? modelData.key2 : ""
+                            checked: true
+
+                            function updateCheckedFromVisibility() {
+                                var shouldBeChecked = fullnessVisibility[visibilityKey] !== false
+                                if (checked !== shouldBeChecked)
+                                    checked = shouldBeChecked
+                            }
+
+                            onCheckedChanged: setFullnessVisible(visibilityKey, checked)
+
+                            Connections {
+                                target: root
+                                onFullnessVisibilityChanged: key2CheckBox.updateCheckedFromVisibility()
+                            }
+                        }
                     }
                 }
             }
@@ -610,7 +782,9 @@ Item {
         spacing: 0
 
         Rectangle {
-            Layout.preferredHeight: 24
+            id: actualTimeline
+
+            Layout.preferredHeight: root.timelineHeaderHeight
             Layout.preferredWidth: parent.width
 
             border.color: IVColors.get("Colors/Stroke new/StSeparatorThemed")
@@ -631,20 +805,151 @@ Item {
                     toolTipText: Language.getTranslate("Add left period","Добавить период слева")
                     source: "new_images/add left period"
                     onClicked: {
-                        if (!mainSlider || !mainSlider.currentDate)
-                            return
-
-                        mainSlider.currentDate = mainSlider.decrementDate(mainSlider.timeline_model, mainSlider.currentDate)
+                        root.startDate = root.adjustDate(root.startDate, root.scaleIndex, false)
+                        root.syncSliderViewBounds(root.startDate, root.endDate)
                     }
                 }
 
                 Rectangle {
+                    id: timelineTrack
                     Layout.fillHeight: true
                     Layout.fillWidth: true
                     Layout.margins: 4
-
                     radius: 4
-                    color: IVColors.get("Colors/Text new/TxScroll")
+                    color: IVColors.get("Colors/Background new/BgContextMenuThemed")
+
+                    function borders() {
+                        if (!mainSlider)
+                            return null
+                        var left = mainSlider.leftTimeBorder
+                        var right = mainSlider.rightTimeBorder
+                        if (!(left instanceof Date) || !(right instanceof Date))
+                            return null
+                        if (isNaN(left.getTime()) || isNaN(right.getTime()))
+                            return null
+                        if (right < left) {
+                            var swap = left
+                            left = right
+                            right = swap
+                        }
+                        return { "left": left, "right": right }
+                    }
+
+                    function viewWindow(borders) {
+                        if (!borders)
+                            return null
+                        var left = mainSlider.viewLeftTime instanceof Date ? mainSlider.viewLeftTime : borders.left
+                        var right = mainSlider.viewRightTime instanceof Date ? mainSlider.viewRightTime : borders.right
+                        if (isNaN(left.getTime()) || isNaN(right.getTime()))
+                            return null
+                        if (right < left) {
+                            var swap = left
+                            left = right
+                            right = swap
+                        }
+                        left = left < borders.left ? borders.left : left
+                        right = right > borders.right ? borders.right : right
+                        return { "left": left, "right": right }
+                    }
+
+                    function ratioForTime(time, borders) {
+                        if (!time || !time.getTime)
+                            return null
+                        var total = borders.right.getTime() - borders.left.getTime()
+                        if (total <= 0)
+                            return null
+                        return (time.getTime() - borders.left.getTime()) / total
+                    }
+
+                    Rectangle {
+                        id: visibleTimeline
+                        radius: 4
+                        color: IVColors.get("Colors/Text new/TxScroll")
+                        height: parent.height
+                        y: 0
+                        property var borders: timelineTrack.borders()
+                        property var view: timelineTrack.viewWindow(borders)
+                        property real totalWidth: parent.width
+                        visible: borders && view
+                        x: {
+                            if (!visible)
+                                return 0
+                            var ratio = timelineTrack.ratioForTime(view.left, borders)
+                            return Math.max(0, Math.min(totalWidth, ratio * totalWidth))
+                        }
+                        width: {
+                            if (!visible)
+                                return 0
+                            var leftRatio = timelineTrack.ratioForTime(view.left, borders)
+                            var rightRatio = timelineTrack.ratioForTime(view.right, borders)
+                            if (leftRatio === null || rightRatio === null)
+                                return 0
+                            return Math.max(0, (rightRatio - leftRatio) * totalWidth)
+                        }
+                    }
+
+                    Rectangle {
+                        id: sliderMarker
+                        width: 2
+                        height: parent.height
+                        color: IVColors.get("Colors/Text new/TxAccent")
+                        z: visibleTimeline.z + 1
+                        property var borders: timelineTrack.borders()
+                        readonly property var sliderDate: root.sharedCurrentDate ? root.sharedCurrentDate : root.localCurrentDate
+                        visible: borders && sliderDate
+                        x: {
+                            if (!visible)
+                                return 0
+                            var ratio = timelineTrack.ratioForTime(sliderDate, borders)
+                            if (ratio === null)
+                                return 0
+                            return Math.max(0, Math.min(parent.width, ratio * parent.width)) - width / 2
+                        }
+                    }
+
+                    Rectangle {
+                        id: exportRangeMarker
+                        height: parent.height
+                        color: "#9747FF"
+                        opacity: 0.4
+                        z: visibleTimeline.z + 1
+                        property var borders: timelineTrack.borders()
+                        visible: exportMode && borders && root.exportStartTime && root.exportEndTime
+                        x: {
+                            if (!visible)
+                                return 0
+                            var startTime = root.exportStartTime
+                            var endTime = root.exportEndTime
+                            if (endTime < startTime) {
+                                var swap = startTime
+                                startTime = endTime
+                                endTime = swap
+                            }
+                            var leftRatio = timelineTrack.ratioForTime(startTime, borders)
+                            if (leftRatio === null)
+                                return 0
+                            return Math.max(0, Math.min(parent.width, leftRatio * parent.width))
+                        }
+                        width: {
+                            if (!visible)
+                                return 0
+                            var startTime = root.exportStartTime
+                            var endTime = root.exportEndTime
+                            if (endTime < startTime) {
+                                var swap = startTime
+                                startTime = endTime
+                                endTime = swap
+                            }
+                            var leftRatio = timelineTrack.ratioForTime(startTime, borders)
+                            var rightRatio = timelineTrack.ratioForTime(endTime, borders)
+                            if (leftRatio === null || rightRatio === null)
+                                return 0
+                            var span = rightRatio - leftRatio
+                            if (span < 0)
+                                span = -span
+                            return Math.max(2, span * parent.width)
+                        }
+                    }
                 }
 
                 C.IVButtonControl {
@@ -657,10 +962,13 @@ Item {
                     source: "new_images/add right period"
                     toolTipText: Language.getTranslate("Add right period","Добавить период справа")
                     onClicked: {
-                        if (!mainSlider || !mainSlider.currentDate)
-                            return
-
-                        mainSlider.currentDate = mainSlider.incrementDate(mainSlider.timeline_model, mainSlider.currentDate)
+                        var localTime = root.adjustDate(root.endDate, root.scaleIndex, true)
+                        if (localTime > new Date()) {
+                            root.endDate = new Date();
+                        } else {
+                            root.endDate = localTime;
+                        }
+                        root.syncSliderViewBounds(root.startDate, root.endDate);
                     }
                 }
             }
@@ -710,6 +1018,13 @@ Item {
                 mainSlider.dragTimelineBy(deltaX)
             }
 
+            onWheel: {
+                if (!mainSlider)
+                    return
+                mainSlider.zoomBy(wheel.angleDelta.y, wheel.x)
+                wheel.accepted = true
+            }
+
             onReleased: {
                 if (!dragActive || !mainSlider)
                     return
@@ -734,7 +1049,7 @@ Item {
                     mainSlider.endExternalDrag()
                 }
                 exportMode = true
-                var defaultWidth = 80 * root.isize
+                var defaultWidth = 80
                 var maxX = Math.min(mainSlider.nowX - mainSlider.viewportOffset(), commonPanelMa.width)
                 if (!isFinite(maxX) || maxX <= 0)
                     maxX = commonPanelMa.width
@@ -825,8 +1140,8 @@ Item {
 
                 property real leftX: 0
                 property real rightX: 0
-                property real minWidth: 12 * root.isize
-                property real handleWidth: 6 * root.isize
+                property real minWidth: 12
+                property real handleWidth: 6
 
                 function maxSelectableX() {
                     if (!mainSlider)
@@ -843,19 +1158,25 @@ Item {
                 }
 
                 function setBounds(left, right) {
-                    applyBounds(left, right, true)
+                    applyBounds(left, right, true, true)
                 }
 
-                function applyBounds(left, right, shouldUpdateTimes) {
-                    var clampedLeft = clampX(left)
-                    var clampedRight = clampX(right)
-                    if (clampedRight - clampedLeft < minWidth) {
-                        clampedRight = Math.min(clampedLeft + minWidth, maxSelectableX())
-                        if (clampedRight - clampedLeft < minWidth)
-                            clampedLeft = Math.max(0, clampedRight - minWidth)
+                function applyBounds(left, right, shouldUpdateTimes, shouldClamp) {
+                    var nextLeft = left
+                    var nextRight = right
+                    if (shouldClamp) {
+                        var clampedLeft = clampX(left)
+                        var clampedRight = clampX(right)
+                        if (clampedRight - clampedLeft < minWidth) {
+                            clampedRight = Math.min(clampedLeft + minWidth, maxSelectableX())
+                            if (clampedRight - clampedLeft < minWidth)
+                                clampedLeft = Math.max(0, clampedRight - minWidth)
+                        }
+                        nextLeft = clampedLeft
+                        nextRight = clampedRight
                     }
-                    leftX = Math.min(clampedLeft, clampedRight)
-                    rightX = Math.max(clampedLeft, clampedRight)
+                    leftX = Math.min(nextLeft, nextRight)
+                    rightX = Math.max(nextLeft, nextRight)
                     if (shouldUpdateTimes)
                         updateTimes()
                 }
@@ -877,7 +1198,7 @@ Item {
                     var right = mainSlider.timeToX(rightTime) - mainSlider.viewportOffset()
                     if (!isFinite(left) || !isFinite(right))
                         return
-                    applyBounds(left, right, false)
+                    applyBounds(left, right, false, false)
                 }
 
                 Rectangle {
@@ -969,10 +1290,13 @@ Item {
             Item {
                 id: sliderRect
 
-                property real targetX: !mainSlider ? 0 : mainSlider.timeToX(mainSlider.currentDate)
+                readonly property var sliderDate: root.sharedCurrentDate ? root.sharedCurrentDate : root.localCurrentDate
+                readonly property real sliderX: (!mainSlider || !sliderDate)
+                    ? -width / 2
+                    : (mainSlider.timeToX(sliderDate) - mainSlider.viewportOffset()) - width / 2
 
                 width: sliderTracer.implicitWidth
-                x: mainSlider ? (targetX - mainSlider.viewportOffset()) - width / 2 : -width / 2
+                x: sliderX
 
                 z: mainSlider.z + 1
                 anchors.top: parent.top
@@ -1014,27 +1338,36 @@ Item {
                 anchors.fill: parent
                 spacing: 0
 
-                IVArc_slider_new2 {
+                CommonTimelineSlider {
                     id: mainSlider
 
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 32
-
-                    isize: root.isize
-                    archivePlayer: root.primaryPlayer.idarchive_player
-                    key2: root.key2
-                    previewMargin: 0
-                    isMultiscreen: true
-                    isCommonPanel: true
-                    setInterval: true
+                    Layout.preferredHeight: root.sliderHeight
 
                     onReadyChanged: {
                         if (ready) {
                             timeFieldLayout.updateFieldsFromSlider()
+                            if (root.pendingScaleIndex !== null) {
+                                var scaleIndex = root.pendingScaleIndex
+                                root.pendingScaleIndex = null
+                                Qt.callLater(function() {
+                                    root.setScale(scaleIndex)
+                                })
+                            }
                             if (root.pendingBounds) {
-                                mainSlider.setBounds(root.pendingBounds.left, root.pendingBounds.right)
+                                var suppressBounds = root.pendingBounds.suppressBounds === true
+                                if (suppressBounds) {
+                                    root.suppressBoundsPropagation = true
+                                }
+                                mainSlider.leftTimeBorder = root.pendingBounds.left
+                                mainSlider.rightTimeBorder = root.pendingBounds.right
                                 mainSlider.boundsChanged()
                                 root.pendingBounds = null
+                                if (suppressBounds) {
+                                    Qt.callLater(function() {
+                                        root.suppressBoundsPropagation = false
+                                    })
+                                }
                             }
                         }
                     }
@@ -1053,14 +1386,22 @@ Item {
                     onUpdateCalendarDT: root.timeChanged(currentDate)
 
                     onCurrentDateChanged: {
-                        root.sharedCurrentDate = currentDate
-                        root.timeChanged(currentDate)
+                        root.localCurrentDate = currentDate
+                        if (!root.suppressTimePropagation)
+                            root.timeChanged(currentDate)
                         root.updateViewWindow()
                     }
 
                     onBoundsChanged: {
-                        root.boundsChanged(getSelectedInterval())
                         timeFieldLayout.updateFieldsFromSlider()
+                        root.updateViewWindow()
+                        if (!root.suppressBoundsPropagation)
+                            root.boundsChanged(getSelectedInterval())
+                    }
+
+                    onCanAutoMoveChanged: {
+                        if (canAutoMove)
+                            root.syncSliderToFrameTime()
                     }
                 }
 
@@ -1069,22 +1410,36 @@ Item {
                     onViewBoundsChanged: root.updateViewWindow()
                 }
 
-                Repeater {
-                    model: playersList
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
+            Item {
+                id: cameraBarsViewport
+                Layout.fillWidth: true
+                Layout.preferredHeight: root.playersListHeight
+                clip: true
 
-                    delegate: CommonArchiveCameraBar {
-                        Layout.preferredHeight: 32
-                        Layout.fillWidth: true
-                        archivePlayer: modelData
-                        key2: modelData && modelData.key2 ? modelData.key2 : null
-                        timelineModel: mainSlider.timeline_model
-                        viewStart: root.viewStart
-                        viewEnd: root.viewEnd
-                        fullnessOpacity: root.fullnessOpacityFor(modelData, index)
+                ColumnLayout {
+                    id: cameraBarsContent
+                    width: parent.width
+                    height: key2Scroll.contentItem ? key2Scroll.contentItem.implicitHeight : 0
+                    spacing: 0
+                    y: key2Scroll.contentItem ? -key2Scroll.contentItem.contentY : 0
+
+                    Repeater {
+                        model: playersList
+
+                        delegate: CommonArchiveCameraBar {
+                            Layout.preferredHeight: root.playerRowHeight
+                            Layout.fillWidth: true
+                            width: cameraBarsViewport.width
+                            archivePlayer: modelData
+                            key2: modelData && modelData.key2 ? modelData.key2 : null
+                            timelineModel: mainSlider.timeline_model
+                            viewStart: root.viewStart
+                            viewEnd: root.viewEnd
+                            fullnessOpacity: root.fullnessOpacityFor(modelData, index)
+                        }
                     }
                 }
+            }
             }
         }
     }
@@ -1092,5 +1447,6 @@ Item {
     Component.onCompleted: {
         updateViewWindow()
         timeFieldLayout.updateFieldsFromSlider()
+        applyInitialBoundsFromSharedDate()
     }
 }

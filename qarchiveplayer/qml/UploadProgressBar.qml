@@ -30,6 +30,10 @@ Item {
     property string cameraName: ""
     property string timeText: ""
 
+    readonly property int iconSize: 16
+    readonly property int spacing: 4
+    readonly property int paddings: 8
+
     property real smoothProgress: 0
 
     signal removeRequested()
@@ -140,18 +144,21 @@ Item {
         Rectangle {
             id: progressBadge
 
-            Layout.preferredWidth: progressWidth()
-            Layout.preferredHeight: 32
-            Layout.alignment: Qt.AlignVCenter
-            radius: 8
-            color: IVColors.get("Colors/Background new/BgBtnSecondaryThemed")
+            readonly property var progressColor: {
+                switch (root.status) {
+                    case UploadProgressBar.Status.Restart:
+                        return IVColors.get("Colors/Background new/BgBtnPrimary")
+                    default:
+                        return IVColors.get("Colors/Background new/BgBtnSecondaryThemed")
+                }
+            }
 
-            function progressWidth() {
+            readonly property var progressWidth: {
                 switch (root.status) {
                     case UploadProgressBar.Status.Done:
                         var contentWidth = 0
                         if (doneIcon.visible)
-                            contentWidth += doneIcon.Layout.preferredWidth
+                            contentWidth += root.iconSize
                         if (sizeText.visible) {
                             if (contentWidth > 0)
                                 contentWidth += badgeContent.spacing
@@ -159,13 +166,19 @@ Item {
                         }
                         return Math.max(84, contentWidth + 16)
                     case UploadProgressBar.Status.Restart:
-                        return Math.max(84, restartText.implicitWidth + 16)
+                        return restartText.implicitWidth + root.iconSize + 2*root.spacing + 2*root.paddings
                     case UploadProgressBar.Status.Error:
                         return 32
                     default:
                         return 67
                 }
             }
+
+            Layout.preferredWidth: progressWidth
+            Layout.preferredHeight: 32
+            Layout.alignment: Qt.AlignVCenter
+            radius: 8
+            color: progressColor
 
             RowLayout {
                 id: badgeContent
@@ -236,6 +249,14 @@ Item {
                     color: IVColors.get("Colors/Text new/TxAccentThemed")
                 }
 
+                C.IVImage {
+                    name: "new_images/download-01"
+                    Layout.preferredWidth: 16
+                    Layout.preferredHeight: 16
+                    visible: root.status === UploadProgressBar.Status.Restart
+                    color: IVColors.get("Colors/Text new/TxAccentThemed")
+                }
+
                 Text {
                     id: sizeText
                     visible: root.status === UploadProgressBar.Status.Done &&
@@ -250,7 +271,7 @@ Item {
                 Text {
                     id: restartText
                     visible: root.status === UploadProgressBar.Status.Restart
-                    text: Language.getTranslate("Restart", "Повторить")
+                    text: "Возобновить"
                     color: IVColors.get("Colors/Text new/TxContrast")
                     font: IVColors.getFont("Label accent")
                     horizontalAlignment: Text.AlignLeft

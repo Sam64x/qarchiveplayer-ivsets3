@@ -1,102 +1,117 @@
 #pragma once
 
+#include <QObject>
 #include <QVariantMap>
 #include <QVariantList>
-#include <QQuickItem>
-#include <QObject>
-#include <QFile>
-#include <iv_core.h>
 #include <QJsonArray>
-#include <QDir>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <iv_mem2.h>
-#include "iv_mjson2.h"
-#include "iv_stable.h"
-#include <iv_threads.h>
-#include "iv_threads_pool.h"
-#include <iv_cs.h>
-#include "iv_tasks_noncritical.h"
-#include "iv_mem3.h"
-#include <iv_ewriter.h>
-#include <iv_ws.h>
-#include <QDateTime>
+#include <QFile>
+#include <QMutex>
+
+#include <iv_core.h>
+
 class IVCustomSets: public QObject
 {
-  Q_OBJECT
-  //Q_DISABLE_COPY(IVCustomSets)
+    Q_OBJECT
 
-  Q_PROPERTY(QString currentUser READ getCurrentUser WRITE setCurrentUser NOTIFY currentUserChanged)
+    Q_PROPERTY(QString currentUser READ getCurrentUser WRITE setCurrentUser NOTIFY currentUserChanged)
+    Q_PROPERTY(bool sourcesReady READ sourcesReady NOTIFY sourcesReadyChanged)
 
 public:
+    static IVCustomSets* instance();
+    ~IVCustomSets();
 
+    QString getCurrentUser() const;
+    void setCurrentUser(const QString& val);
 
+    bool sourcesReady() const;
+    void setSourcesReady(bool value);
 
+    // ?? for what?
+    Q_INVOKABLE void initMap();
+    Q_INVOKABLE void deinitMap();
+    Q_INVOKABLE void getMapsFromFile();
+    void getEvents();
+    // ??
 
-  IVCustomSets(QObject* parent = 0);
-  ~IVCustomSets();
-  //  Q_INVOKABLE QString getZone(QString setName);
-    QString _camsString;
-    void setCurrentUser(QString val);
-    QString getCurrentUser();
-    QString _currentUser;
-    QString _csServer;
-    QString lastEventTime;
+    Q_INVOKABLE QString getZonesCommon(const QString& setId);
+    Q_INVOKABLE void saveSet2(const QString& setJsonString);
+    void saveOnServer2(const QString& data);
+    Q_INVOKABLE void deleteSet2(const QString& setId);
+    void deleteOnServer2(const QString& setId);
 
+    void updateSourcesReady(const QString& sourceType);
+
+    profile_t _onDataPr {nullptr};
+    profile_t _ipProfile {nullptr};
+    profile_t _camsUpdateProfile {nullptr};
+    profile_t _onResultPr {nullptr};
+
+    QString _lastEventTime;
     QVariantMap _mapsAnalogy;
-    QString _evtTime;
-    QString eventsFilter;
 
-private:
-    profile_t _onDataPr;
-    profile_t _ipProfile;
-    profile_t _onResultPr;
-    QJsonArray bindingCamsArr;
-  int _t;
-  QString _appPath;
-  profile_t _camsUpdateProfile;
-  bool isNeedWs;
-  void getIps();
+    //------ old client code. remove when removing old code
+    Q_INVOKABLE QString getZoneTypes();
+    Q_INVOKABLE int deleteSet(QString setName);
+    Q_INVOKABLE void saveSet(QString setName,QString newSetName,QString setJson);
+    void saveOnServer(QString user,QString folder,QString fileName,QString data);
+    QStringList getLocalSetsList();
+    QStringList getRemoteSetsList();
 
-  static void on_track_client_info(const void* udata, const param_t* p);
-  static void on_track_events(const void* udata, const param_t* p);
-  static void oncmd(const void* udata, const param_t* p);
-    void* zu = 0;
-    static void events_updater_thousand(void* thread, void* udata);
-public slots:
-  QVariantList getBindingCameras(QString key2);
-  void initMap();
-  void deinitMap();
-  void getMapsFromFile();
-  QJsonObject getTypePreset(QString type,QString propertyName,QString propertyType,QVariant value);
-  int deleteSet(QString setName);
-  int deleteSet2(QString setName,QString setId);
-  QString getZoneTypes();
-  QString getZone(QString setName);
-  QString getZone2(QString setName,QString setId);
-  QString getZonesRemote(QString setName);
-  QString getZonesLocal(QString setName);
-  QString getZonesCommon(QString setName,QString setId);
-  QStringList getLocalSetsList();
-  QStringList getRemoteSetsList();
-  QVariantList getSetsList();
-  QString getCameras();
-  QString getMapsList();
-  void getEvents();
+    Q_INVOKABLE QString getZone(QString setName);
+    QString getZonesRemote(QString setName);
+    QString getZonesLocal(QString setName);
 
-
-
-  void saveOnServer(QString user,QString folder,QString fileName,QString data);
-  void saveOnServer2(QString data);
-  void deleteOnServer2(QString setid);
-  void saveSet(QString setName,QString newSetName,QString setJson);
-  void saveSet2(QString setName,QString setId,QString newSetName,QString setJson);
-  void initWs();
-  //int syncSets();
-
+    Q_INVOKABLE QVariantList getSetsList();
+    Q_INVOKABLE QString getCameras();
+    //------
 
 signals:
-  void currentUserChanged(QString userName);
-  void eventMapChanged(QString mapName,QString key2);
+    void currentUserChanged();
+    void eventMapChanged(QString mapName,QString key2);
+    void sourcesReadyChanged();
+    void setsUpdated();
+    void newSetSavedWithId(const QString& previousSetId,
+                           const QString& newSetId,
+                           const QString& newSetName);
+    void setRemoved(const QString& setId);
 
+private:
+    IVCustomSets(QObject* parent = nullptr);
+
+    static void on_track_events(const void* udata, const param_t* p);
+    static void events_updater_thousand(void* thread, void* udata);
+
+    static void on_track_client_info(const void* udata, const param_t* p);
+    static void server_sets_updater(void *thread, void *udata);
+    static void general_server_sets_updater(void *thread, void *udata);
+    static void general_cameras_updater(void *thread, void *udata);
+    static void general_maps_updater(void *thread, void *udata);
+    static void general_fact_list_updater(void *thread, void *udata);
+    static void general_custom_group_list_updater(void *thread, void *udata);
+    static void general_custom_group_set_list_updater(void *thread, void *udata);
+    static void onresult(const void* udata, const param_t* p);
+
+    static QFile getFilePath(const QString& pathToFolder, const QString& fileName);
+
+    QString _currentUser;
+    QJsonArray _bindingCamsArr;
+    int _t;
+    void* _zu = 0;
+
+    bool _sourcesReady = false;
+    QMutex sourcesReadyMutex;
+
+    void save_server_sets(char* json);
+    void save_cameras(char* json);
+    void save_maps(char* json);
+    void save_fact_list(char* json);
+    void save_groups_list(char* json);
+    void save_groups_sets(char* json);
+
+    bool _setsUpdated {false};
+    bool _camerasUpdated {false};
+    bool _mapsUpdated {false};
+    bool _factListUpdated {false};
+    bool _customGroupsUpdated {false};
+    bool _customGroupsSetsUpdated {false};
 };

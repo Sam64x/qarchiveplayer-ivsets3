@@ -114,7 +114,6 @@ Rectangle {
             }
         }
 
-        ///тут кнопка перехода в архив
         Row {
             id: rightArea
 
@@ -211,40 +210,54 @@ Rectangle {
                     }
                 }
             }
-            Rectangle {
-                id:loginRect
-                width: 40*root.isize
-                height: 40*root.isize
-                radius: 8*root.isize
-                anchors.verticalCenter: parent.verticalCenter
-                color: IVColors.get("Colors/Background new/BgFormPrimaryThemed")
-                state: "normal"
-                states: [
-                    State {
-                        name: "normal"
-                        PropertyChanges { target: miniName; color: IVColors.get("Colors/Text new/TxAccentThemed")}
-                        PropertyChanges { target: loginRect; color: IVColors.get("Colors/Background new/BgFormTertiaryThemed")}
-                    },
-                    State {
-                        name: "hovered"
-                        PropertyChanges { target: miniName; color: IVColors.get("Colors/Text new/TxAccentThemed")}
-                        PropertyChanges { target: loginRect; color: IVColors.get("Colors/Background new/BgBtnTertiaryThemed-hover")}
-                    },
-                    State {
-                        name: "pressed"
-                        PropertyChanges { target: miniName; color: IVColors.get("Colors/Text new/TxContrast")}
-                        PropertyChanges { target: loginRect; color: IVColors.get("Colors/Background new/BgBtnCheck")}
+
+            IVButtonControl {
+                id: loginButton
+
+                readonly property string shortName: {
+                    var name = toolTipText
+                    for (var i = 0; i < usr_man.userLogin.length; i++)
+                    {
+                        if (name[i] === ' ' && i <usr_man.userLogin.length-1) {
+                            name = name.slice(0,1) + usr_man.userLogin[i+1]
+                            name.toUpperCase()
+                            return name
+                        }
                     }
-                ]
+                    name[0].toUpperCase()
+                    return name.slice(0,2)
+                }
+
+                implicitWidth: 40 * root.isize
+                implicitHeight: 40 * root.isize
+                anchors.verticalCenter: parent.verticalCenter
+
+                visible: usrLBS.value === 'true' || usr_man.authOn
+                text: shortName
+                toolTipText: (usr_man.userLogin === "guest") ? "Гость" : usr_man.userLogin
+
+                textFont: IVColors.getFont("Title")
+                contentNormalColor: IVColors.get("Colors/Text new/TxAccentThemed")
+                contentHoveredColor: IVColors.get("Colors/Text new/TxAccentThemed")
+                contentPressedColor: IVColors.get("Colors/Text new/TxContrast")
+                backgroundNormalColor: IVColors.get("Colors/Background new/BgFormTertiaryThemed")
+                backgroundHoveredColor: IVColors.get("Colors/Background new/BgBtnTertiaryThemed-hover")
+                backgroundPressedColor: IVColors.get("Colors/Background new/BgBtnCheck")
+
+                onReleased: {
+                    if (usr_man.userLogin === "guest") {
+                        authMenu.open()
+                    }
+                    else {
+                        userMenu.open()
+                    }
+                }
+
                 IvUser {
                     id: usr_man
-                    onAuthOnChanged: loginRect.checkVis()
+
                     property bool firstChange: true
-                    Component.onCompleted: {
-                        loginRect.checkVis()
-                        usr_man.updateLogin()
-                        usr_man.updateWSPort()
-                    }
+
                     onUserLoginChanged: {
                         if (authMenu.opened && usr_man.connectOn) authMenu.close()
                         if (firstChange && rememberUsr.value === "false") {
@@ -252,12 +265,18 @@ Rectangle {
                         }
                         firstChange = false
                     }
+
+                    Component.onCompleted: {
+                        usr_man.updateLogin()
+                        usr_man.updateWSPort()
+                    }
                 }
+
                 IvVcliSetting{
                     id: usrLBS
                     name: 'user.loginBannerStatic'
-                    onValueChanged: loginRect.checkVis()
                 }
+
                 IvVcliSetting {
                     id: rememberUsr
                     name: 'user.constant'
@@ -266,53 +285,6 @@ Rectangle {
                     }
                 }
 
-                Text {
-                    id: miniName
-                    text: getName()
-                    anchors.centerIn: parent
-                    font: IVColors.getFont("Title")
-
-                    function getName(){
-                        var name = loginToolTip.text
-                        for (var i = 0; i < usr_man.userLogin.length; i++)
-                        {
-                            if (name[i] === ' ' && i <usr_man.userLogin.length-1) {
-                                name = name.slice(0,1) + usr_man.userLogin[i+1]
-                                name.toUpperCase()
-                                return name
-                            }
-                        }
-                        name[0].toUpperCase()
-                        return name.slice(0,2)
-                    }
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    IVToolTip {
-                        id: loginToolTip
-                        text: (usr_man.userLogin === "guest") ? "Гость" : usr_man.userLogin
-                        visible: parent.containsMouse
-                    }
-                    onExited: parent.state = "normal"
-                    onEntered: parent.state = "hovered"
-                    onPressed: parent.state = "pressed"
-                    onReleased: {
-                        parent.state = "hovered"
-                        //console.error("usr_man.userLogin = " , usr_man.userLogin)
-                        if (usr_man.userLogin === "guest")
-                        {
-
-                            authMenu.open()
-                        }
-                        else
-                        {
-                            userMenu.open()
-                            //console.error("userMenu.open()" , usr_man.userLogin , userMenu.opened , userMenu.width, userMenu.height , userMenu.x , userMenu.y)
-                            //console.error("userMenu.open()" , parent.width , userMenu.width , userMenu.shadowWidth)
-                        }
-                    }
-                }
                 IVContextMenu {
                     id: userMenu
                     x: -376//parent.width - width + shadowWidth
@@ -669,12 +641,7 @@ Rectangle {
                     }
                 }
 
-                function checkVis() {
-                    var a = usrLBS.value === 'true'
-                    var b = usr_man.authOn
-                    if (a || b) visible = true
-                    else visible = usr_man.authOn
-                }
+
                 /*
                 Loader {
                     id:loginLoader
@@ -721,18 +688,8 @@ Rectangle {
                 }
                 */
             }
-            IvAccess {
-              id: clientClose
-              access: "{closing_system}"
-            }
-            IvAccess {
-              id: clientResize
-              access: "{change_the_size_and_position_of_the_window}"
-            }
-            IvAccess {
-              id: clientHideTab
-              access: "{hide_tabsbar}"
-            }
+
+
             IVButton {
                 id: hideRect
                 anchors.verticalCenter: parent.verticalCenter
@@ -745,11 +702,17 @@ Rectangle {
                 onClicked: {
                     root.miniClicked()
                 }
+
+                IvAccess {
+                  id: clientHideTab
+                  access: "{hide_tabsbar}"
+                }
             }
             Row {
                 height: 32*root.isize
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
+
                 IVButton {
                     id: minimizeBt
                     visible: clientResize.isAllowed?systemFrame.value !== "true":false
@@ -763,6 +726,7 @@ Rectangle {
                         root.Window.window.visibility = Window.Minimized
                     }
                 }
+
                 IVButton {
                     id: expandBt
                     visible: clientResize.isAllowed?systemFrame.value !== "true":false
@@ -787,6 +751,7 @@ Rectangle {
                         }
                     }
                 }
+
                 IVButton {
                     id: closeBt
                     visible: clientClose.isAllowed?systemFrame.value !== "true":false
@@ -799,6 +764,16 @@ Rectangle {
                     onClicked: {
                         Qt.callLater(root.Window.window.close);
                     }
+
+                    IvAccess {
+                      id: clientClose
+                      access: "{closing_system}"
+                    }
+                }
+
+                IvAccess {
+                  id: clientResize
+                  access: "{change_the_size_and_position_of_the_window}"
                 }
             }
         }

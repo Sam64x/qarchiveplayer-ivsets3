@@ -11,7 +11,7 @@ import QtQuick.Dialogs 1.2
 import iv.guicomponents 1.0
 import iv.calendar 1.0
 import iv.archivecomponents.selectinterval 1.0
-import ArchiveComponents 1.0
+import iv.viewers.archiveplayer 1.0
 import QtQuick.Controls.Styles 1.4
 
 import iv.plugins.users 1.0
@@ -22,6 +22,9 @@ import iv.controls 1.0 as C
 
 Item {
     id: root
+
+    property int indexInSavedSet: -1
+    readonly property bool placedInSet: indexInSavedSet !== -1
 
     property var globalComponent: null
     property bool __registeredInCommonArchive: false
@@ -52,8 +55,9 @@ Item {
     }
 
     function getFrameTime() {
-        if (archiveStreamer)
-            return archiveStreamer.currentTime;
+        if (archiveStreamer && archiveStreamer.currentFrameTimeMs)
+            return archiveStreamer.currentFrameTimeMs();
+        return 0;
     }
 
     onGlobalComponentChanged: {
@@ -65,9 +69,11 @@ Item {
     }
 
     function validateSettings(value){
-        try { JSON.parse(value) }
-        catch (e) { return null }
-        return JSON.parse(value)
+        try {
+            return JSON.parse(value)
+        } catch (e) {
+            return null
+        }
     }
 
     function funcSwitchSelectIntervalMode() {
@@ -89,34 +95,22 @@ Item {
         }
     }
 
-    function funcCloseCamera() {
-        var control = root.viewer_command_obj.myGlobalComponent.ivSetsArea
-        if (control !== null && control !== undefined) {
-            root.viewer_command_obj.command_to_viewer('sets:area:removecamera2')
-        } else {
-            root.viewer_command_obj.myGlobalComponent.command1('windows:hide',
-                                                               root, {
-                                                                   id: root.Window.window.unique
-                                                               })
+    function funcClose() {
+        if (root.placedInSet) {
+            root.viewer_command_obj.command_to_viewer('sets:area:removecamera2');
+        }
+        else {
+            root.viewer_command_obj.command_to_viewer('windows:hide');
         }
     }
 
-    function funcCloseSet() {
-        shortcutLastSequence1.value = "Ctrl+W"
-        shortcutLastSequence1.value = "@$##$&*()#"
-    }
-
     Component.onCompleted: {
+        requestWsUrlForCamera()
         if (globalComponent)
             registerInCommonArchive(globalComponent);
     }
 
     Component.onDestruction: unregisterFromCommonArchive()
-
-    IvVcliSetting {
-        id: shortcutLastSequence1
-        name: 'keyboard.signals.' + root.Window.window.unique
-    }
 
     IvVcliSetting {
       id: vcliStretching
@@ -179,7 +173,7 @@ Item {
 
     WebSocketClient {
         id: wsClient
-        url: appInfo.wsUrl
+        url: root.wsUrl
     }
 
 
@@ -236,8 +230,7 @@ Item {
             var dt = Date.fromLocaleString(Qt.locale(), s, "dd.MM.yyyy hh:mm:ss.zzz")
             var dtPlus5 = new Date(dt.getTime() + 1500)
             _suppressTimeUpdates = true
-            archiveControls.calendarButton.calendar.chosenDate = Qt.formatDate(dt, "dd.MM.yyyy")
-            archiveControls.calendarButton.calendar.chosenTime = Qt.formatTime(dt, "hh:mm:ss")
+            archiveControls.calendarButton.calendar.selectedDateTime = dt
             root.archiveTime = dt
             iv_arc_slider_new.currentDate = dt
             _suppressTimeUpdates = false
@@ -271,8 +264,9 @@ Item {
 
     function updateTimeFromCalendar() {
         if (_suppressTimeUpdates) return
-        var chosenDateTime = archiveControls.calendarButton.calendar.chosenDate + " " + archiveControls.calendarButton.calendar.chosenTime
-        var time = Date.fromLocaleString(Qt.locale(), chosenDateTime, "dd.MM.yyyy hh:mm:ss")
+        var time = archiveControls.calendarButton.calendar.selectedDateTime
+        if (!time)
+            return
         _suppressTimeUpdates = true
         iv_arc_slider_new.currentDate = time
         root.archiveTime = time
@@ -290,8 +284,7 @@ Item {
         if (_suppressTimeUpdates) return
         var time = iv_arc_slider_new.currentDate
         _suppressTimeUpdates = true
-        archiveControls.calendarButton.calendar.chosenDate = Qt.formatDate(time, "dd.MM.yyyy")
-        archiveControls.calendarButton.calendar.chosenTime = Qt.formatTime(time, "hh:mm:ss")
+        archiveControls.calendarButton.calendar.selectedDateTime = time
         root.archiveTime = time
         _suppressTimeUpdates = false
 
@@ -303,14 +296,9 @@ Item {
         }
     }
 
-    Binding {
-        target: appInfo
-        property: "archiveKey2"
-        value: root.key2
-    }
-
     property string key2: ''
     property string key3: ''
+    property string wsUrl: ""
 
     property variant viewer_command_obj: null
     property int is_export_media: 0
@@ -423,7 +411,7 @@ Item {
                         if (mouse.button & Qt.RightButton) {
                             contextMenu.x = mouse.x
                             contextMenu.y = mouse.y
-                            contextMenu.open()
+                            contextMenu.openMenu()
                             mouse.accept = true
                         }
                         else mouse.accepted = false
@@ -575,6 +563,7 @@ Item {
                             anchors.fill: parent
                             visible: archiveStreamer.drawPrimitives
                             primitives: archiveStreamer.currentPrimitives
+                            contentRect: videoItem.videoRect
 
                             transform: Scale {
                                 yScale: -1
@@ -667,7 +656,6 @@ Item {
                 }
             }
         }
-
 
         IVButtonTopPanel {
             id: ivButtonTopPanel
@@ -898,9 +886,97 @@ Item {
         }
     }
 
-    IVArchiveContextMenu {
+    C.IVMenu {
         id: contextMenu
-        functReturnToRealtime: root.functReturnToRealtime
-        funcCloseSet: root.funcCloseSet
+        implicitWidth: 300
+
+        Instantiator {
+            model: ListModel {
+                id: contentMenuModel
+            }
+
+            delegate: C.IVMenuItem {
+                text: model.text
+                indicatorSource: model.indicatorSource
+                onTriggered: {
+                    if (model.action === "back") {
+                        root.functReturnToRealtime()
+                    }
+                    else if (model.action === "close") {
+                        root.funcClose()
+                    }
+                    else if (model.action === "select_ip") {
+                        appInfo.selectWsIpForKey2(root.key2, model.ip)
+                    }
+                    else if (model.action === "auto_ip") {
+                        appInfo.clearWsIpOverrideForKey2(root.key2)
+                    }
+                }
+            }
+
+            onObjectAdded: contextMenu.insertItem(index, object)
+            onObjectRemoved: contextMenu.removeItem(object)
+        }
+
+        function openMenu() {
+            refreshModel();
+            open();
+        }
+        function refreshModel() {
+            contentMenuModel.clear();
+            contentMenuModel.append({
+                text: "Возврат в реалтайм",
+                indicatorSource: "new_images/Archive mode play",
+                action: "back"
+            })
+            contentMenuModel.append({
+                text: root.placedInSet ? "Удалить из набора" : "Закрыть вкладку",
+                indicatorSource: root.placedInSet ? "new_images/del" : "new_images/x-close",
+                action: "close"
+            })
+
+            var ips = appInfo.wsIpsForKey2(root.key2)
+            if (ips && ips.length > 0) {
+                contentMenuModel.append({
+                    text: Language.getTranslate("IP: auto", "IP: авто"),
+                    indicatorSource: "",
+                    action: "auto_ip"
+                })
+                for (var i = 0; i < ips.length; ++i) {
+                    contentMenuModel.append({
+                        text: "IP: " + ips[i],
+                        indicatorSource: "",
+                        action: "select_ip",
+                        ip: ips[i]
+                    })
+                }
+            }
+        }
+    }
+
+    function requestWsUrlForCamera() {
+        if (!root.key2 || root.key2.length === 0) {
+            root.wsUrl = appInfo.wsUrl
+            return
+        }
+
+        appInfo.requestWsUrlForKey2(root.key2)
+        var candidate = appInfo.wsUrlForKey2(root.key2)
+        root.wsUrl = (candidate && candidate.length > 0) ? candidate : appInfo.wsUrl
+    }
+    onKey2Changed: requestWsUrlForCamera()
+
+    Connections {
+        target: appInfo
+        function onWsUrlForKey2Changed(key2, wsUrl) {
+            if (key2 === root.key2) {
+                root.wsUrl = wsUrl
+            }
+        }
+        function onWsUrlChanged() {
+            if (!root.key2 || root.key2.length === 0) {
+                root.wsUrl = appInfo.wsUrl
+            }
+        }
     }
 }

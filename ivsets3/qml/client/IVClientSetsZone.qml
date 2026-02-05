@@ -1,8 +1,9 @@
 import QtQuick 2.11
 import QtQml 2.3
 import QtQml.Models 2.1
-import QtQuick.Controls 2.2
+import QtQuick.Controls 2.4
 import QtQuick.Layouts 1.3
+import QtQuick.Window 2.3
 
 import iv.controls 1.0
 import iv.sets.sets3 1.0
@@ -36,15 +37,14 @@ Item {
 
     function tryCreateAndActivateSet(tabName, setId) {
         if (tabName && setId) {
-            if (setId === "new_tab") {
+            if (setId === "new_set") {
                 const createdNewSet = IVSetsManager.createNewSet(tabName);
                 IVSetsManager.setActiveSet(createdNewSet);
-                root.globalSignalsObject.newSetCreated(createdNewSet.name, createdNewSet.id);
             }
             else {
                 var set = IVSetsManager.getSet(setId);
                 if (!set) {
-                    const setJson = customSets.getZone2(tabName, setId);
+                    const setJson = IVCustomSets.getZonesCommon(setId);
                     set = IVSetsManager.createSet(JSON.parse(setJson));
                 }
 
@@ -55,6 +55,7 @@ Item {
         }
     }
 
+    property var zoneObjectInFullscreen: null
     Connections {
         target: globalSignalsObject
 
@@ -62,6 +63,13 @@ Item {
             if (type !== "set") {
                 return;
             }
+
+            isFullscreen = false;
+            if (zoneObjectInFullscreen) {
+                zoneObjectInFullscreen.destroy();
+                privates.createdZones.clear()
+            }
+
 
             root.isRealtime = viewType === 'realtime';
 
@@ -100,6 +108,7 @@ Item {
                 if (root.isFullscreen) {
                     zoneObject.parent = root;
                     zoneObject.anchors.fill = root;
+                    zoneObjectInFullscreen = zoneObject;
                 }
                 else {
                     const slot = privates.slotsRepeater.itemAt(zoneObject.indexInSavedSet);
@@ -108,15 +117,9 @@ Item {
                     }
                     zoneObject.parent = slot.content;
                     zoneObject.anchors.fill = slot.content;
+                    zoneObjectInFullscreen = null;
                 }
             }
-        }
-    }
-
-    IVCustomSets {
-        id: customSets
-        Component.onCompleted: {
-            customSets.initWs();
         }
     }
 
@@ -189,6 +192,42 @@ Item {
                                    : archivePlayerMinComponent
             }
 
+            MouseArea {
+                id: dragMouseArea
+
+                anchors.fill: parent
+
+                visible: !IVSetsManager.freeEditEnabled
+                enabled: visible
+                cursorShape: root.globalSignalsObject.ctrlPressed ? Qt.OpenHandCursor : Qt.ArrowCursor
+
+                drag.target: dragItem
+                drag.axis: Drag.XAndYAxis
+                drag.threshold: 5
+
+                onPressed: {
+                    const shouldDrag = (mouse.button === Qt.LeftButton) && (mouse.modifiers & Qt.ControlModifier)
+                    if (!shouldDrag) {
+                      mouse.accepted = false;
+                      return;
+                    }
+                    const globalPosition = mapToItem(Window.contentItem, mouse.x, mouse.y);
+                    dragItem.x = globalPosition.x - dragItem.width / 2;
+                    dragItem.y = globalPosition.y - dragItem.height / 2;
+
+                    dragItem.dragData = {
+                        indexInSavedSet: dragWrapper.indexInSavedSet,
+                        key2: dragWrapper.key2
+                    }
+
+                    dragItem.Drag.start();
+                }
+
+                onReleased: {
+                    dragItem.Drag.drop();
+                }
+            }
+
             Component {
                 id: viewerComponent
                 ViewerModule.IVViewer {
@@ -206,6 +245,7 @@ Item {
                 ArchivePlayerModule.IVArchivePlayerMin {
                     key2: dragWrapper.key2
                     running: dragWrapper.running
+                    indexInSavedSet: dragWrapper.indexInSavedSet
                     viewer_command_obj: viewerCommandProxy
                     globalComponent: root.commonArchiveManager
                 }
@@ -230,48 +270,6 @@ Item {
                                              });
                 }
             }
-
-            IVImage {
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.left
-                width: 24
-                height: 24
-
-                visible: !IVSetsManager.freeEditEnabled
-                name: "black/drag_horizont"
-
-                MouseArea {
-                    id: dragMouseArea
-
-                    anchors.fill: parent
-                    enabled: parent.visible
-
-                    drag.target: dragItem
-                    drag.axis: Drag.XAndYAxis
-                    drag.threshold: 0
-
-                    onPressed: {
-                        const point = root.mapFromItem(dragMouseArea, mouseX, mouseY);
-                        const targetX = point.x - dragItem.width / 2;
-                        const targetY = point.y - dragItem.height / 2;
-                        const targetInParent = dragItem.parent.mapFromItem(root, targetX, targetY);
-
-                        dragItem.x = targetInParent.x;
-                        dragItem.y = targetInParent.y;
-
-                        dragItem.dragData = {
-                            indexInSavedSet: dragWrapper.indexInSavedSet,
-                            key2: dragWrapper.key2
-                        }
-
-                        dragItem.Drag.start();
-                    }
-
-                    onReleased: {
-                        dragItem.Drag.drop();
-                    }
-                }
-            }
         }
     }
 
@@ -279,15 +277,23 @@ Item {
         id: dragItem
 
         property var dragData: ({})
+        property bool aboveSlot: false
+        property bool slotEmpty: false
 
         width: 36
         height: 24
 
+        parent: Overlay.overlay
         visible: Drag.active
         name: "black/dash"
 
         Drag.hotSpot.x: width / 2
         Drag.hotSpot.y: height / 2
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.ClosedHandCursor
+        }
     }
 
     Connections {
@@ -397,12 +403,17 @@ Item {
         id: archiveHelper
 
         function handleViewerCommand(command, sender, params) {
-            console.log('handleViewerCommand', command)
             if (command === "viewers:fullscreen") {
                 root.globalSignalsObject.command1(command, sender, {});
             }
             else if (command === "viewers:switch") {
-                root.isRealtime ^= true
+                const tab = {
+                    tabName: IVSetsManager.activeSet.name,
+                    type: "set",
+                    setId: IVSetsManager.activeSet.id,
+                    viewType: root.isRealtime ? "archive" : "realtime"
+                }
+                root.globalSignalsObject.tabAdded5(tab.tabName, tab.type, tab.setId, tab.viewType)
             }
             else if (command === "sets:area:removecamera2") {
                 root.globalSignalsObject.removeZoneContent(params.indexInSavedSet);

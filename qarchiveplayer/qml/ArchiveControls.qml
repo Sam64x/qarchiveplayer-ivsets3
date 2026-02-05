@@ -10,7 +10,7 @@ import iv.guicomponents 1.0
 import iv.calendar 1.0
 import iv.archivecomponents.selectinterval 1.0
 import iv.photocam 1.0
-import ArchiveComponents 1.0
+import iv.viewers.archiveplayer 1.0
 import QtQuick.Controls.Styles 1.4
 
 import iv.singletonLang 1.0
@@ -33,7 +33,6 @@ RowLayout {
     property var cameraId
     property var isIntervalMode
     property var archiveTime
-    property real isize: 1
 
     // Component reference
     property var iv_arc_slider_new
@@ -88,7 +87,6 @@ RowLayout {
     }
 
     FrameTimeButton {
-        visible: !root.isCommonSets
         iv_arc_slider_new: root.iv_arc_slider_new
     }
 
@@ -110,37 +108,48 @@ RowLayout {
         imagePipeline: root.imagePipeline || (root.rootRef && root.rootRef.imagePipeline ? root.rootRef.imagePipeline : null)
     }
 
-    Rectangle {
-        height: parent.height
-        width: height
-        radius: 4
-        color: IVColors.get("Colors/Background new/BgEvent")
+
+    RowLayout {
+        spacing: 1
         visible: !root.isCommonSets && root.isIntervalMode && !root.archiveStreamer.exporting
+
+        C.IVButtonControl {
+            Layout.preferredWidth: 72
+            Layout.preferredHeight: 24
+            radius: 0
+            topLeftRadius: 4
+            bottomLeftRadius: 4
+            text: "Выгрузить"
+            size: C.IVButtonControl.Size.Small
+            type: C.IVButtonControl.Type.Event
+            onClicked: exportSettings.startExport()
+        }
 
         ExportSettingsButton {
             id: exportSettings
 
-            anchors.fill: parent
+            radius: 0
+            Layout.preferredWidth: 24
+            Layout.preferredHeight: 24
+            size: C.IVButtonControl.Size.Small
+            type: C.IVButtonControl.Type.Event
             archiveId: root.archiveId
             cameraId: root.cameraId
             rootRef: root.rootRef
             iv_arc_slider_new: root.iv_arc_slider_new
+            wsUrl: root.rootRef && root.rootRef.wsUrl ? root.rootRef.wsUrl : appInfo.wsUrl
         }
-    }
-
-    Rectangle {
-        height: parent.height
-        width: height
-        radius: 4
-        color: IVColors.get("Colors/Background new/BgEvent")
-        visible: !root.isCommonSets && root.isIntervalMode && !root.archiveStreamer.exporting
 
         C.IVButtonControl {
-            anchors.fill: parent
+            Layout.preferredWidth: 24
+            Layout.preferredHeight: 24
+            radius: 0
+            topRightRadius: 4
+            bottomRightRadius: 4
             source: "new_images/x-close"
             size: C.IVButtonControl.Size.Small
-            type: C.IVButtonControl.Type.Tertiary
-            toolTipText: Language.getTranslate("Exit from interval selection","Выйти из режима выбора интервала")
+            type: C.IVButtonControl.Type.Event
+            toolTipText: Language.getTranslate("Exit from interval selection", "Выйти из режима выбора интервала")
             enabled: true
             onClicked: root.funcSwitchSelectIntervalMode()
         }

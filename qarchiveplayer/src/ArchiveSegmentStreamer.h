@@ -8,6 +8,7 @@
 #include <QQueue>
 #include <QSet>
 #include <QMap>
+#include <QHash>
 #include <QImage>
 #include <QDir>
 #include <QRegularExpression>
@@ -50,6 +51,7 @@ class ArchiveSegmentStreamer : public QObject
     Q_PROPERTY(QVariantList currentPrimitives READ currentPrimitives NOTIFY primitivesChanged)
     Q_PROPERTY(bool drawPrimitives READ drawPrimitives WRITE setDrawPrimitives NOTIFY drawPrimitivesChanged)
     Q_PROPERTY(bool externalClock READ externalClock WRITE setExternalClock NOTIFY externalClockChanged)
+    Q_PROPERTY(StreamState state READ state NOTIFY stateChanged)
 
 public:
     explicit ArchiveSegmentStreamer(WebSocketClient* client, QObject* parent=nullptr);
@@ -70,6 +72,7 @@ public:
     Q_INVOKABLE void requestPreviewAt(const QString& cameraId,
                                       const QDateTime& atLocalTime,
                                       const QString& archiveId);
+    Q_INVOKABLE qint64 currentFrameTimeMs() const;
     Q_INVOKABLE bool screenshot(const QString& pathOrDir = "", int quality = 90);
     Q_INVOKABLE void setBufferMaxDurationMs(qint64 ms);
     Q_INVOKABLE void setBufferMaxFrames(int frames);
@@ -94,6 +97,9 @@ public:
     double  currentFPS() const         { return m_currentFPS; }
     QVariantList currentPrimitives() const { return m_currentPrimitives; }
     bool drawPrimitives() const { return m_drawPrimitives; }
+    enum class StreamState { Idle, Preview, Realtime, PausedRealtime, StepPending, Syncing };
+    Q_ENUM(StreamState)
+    StreamState state() const { return m_state; }
 
     void setCameraName(const QString& id);
     void setArchiveId(const QString& id);
@@ -124,6 +130,7 @@ signals:
     void primitivesChanged();
     void drawPrimitivesChanged(bool);
     void externalClockChanged(bool);
+    void stateChanged(StreamState);
 
 public slots:
     void onTextMessage(const QString& msg);
@@ -184,6 +191,7 @@ private:
     void  appendDecodedGop(const QDateTime& gopStartUtc,
                           QVector<Nv12Frame>&& frames);
     void  updateTimeStrings(const QDateTime& tsUtc, bool throttled);
+    void  noteFrameReady(const QDateTime& tsUtc);
     void  updateCurrentFPS(int sampleWindow = 120);
     void  applyTimerInterval();
     qint64 bufferAheadDurationMs() const;
@@ -192,6 +200,16 @@ private:
     bool   stepOne(int dir);
     bool   stepToIndex(int idx);
     void   handleSegmentDecodeFailure(qint64 atMs);
+    bool   clearStaleSegmentInflight(qint64 staleMs);
+    bool   clearStaleSegmentsListInflight(qint64 nowMs, qint64 staleMs);
+    void   setState(Mode mode, bool running, bool paused);
+    void   setStreamState(StreamState state);
+    QString failedSegmentsKey() const;
+    bool   isFailedSegment(qint64 atMs);
+    void   markFailedSegment(qint64 atMs);
+    void   clearFailedSegmentsForSource();
+    void   pruneFailedSegmentsForSource(qint64 nowMs);
+    void   pruneFailedSegmentsForSource(qint64 nowMs, qint64 minKeep, qint64 maxKeep);
     qint64 findNextKnownKeyAfter(qint64 ms) const;
     qint64 findPrevKnownKeyBefore(qint64 ms) const;
     qint64 computeGopEndMsForKey(qint64 keyMs, qint64 anchorMs) const;
@@ -199,6 +217,10 @@ private:
     void   performDelayStart(quint64 token);
     void   scheduleReevaluate(int delayMs);
     void   scheduleSegmentsWindowRequest(const Window& w, int delayMs);
+    void   scheduleSaveLastArchiveTime(const QString& cameraId,
+                                       const QString& archiveId,
+                                       const QDateTime& utc);
+    bool   maybeRecoverFromStall(qint64 nowMs);
     void   maybeLogPerfSnapshot(const char* reason);
     void   recordDecodeSample(qint64 elapsedMs);
     void   recordParseSample(qint64 elapsedMs);
@@ -217,17 +239,33 @@ private:
     bool m_autoInitDone { false };
     bool m_drawPrimitives { true };
     QTimer m_autoInitDebounce;
+    QTimer m_saveDebounce;
+
+    QString m_pendingSaveCameraId;
+    QString m_pendingSaveArchiveId;
+    QDateTime m_pendingSaveUtc;
+
+    QFutureWatcher<QDateTime> m_initWatcher;
+    int m_initToken {0};
+    QString m_pendingInitCameraId;
+    QString m_pendingInitArchiveId;
+    QElapsedTimer m_initElapsed;
 
     Mode      m_mode {Mode::None};
+    StreamState m_state {StreamState::Idle};
     bool      m_running {false};
     bool      m_paused  {true};
     bool      m_externalClock {false};
     QDateTime m_externalClockAtUtc;
     qint64    m_lastExternalSyncMs {0};
+    qint64    m_lastFrameReadyMs {0};
+    qint64    m_lastStreamStartMs {0};
+    qint64    m_lastStallRecoverMs {0};
 
     double    m_playbackSpeed {1.0};
     QTimer    m_playbackTimer;
     QTimer    m_gopPacerTimer;
+    QTimer    m_inflightWatchdog;
 
     FrameBuffer   m_frames;
     ImagePipeline* m_pipeline {nullptr};
@@ -247,6 +285,7 @@ private:
     QQueue<qint64>      m_plannedKfQueue;
     QSet<qint64>        m_requestedKfMs;
     QSet<qint64>        m_decodedKfMs;
+    QHash<QString, QMap<qint64, qint64>> m_failedSegments;
 
     bool      m_segmentInflight {false};
     qint64    m_lastRequestedAtMs {0};
@@ -267,7 +306,8 @@ private:
     int       m_minGopPaceMs      { 10 };
     int       m_maxGopPaceMs      { 80 };
 
-    QThreadPool m_pool;
+    QThreadPool* m_pool {nullptr};
+    QThreadPool* m_decodePool {nullptr};
     QFutureWatcher<QVector<QDateTime>> m_parseWatcher;
     int m_parseGeneration {0};
     QFutureWatcher<QVector<Nv12Frame>> m_decodeWatcher;
@@ -297,6 +337,8 @@ private:
     qint64    m_lastTimeUiUpdateMs {0};
     int       m_pendingStepDir {0};
     QDateTime m_pendingStepAnchorUtc;
+    qint64    m_staleSegmentResets {0};
+    qint64    m_staleSegmentsListResets {0};
     QTimer m_delayDebounceTimer;
     QTimer m_delayGuardTimer;
     QTimer m_reevaluateTimer;

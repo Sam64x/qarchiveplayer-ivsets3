@@ -71,7 +71,7 @@ Connections
     {
         var setStr = JSON.stringify(root.myZones);
         var _nsetName = root.setName+"_копия";
-        customSets.saveSet(_nsetName,_nsetName,setStr);
+        IVCustomSets.saveSet(_nsetName,_nsetName,setStr);
         root.globSignalsObject.setNameChanged(root.setName,_nsetName);
         //root.setName = _nsetName;
     }
@@ -109,10 +109,6 @@ Connections
     {
         root.setPresset3();
     }
-}
-IVCustomSets
-{
-    id:customSets
 }
 
 QtObject
@@ -357,16 +353,16 @@ onRowsChanged:
  {
      var setStr = JSON.stringify(root.myZones);
 
-     customSets.saveSet(root.setName,newSetName,setStr);
+     IVCustomSets.saveSet(root.setName,newSetName,setStr);
  }
  function deleteSet(setName)
  {
      var setStr = JSON.stringify(root.myZones);
      if(root.setName !=="")
-        customSets.deleteSet(root.setName);
+        IVCustomSets.deleteSet(root.setName);
      if(setName)
      {
-         customSets.deleteSet(setName);
+         IVCustomSets.deleteSet(setName);
      }
  }
 
@@ -612,7 +608,7 @@ Timer
     onTriggered:
     {
         root.clearZones();
-        var _zones = customSets.getZone(root.setName);
+        var _zones = IVCustomSets.getZone(root.setName);
         var zonesObject = [];
         try
         {

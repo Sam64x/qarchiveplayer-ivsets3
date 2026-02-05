@@ -8,7 +8,6 @@ import iv.colors 1.0
 import iv.singletonLang 1.0
 import iv.controls 1.0 as C
 import iv.viewers.archiveplayer 1.0
-import ArchiveComponents 1.0
 
 C.IVButtonControl {
     id: root
@@ -38,6 +37,18 @@ C.IVButtonControl {
             settingsMenu.open();
     }
 
+    function restoreSliderBindings() {
+        if (typeof brightness_slider === "undefined")
+            return
+        brightness_slider.inputValue = Qt.binding(function(){ return draft.brightness })
+        contrast_slider.inputValue   = Qt.binding(function(){ return draft.contrast })
+        saturation_slider.inputValue = Qt.binding(function(){ return draft.saturation })
+        red_slider.inputValue        = Qt.binding(function(){ return draft.red })
+        green_slider.inputValue      = Qt.binding(function(){ return draft.green })
+        blue_slider.inputValue       = Qt.binding(function(){ return draft.blue })
+    }
+
+
     C.IVContextMenuControl {
         id: settingsMenu
 
@@ -53,6 +64,7 @@ C.IVButtonControl {
         onOpened: {
             applied = false
             backend.open()
+            root.restoreSliderBindings()
         }
 
         x: {
@@ -238,9 +250,8 @@ C.IVButtonControl {
                             minValue: 0
                             maxValue: 100
                             text: Language.getTranslate("Brightness", "Яркость")
-                            value: draft.brightness
-                            live: true
-                            onValueChanged: {
+                            inputValue: draft.brightness
+                            valueChangeHandler: function(value) {
                                 draft.brightness = value
                                 if (imagePipeline)
                                     imagePipeline.brightness = value
@@ -253,10 +264,9 @@ C.IVButtonControl {
                             height: 32
                             minValue: 0
                             maxValue: 100
-                            live: true
                             text: Language.getTranslate("Contrast", "Контраст")
-                            value: draft.contrast
-                            onValueChanged: {
+                            inputValue: draft.contrast
+                            valueChangeHandler: function(value) {
                                 draft.contrast = value
                                 if (imagePipeline)
                                     imagePipeline.contrast = Math.round(value)
@@ -269,10 +279,9 @@ C.IVButtonControl {
                             height: 32
                             minValue: 0
                             maxValue: 100
-                            live: true
                             text: Language.getTranslate("Saturation", "Насыщенность")
-                            value: draft.saturation
-                            onValueChanged: {
+                            inputValue: draft.saturation
+                            valueChangeHandler: function(value) {
                                 draft.saturation = value
                                 if (imagePipeline)
                                     imagePipeline.saturation = Math.round(value)
@@ -285,10 +294,9 @@ C.IVButtonControl {
                             height: 32
                             minValue: 0
                             maxValue: 255
-                            live: true
                             text: Language.getTranslate("Red", "Красный")
-                            value: draft.red
-                            onValueChanged: {
+                            inputValue: draft.red
+                            valueChangeHandler: function(value) {
                                 draft.red = value
                                 if (imagePipeline)
                                     imagePipeline.rgbR = Math.round(value)
@@ -301,10 +309,9 @@ C.IVButtonControl {
                             height: 32
                             minValue: 0
                             maxValue: 255
-                            live: true
                             text: Language.getTranslate("Green", "Зелёный")
-                            value: draft.green
-                            onValueChanged: {
+                            inputValue: draft.green
+                            valueChangeHandler: function(value) {
                                 draft.green = value
                                 if (imagePipeline)
                                     imagePipeline.rgbG = Math.round(value)
@@ -317,25 +324,12 @@ C.IVButtonControl {
                             height: 32
                             minValue: 0
                             maxValue: 255
-                            live: true
                             text: Language.getTranslate("Blue", "Синий")
-                            value: draft.blue
-                            onValueChanged: {
+                            inputValue: draft.blue
+                            valueChangeHandler: function(value) {
                                 draft.blue = value
                                 if (imagePipeline)
                                     imagePipeline.rgbB = Math.round(value)
-                            }
-                        }
-
-                        Connections {
-                            target: settingsMenu
-                            onOpened: {
-                                brightness_slider.value = backend.brightness
-                                contrast_slider.value   = backend.contrast
-                                saturation_slider.value = backend.saturation
-                                red_slider.value        = backend.red
-                                green_slider.value      = backend.green
-                                blue_slider.value       = backend.blue
                             }
                         }
                     }
@@ -637,7 +631,7 @@ C.IVButtonControl {
                 spacing: 8
 
                 C.IVButtonControl {
-                    text: Language.getTranslate("Cancel", "Сбросить")
+                    text: Language.getTranslate("Cancel", "Отмена")
                     Layout.fillWidth:      true
                     Layout.preferredWidth: 1
                     size:  C.IVButtonControl.Size.Big
@@ -646,6 +640,15 @@ C.IVButtonControl {
                         backend.cancel()
                         settingsMenu.close()
                     }
+                }
+
+                C.IVButtonControl {
+                    text: Language.getTranslate("Reset", "Сбросить")
+                    Layout.fillWidth:      true
+                    Layout.preferredWidth: 1
+                    size:  C.IVButtonControl.Size.Big
+                    type:  C.IVButtonControl.Type.Secondary
+                    onClicked: backend.resetToDefaults()
                 }
 
                 C.IVButtonControl {
@@ -692,7 +695,8 @@ C.IVButtonControl {
             target: settingsMenu
             onClosed: {
                 if (!settingsMenu.applied)
-                    root.posAlignment = backend.indexToFlags(backend.orientationIndex)
+                    backend.cancel()
+
             }
         }
     }
@@ -707,6 +711,13 @@ C.IVButtonControl {
         property int green:      imagePipeline ? imagePipeline.rgbG       : 0
         property int blue:       imagePipeline ? imagePipeline.rgbB       : 0
         property int orientationIndex: 0
+        readonly property int defaultBrightness: 50
+        readonly property int defaultContrast: 50
+        readonly property int defaultSaturation: 50
+        readonly property int defaultRed: 128
+        readonly property int defaultGreen: 128
+        readonly property int defaultBlue: 128
+        readonly property int defaultOrientationIndex: 0
 
         function flagsToIndex(flags) {
             var top  = (flags & Qt.AlignTop) === Qt.AlignTop
@@ -763,6 +774,7 @@ C.IVButtonControl {
             draft.blue       = backend.blue
 
             root.posAlignment = backend.indexToFlags(backend.orientationIndex)
+            root.restoreSliderBindings()
         }
 
         function apply() {
@@ -777,6 +789,29 @@ C.IVButtonControl {
             backend.red        = draft.red
             backend.green      = draft.green
             backend.blue       = draft.blue
+        }
+
+        function resetToDefaults() {
+            if (!imagePipeline)
+                return
+
+            imagePipeline.brightness = defaultBrightness
+            imagePipeline.contrast   = defaultContrast
+            imagePipeline.saturation = defaultSaturation
+            imagePipeline.rgbR       = defaultRed
+            imagePipeline.rgbG       = defaultGreen
+            imagePipeline.rgbB       = defaultBlue
+
+            draft.brightness = defaultBrightness
+            draft.contrast   = defaultContrast
+            draft.saturation = defaultSaturation
+            draft.red        = defaultRed
+            draft.green      = defaultGreen
+            draft.blue       = defaultBlue
+
+            root.posAlignment = backend.indexToFlags(defaultOrientationIndex)
+            orientationButtons.syncUIFromIndex(defaultOrientationIndex)
+            root.restoreSliderBindings()
         }
     }
 

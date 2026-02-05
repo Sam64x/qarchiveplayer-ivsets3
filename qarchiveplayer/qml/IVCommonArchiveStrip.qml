@@ -4,6 +4,7 @@ import QtQuick.Controls 2.3
 import QtQuick.Layouts 1.3
 
 import iv.colors 1.0
+import iv.plugins.loader 1.0
 import iv.viewers.archiveplayer 1.0 as ArchivePlayer
 import iv.singletonLang 1.0
 import iv.controls 1.0 as C
@@ -14,40 +15,61 @@ Item {
     property var players: []
     property int playersCount: Math.max(1, players.length)
     property var archivePlayers: []
-    property real isize: 1
 
     property var sharedCurrentDate: null
     property bool suppressTimeUpdates: false
     property bool needToUpdateArchive: true
     property bool isIntervalMode: false
     property var primarySlider: null
-    property int commonScale: 0
+    property int commonScale: validateSettings(stripScale.value) !== null ? validateSettings(stripScale.value) : 4
+
+    IvVcliSetting {
+        id: stripScale
+        name: 'archive.strip_scale'
+    }
+
+    function validateSettings(value){
+        try {
+            return JSON.parse(value)
+        } catch (e) {
+            return null
+        }
+    }
+    onCommonScaleChanged: {
+        if (commonTimeline && commonTimeline.setScale) {
+            commonTimeline.setScale(commonScale);
+        }
+    }
     property bool hasFullscreenPlayer: false
+    property bool _suppressArchiveTimeSync: false
+    property real _stepSyncStartMs: 0
+    property real _stepSyncLastFrameMs: 0
 
     readonly property var primaryPlayer: archivePlayers.length > 0 ? archivePlayers[0] : null
     readonly property var primaryImagePipeline: primaryPlayer ? (primaryPlayer.imagePipeline || (primaryPlayer.idarchive_player && primaryPlayer.idarchive_player.imagePipeline) || null)  : null
     readonly property bool hasMultiplePlayers: archivePlayers.length > 1
 
     readonly property bool archiveIsPlaying: !multiArchiveStreamer.paused
+    readonly property int visiblePlayersCount: Math.min(playersCount, 4)
 
     property var rootRef
     readonly property string archiveId: primaryPlayer && primaryPlayer.archiveId ? primaryPlayer.archiveId : ""
     readonly property string cameraId: primaryPlayer && primaryPlayer.cameraId ? primaryPlayer.cameraId : ""
 
-    height: playersCount * (32 + 4) + 90 + 8
-
-    ListModel { id: emptyModel }
+    height: visiblePlayersCount * (32 + 4) + 90 + 8
 
     property var  _masterPlayhead: null
-    property real _masterLastTickMs: 0
-    property int  _masterTickIntervalMs: 40
+
+    ArchivePlayer.PlaybackCoordinator {
+        id: playbackCoordinator
+    }
 
     Timer {
-        id: _masterSyncTimer
-        interval: root._masterTickIntervalMs
+        id: _stepSyncTimer
+        interval: 30
         repeat: true
         running: false
-        onTriggered: root._masterTick()
+        onTriggered: root._stepSyncTick()
     }
 
     function _setMasterPlayhead(dt) {
@@ -56,39 +78,30 @@ Item {
         else root._masterPlayhead = new Date(dt)
     }
 
-    function _startMasterClock(optionalDt) {
-        if (optionalDt) _setMasterPlayhead(optionalDt)
-        if (!root._masterPlayhead && sharedCurrentDate)
-            _setMasterPlayhead(sharedCurrentDate)
-        root._masterLastTickMs = Date.now()
-        _masterSyncTimer.start()
+    function _primaryFrameTimeMs() {
+        if (!primaryPlayer || !primaryPlayer.getFrameTime)
+            return 0
+        var t = Number(primaryPlayer.getFrameTime())
+        return isNaN(t) ? 0 : t
     }
 
-    function _stopMasterClock() {
-        _masterSyncTimer.stop()
-        root._masterLastTickMs = 0
-    }
-
-    function _masterTick() {
-        if (!multiArchiveStreamer.hasPlayers) return
-
-        if (!root._masterPlayhead) {
-            if (sharedCurrentDate) _setMasterPlayhead(sharedCurrentDate)
-            else root._masterPlayhead = new Date()
+    function _stepSyncTick() {
+        if (!root.hasMultiplePlayers) {
+            _stepSyncTimer.stop()
+            return
         }
-
         var now = Date.now()
-        if (!root._masterLastTickMs) root._masterLastTickMs = now
-        var dt = now - root._masterLastTickMs
-        root._masterLastTickMs = now
-
-        var spd = Number(multiArchiveStreamer.playbackSpeed)
-        if (isNaN(spd)) spd = 1
-
-        if (dt > 0 && spd !== 0)
-            root._masterPlayhead = new Date(root._masterPlayhead.getTime() + dt * spd)
-
-        multiArchiveStreamer.syncTo(root._masterPlayhead)
+        var currentMs = _primaryFrameTimeMs()
+        if (currentMs > 0 && currentMs !== _stepSyncLastFrameMs) {
+            _stepSyncTimer.stop()
+            multiArchiveStreamer.syncStepToMs(currentMs)
+            return
+        }
+        if (now - _stepSyncStartMs > 1500) {
+            _stepSyncTimer.stop()
+            if (currentMs > 0)
+                multiArchiveStreamer.syncStepToMs(currentMs)
+        }
     }
 
     function forEachPlayer(callback) {
@@ -129,12 +142,24 @@ Item {
 
         applyScaleToPlayers(commonScale);
 
-        var frameTime = currentFrameTime();
-        if (frameTime > 0) {
-            sharedCurrentDate = new Date(frameTime);
-            if (primarySlider)
-                primarySlider.currentDate = sharedCurrentDate;
+        if (primaryPlayer.archiveStreamer)
+            playbackCoordinator.playbackSpeed = primaryPlayer.archiveStreamer.playbackSpeed;
+
+        var initialDate = null
+        if (primaryPlayer.archiveTime instanceof Date && !isNaN(primaryPlayer.archiveTime.getTime()))
+            initialDate = primaryPlayer.archiveTime
+        else {
+            var frameTime = currentFrameTime();
+            if (frameTime > 0)
+                initialDate = new Date(frameTime);
         }
+        if (initialDate) {
+            updateSharedCurrentDate(initialDate);
+            if (primarySlider)
+                primarySlider.currentDate = initialDate;
+        }
+
+        syncFromPrimaryArchiveTime();
     }
 
     function isArchivePlayerMin(candidate) {
@@ -188,6 +213,16 @@ Item {
         syncPrimaryPlayer();
         updateIntervalMode();
         updateFullscreenState();
+        updateCoordinatorStreamers();
+    }
+
+    function updateCoordinatorStreamers() {
+        var list = [];
+        forEachPlayer(function(player) {
+            if (player && player.archiveStreamer)
+                list.push(player.archiveStreamer);
+        });
+        playbackCoordinator.setStreamers(list);
     }
 
     function updateIntervalMode() {
@@ -219,6 +254,16 @@ Item {
         hasFullscreenPlayer = fullscreen;
     }
 
+    function updateSharedCurrentDate(time) {
+        if (!time)
+            return;
+        if (sharedCurrentDate && sharedCurrentDate.getTime && time.getTime &&
+                sharedCurrentDate.getTime() === time.getTime()) {
+            return;
+        }
+        sharedCurrentDate = time;
+    }
+
 
     function setCalendarTime(time) {
         if (!time || suppressTimeUpdates)
@@ -226,14 +271,13 @@ Item {
 
         suppressTimeUpdates = true;
         if (archiveControls && archiveControls.calendarButton) {
-            archiveControls.calendarButton.calendar.chosenDate = Qt.formatDate(time, "dd.MM.yyyy");
-            archiveControls.calendarButton.calendar.chosenTime = Qt.formatTime(time, "hh:mm:ss");
+            archiveControls.calendarButton.calendar.selectedDateTime = time;
         }
         suppressTimeUpdates = false;
     }
 
     function updatePlayersArchiveTime(time) {
-        sharedCurrentDate = time;
+        updateSharedCurrentDate(time);
         forEachPlayer(function(player) {
             if (player.applyCommonCurrentDate)
                 player.applyCommonCurrentDate(time);
@@ -251,8 +295,9 @@ Item {
         if (suppressTimeUpdates)
             return;
 
-        var chosenDateTime = archiveControls.calendarButton.calendar.chosenDate + " " + archiveControls.calendarButton.calendar.chosenTime;
-        var time = Date.fromLocaleString(Qt.locale(), chosenDateTime, "dd.MM.yyyy hh:mm:ss");
+        var time = archiveControls.calendarButton.calendar.selectedDateTime;
+        if (!time)
+            return;
         if (primarySlider)
             primarySlider.currentDate = time;
         updatePlayersArchiveTime(time);
@@ -276,6 +321,19 @@ Item {
         } else {
             multiArchiveStreamer.delayStart(cameraId, time, archiveId);
         }
+    }
+
+    function syncFromPrimaryArchiveTime() {
+        if (!primaryPlayer || !primaryPlayer.archiveTime || _suppressArchiveTimeSync)
+            return;
+        var time = primaryPlayer.archiveTime;
+        _suppressArchiveTimeSync = true;
+        updateSharedCurrentDate(time);
+        if (primarySlider && (!primarySlider.currentDate
+                              || primarySlider.currentDate.getTime() !== time.getTime()))
+            primarySlider.currentDate = time;
+        setCalendarTime(time);
+        _suppressArchiveTimeSync = false;
     }
 
     function toggleIntervalMode() {
@@ -319,62 +377,50 @@ Item {
 
         property real playbackSpeed: primaryPlayer && primaryPlayer.archiveStreamer ? primaryPlayer.archiveStreamer.playbackSpeed : 1
 
-        onPlaybackSpeedChanged: {
-            forEachPlayer(function(player) {
-                if (player.archiveStreamer)
-                    player.archiveStreamer.playbackSpeed = playbackSpeed;
-            });
-        }
+        onPlaybackSpeedChanged: playbackCoordinator.playbackSpeed = playbackSpeed
 
         function pauseStream() {
             var playhead = root._masterPlayhead || sharedCurrentDate
             if (playhead)
-                syncTo(playhead)
-            _stopMasterClock()
-            forEachPlayer(function(player) {
-                if (player.archiveStreamer)
-                    player.archiveStreamer.pauseStream();
-            });
+                playbackCoordinator.setMasterTime(playhead)
+            playbackCoordinator.pause();
         }
 
         function resumeStream() {
-            enableExternalClock(true)
-            forEachPlayer(function(player) {
-                if (player.archiveStreamer)
-                    player.archiveStreamer.resumeStream();
-            });
-            _startMasterClock()
+            if (sharedCurrentDate)
+                playbackCoordinator.setMasterTime(sharedCurrentDate)
+            playbackCoordinator.resume();
             needToUpdateArchive = false;
         }
 
         function startStreamAt(cameraId, time, archiveId) {
             var targetTime = time || sharedCurrentDate
-            enableExternalClock(true)
-            _startMasterClock(targetTime)
             forEachPlayer(function(player) {
                 if (player.archiveStreamer)
                     player.archiveStreamer.startStreamAt(player.cameraId, targetTime, player.archiveId);
                 if (player.needToUpdateArchive !== undefined)
                     player.needToUpdateArchive = false;
             });
+            playbackCoordinator.setMasterTime(targetTime)
+            playbackCoordinator.resume();
             needToUpdateArchive = false;
         }
 
         function delayStart(cameraId, time, archiveId) {
             var targetTime = time || sharedCurrentDate
-            enableExternalClock(true)
-            _startMasterClock(targetTime)
             forEachPlayer(function(player) {
                 if (player.archiveStreamer && player.archiveStreamer.delayStart)
                     player.archiveStreamer.delayStart(player.cameraId, targetTime, player.archiveId);
             });
+            playbackCoordinator.setMasterTime(targetTime)
+            playbackCoordinator.resume();
             needToUpdateArchive = false;
         }
 
         function requestPreviewAt(cameraId, time, archiveId) {
             var targetTime = time || sharedCurrentDate
-            _stopMasterClock()
             _setMasterPlayhead(targetTime)
+            playbackCoordinator.pause();
             forEachPlayer(function(player) {
                 if (player.archiveStreamer)
                     player.archiveStreamer.requestPreviewAt(player.cameraId, targetTime, player.archiveId);
@@ -382,6 +428,10 @@ Item {
         }
 
         function stepFrameLeft() {
+            if (root.hasMultiplePlayers) {
+                stepFrameLeftSync();
+                return;
+            }
             forEachPlayer(function(player) {
                 if (player.archiveStreamer && player.archiveStreamer.stepFrameLeft)
                     player.archiveStreamer.stepFrameLeft();
@@ -389,19 +439,77 @@ Item {
         }
 
         function stepFrameRight() {
+            if (root.hasMultiplePlayers) {
+                stepFrameRightSync();
+                return;
+            }
             forEachPlayer(function(player) {
                 if (player.archiveStreamer && player.archiveStreamer.stepFrameRight)
                     player.archiveStreamer.stepFrameRight();
             });
+        }
+
+    function syncStepTo(time) {
+        if (!time)
+            return;
+        _setMasterPlayhead(time);
+        _suppressArchiveTimeSync = true;
+        updatePlayersArchiveTime(time);
+        _suppressArchiveTimeSync = false;
+        forEachPlayer(function(player) {
+            if (!player || player === primaryPlayer)
+                return;
+            var frameMs = 0;
+            if (player.getFrameTime)
+                frameMs = Number(player.getFrameTime());
+            if (isNaN(frameMs))
+                frameMs = 0;
+            if (frameMs === 0 || frameMs !== time.getTime()) {
+                if (player.archiveStreamer)
+                    player.archiveStreamer.requestPreviewAt(player.cameraId, time, player.archiveId);
+            }
+        });
+    }
+
+        function syncStepToMs(ms) {
+            if (!ms)
+                return
+            syncStepTo(new Date(ms))
+        }
+
+        function stepFrameLeftSync() {
+            if (!root.hasMultiplePlayers) {
+                pauseStream();
+                stepFrameLeft();
+                return;
+            }
+            root._stepSyncLastFrameMs = root._primaryFrameTimeMs();
+            root._stepSyncStartMs = Date.now();
+            _stepSyncTimer.start();
+            pauseStream();
+            playbackCoordinator.step(-1);
+        }
+
+        function stepFrameRightSync() {
+            if (!root.hasMultiplePlayers) {
+                pauseStream();
+                stepFrameRight();
+                return;
+            }
+            root._stepSyncLastFrameMs = root._primaryFrameTimeMs();
+            root._stepSyncStartMs = Date.now();
+            _stepSyncTimer.start();
+            pauseStream();
+            playbackCoordinator.step(1);
         }
     }
 
     ColumnLayout {
         anchors.fill: parent
         anchors.topMargin: 8
-        spacing: 8 * root.isize
+        spacing: 8
 
-        ArchiveControls {
+        CommonArchiveControls {
             id: archiveControls
 
             implicitHeight: 32 - parent.spacing*2
@@ -409,16 +517,16 @@ Item {
 
             m_i_curr_scale: root.commonScale
             needToUpdateArchive: root.needToUpdateArchive
+
             archiveId: root.archiveId
             rootRef: root.rootRef
-            imagePipeline: root.primaryImagePipeline
             cameraId: root.cameraId
-            isIntervalMode: root.isIntervalMode || commonTimeline.exportMode
             archiveTime: root.sharedCurrentDate
-            isCommonSets: true
-            iv_arc_slider_new: primarySlider
+
+            iv_arc_slider_new: commonTimeline
             archiveStreamer: multiArchiveStreamer
-            updateTimeFromSlider: root.updateTimeFromSlider
+            commonTimeline: commonTimeline
+
             updateTimeFromCalendar: root.updateTimeFromCalendar
 
             onScaleChosen: root.applyScaleToPlayers(index)
@@ -428,64 +536,6 @@ Item {
                     if (player.needToUpdateArchive !== undefined)
                         player.needToUpdateArchive = false;
                 });
-            }
-
-            RowLayout {
-                spacing: 1
-                visible: commonTimeline.exportMode
-
-                C.IVButtonControl {
-                    Layout.preferredWidth: 72
-                    Layout.preferredHeight: 24
-                    radius: 0
-                    topLeftRadius: 4
-                    bottomLeftRadius: 4
-                    text: "Выгрузить"
-                    size: C.IVButtonControl.Size.Small
-                    type: C.IVButtonControl.Type.Event
-                    enabled: commonTimeline.exportCameraIds.length > 0
-                    onClicked: exportSettings.startExport()
-                }
-
-                ExportSettingsButton {
-                    id: exportSettings
-                    radius: 0
-                    Layout.preferredWidth: 24
-                    Layout.preferredHeight: 24
-                    size: C.IVButtonControl.Size.Small
-                    type: C.IVButtonControl.Type.Event
-                    enabled: commonTimeline.exportCameraIds.length > 0
-                    archiveId: root.archiveId
-                    cameraId: root.cameraId
-                    rootRef: root.rootRef
-                    imagePipeline: root.primaryImagePipeline
-                    externalFromTime: commonTimeline.exportBounds.left
-                    externalToTime: commonTimeline.exportBounds.right
-                    useExternalBounds: true
-                    exportCameraIds: commonTimeline.exportCameraIds
-                    applyBounds: function(fromTime, toTime) {
-                        commonTimeline.setExportBounds(fromTime, toTime)
-                    }
-                }
-
-                C.IVButtonControl {
-                    Layout.preferredWidth: 24
-                    Layout.preferredHeight: 24
-                    radius: 0
-                    topRightRadius: 4
-                    bottomRightRadius: 4
-                    source: "new_images/x-close"
-                    size: C.IVButtonControl.Size.Small
-                    type: C.IVButtonControl.Type.Event
-                    toolTipText: Language.getTranslate("Exit from interval selection", "Выйти из режима выбора интервала")
-                    enabled: true
-                    onClicked: {
-                        if (commonTimeline.exportMode)
-                            commonTimeline.exportMode = false
-                        else
-                            root.toggleIntervalMode()
-                    }
-                }
             }
         }
 
@@ -501,7 +551,6 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                isize: root.isize
                 players: root.archivePlayers
                 commonScale: root.commonScale
                 sharedCurrentDate: root.sharedCurrentDate
@@ -509,7 +558,6 @@ Item {
                 onTimeChanged: {
                     if (!date)
                         return;
-                    root.sharedCurrentDate = date
                     root.updatePlayersArchiveTime(date)
                     root.setCalendarTime(date)
                     root.updateTimeFromSlider()
@@ -531,7 +579,14 @@ Item {
                     });
                 }
 
-                Component.onCompleted: root.primarySlider = commonTimeline.slider
+                Component.onCompleted: {
+                    root.primarySlider = commonTimeline.slider;
+
+                    ArchivePlayer.ExportManager.commonTimeline = this;
+                }
+                Component.onDestruction: {
+                    ArchivePlayer.ExportManager.commonTimeline = null;
+                }
             }
 
             Binding {
@@ -542,8 +597,19 @@ Item {
         }
     }
 
+    Binding {
+        target: ArchivePlayer.ExportManager
+        property: "archiveId"
+        value: archiveId
+    }
+
     Component.onCompleted: {
         syncPrimaryPlayer()
         updateFullscreenState()
+    }
+
+    Connections {
+        target: primaryPlayer
+        onArchiveTimeChanged: root.syncFromPrimaryArchiveTime()
     }
 }

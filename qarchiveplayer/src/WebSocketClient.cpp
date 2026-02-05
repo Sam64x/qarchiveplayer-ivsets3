@@ -3,7 +3,9 @@
 #include <QDebug>
 #include <QMetaType>
 #include <QMetaObject>
+#include <QThread>
 #include <QWebSocketProtocol>
+#include <mutex>
 
 static QString displayUrl(const QUrl& u)
 {
@@ -23,6 +25,21 @@ static QString stateToString(QAbstractSocket::SocketState s)
     }
     return QStringLiteral("Unknown");
 }
+
+namespace {
+QThread* sharedWebSocketThread()
+{
+    static QThread* thread = nullptr;
+    static std::once_flag once;
+    std::call_once(once, []() {
+        thread = new QThread();
+        thread->setObjectName(QStringLiteral("WebSocketClientSharedThread"));
+        thread->setPriority(QThread::LowPriority);
+        thread->start();
+    });
+    return thread;
+}
+} // namespace
 
 WebSocketClientWorker::WebSocketClientWorker(QObject* parent)
     : QObject(parent)
@@ -58,7 +75,7 @@ void WebSocketClientWorker::setUrl(const QUrl& u)
         m_userClose = true;
         if (m_timer) m_timer->stop();
         if (m_socket->state() != QAbstractSocket::UnconnectedState) {
-            qInfo().noquote() << "[WS] Closing connection because URL was cleared";
+            // qInfo().noquote() << "[WS] Closing connection because URL was cleared";
             m_socket->close();
         }
         return;
@@ -70,7 +87,7 @@ void WebSocketClientWorker::setUrl(const QUrl& u)
         switch (m_socket->state()) {
         case QAbstractSocket::ConnectedState:
         case QAbstractSocket::ConnectingState:
-            qInfo().noquote() << "[WS] Switching endpoint, reconnecting to" << displayUrl(m_url);
+            // qInfo().noquote() << "[WS] Switching endpoint, reconnecting to" << displayUrl(m_url);
             m_socket->close();
             QTimer::singleShot(0, this, [this]() {
                 if (m_socket && !m_url.isEmpty())
@@ -78,7 +95,7 @@ void WebSocketClientWorker::setUrl(const QUrl& u)
             });
             break;
         default:
-            qInfo().noquote() << "[WS] Endpoint set to" << displayUrl(m_url) << "- opening connection";
+            // qInfo().noquote() << "[WS] Endpoint set to" << displayUrl(m_url) << "- opening connection";
             m_socket->open(m_url);
             break;
         }
@@ -105,7 +122,7 @@ void WebSocketClientWorker::connectToServer()
     m_userClose = false;
     if (m_socket->state() == QAbstractSocket::ConnectedState || m_socket->state() == QAbstractSocket::ConnectingState) return;
     if (m_timer) m_timer->stop();
-    qInfo().noquote() << "[WS] Connecting to" << displayUrl(m_url);
+    // qInfo().noquote() << "[WS] Connecting to" << displayUrl(m_url);
     m_socket->open(m_url);
 }
 
@@ -114,7 +131,7 @@ void WebSocketClientWorker::close()
     if (!m_socket) return;
     m_userClose = true;
     if (m_timer) m_timer->stop();
-    qInfo().noquote() << "[WS] Closing connection to" << displayUrl(m_socket->requestUrl().isEmpty() ? m_url : m_socket->requestUrl());
+    // qInfo().noquote() << "[WS] Closing connection to" << displayUrl(m_socket->requestUrl().isEmpty() ? m_url : m_socket->requestUrl());
     m_socket->close();
 }
 
@@ -140,7 +157,7 @@ void WebSocketClientWorker::tryReconnect()
     if (st == QAbstractSocket::ConnectedState) { if (m_timer) m_timer->stop(); return; }
     if (st == QAbstractSocket::ConnectingState) return;
     if (m_url.isEmpty()) return;
-    qInfo().noquote() << "[WS] Reconnecting to" << displayUrl(m_url);
+    // qInfo().noquote() << "[WS] Reconnecting to" << displayUrl(m_url);
     m_socket->open(m_url);
 }
 
@@ -148,31 +165,31 @@ void WebSocketClientWorker::onConnected()
 {
     if (m_timer) m_timer->stop();
     m_userClose = false;
-    const QUrl used = m_socket->requestUrl().isEmpty() ? m_url : m_socket->requestUrl();
-    qInfo().noquote() << "[WS] Connected to" << displayUrl(used);
+    // const QUrl used = m_socket->requestUrl().isEmpty() ? m_url : m_socket->requestUrl();
+    // qInfo().noquote() << "[WS] Connected to" << displayUrl(used);
     emit connected();
 }
 
 void WebSocketClientWorker::onDisconnected()
 {
-    const QUrl used = m_socket->requestUrl().isEmpty() ? m_url : m_socket->requestUrl();
-    const int code = static_cast<int>(m_socket->closeCode());
-    const QString reason = m_socket->closeReason();
-    qInfo().noquote() << "[WS] Disconnected from" << displayUrl(used) << "(code" << code << "," << (reason.isEmpty() ? QStringLiteral("no reason") : reason) << ")";
+    // const QUrl used = m_socket->requestUrl().isEmpty() ? m_url : m_socket->requestUrl();
+    // const int code = static_cast<int>(m_socket->closeCode());
+    // const QString reason = m_socket->closeReason();
+    // qInfo().noquote() << "[WS] Disconnected from" << displayUrl(used) << "(code" << code << "," << (reason.isEmpty() ? QStringLiteral("no reason") : reason) << ")";
     emit disconnected();
     if (!m_userClose && m_autoReconnect && m_timer) {
-        qInfo().noquote() << "[WS] Auto-reconnect in" << m_reconnectIntervalMs << "ms";
+        // qInfo().noquote() << "[WS] Auto-reconnect in" << m_reconnectIntervalMs << "ms";
         m_timer->start();
     }
 }
 
 void WebSocketClientWorker::onError(QAbstractSocket::SocketError e)
 {
-    qWarning().noquote() << "[WS] Socket error" << e << "-" << (m_socket ? m_socket->errorString() : QStringLiteral("unknown error"))
-    << "at" << displayUrl(m_socket && !m_socket->requestUrl().isEmpty() ? m_socket->requestUrl() : m_url);
+    // qWarning().noquote() << "[WS] Socket error" << e << "-" << (m_socket ? m_socket->errorString() : QStringLiteral("unknown error"))
+    // << "at" << displayUrl(m_socket && !m_socket->requestUrl().isEmpty() ? m_socket->requestUrl() : m_url);
     emit errorOccurred(e);
     if (!m_userClose && m_autoReconnect && m_socket && m_socket->state() != QAbstractSocket::ConnectedState && m_timer) {
-        qInfo().noquote() << "[WS] Auto-reconnect in" << m_reconnectIntervalMs << "ms";
+        // qInfo().noquote() << "[WS] Auto-reconnect in" << m_reconnectIntervalMs << "ms";
         m_timer->start();
     }
 }
@@ -188,9 +205,9 @@ void WebSocketClientWorker::onBinary(const QByteArray& b)       { emit binaryMes
 void WebSocketClientWorker::onStateChanged(QAbstractSocket::SocketState s)
 {
     if (s == QAbstractSocket::ConnectingState) {
-        qInfo().noquote() << "[WS] State:" << stateToString(s) << "to" << displayUrl(m_url);
+        // qInfo().noquote() << "[WS] State:" << stateToString(s) << "to" << displayUrl(m_url);
     } else if (s == QAbstractSocket::ClosingState) {
-        qInfo().noquote() << "[WS] State:" << stateToString(s) << "from" << displayUrl(m_socket && !m_socket->requestUrl().isEmpty() ? m_socket->requestUrl() : m_url);
+        // qInfo().noquote() << "[WS] State:" << stateToString(s) << "from" << displayUrl(m_socket && !m_socket->requestUrl().isEmpty() ? m_socket->requestUrl() : m_url);
     }
     emit stateChanged(s);
 }
@@ -238,11 +255,10 @@ void WebSocketClient::componentComplete()
 void WebSocketClient::startWorkerThread()
 {
     if (m_thread) return;
-    m_thread = new QThread(this);
+    m_thread = sharedWebSocketThread();
     m_worker = new WebSocketClientWorker();
     m_worker->moveToThread(m_thread);
 
-    connect(m_thread, SIGNAL(finished()), m_worker, SLOT(deleteLater()));
     connect(m_worker, SIGNAL(connected()), this, SIGNAL(connected()), Qt::QueuedConnection);
     connect(m_worker, SIGNAL(disconnected()), this, SIGNAL(disconnected()), Qt::QueuedConnection);
     connect(m_worker, SIGNAL(errorOccurred(QAbstractSocket::SocketError)), this, SIGNAL(errorOccurred(QAbstractSocket::SocketError)), Qt::QueuedConnection);
@@ -250,7 +266,6 @@ void WebSocketClient::startWorkerThread()
     connect(m_worker, SIGNAL(binaryMessageReceived(QByteArray)), this, SIGNAL(binaryMessageReceived(QByteArray)), Qt::QueuedConnection);
     connect(m_worker, SIGNAL(stateChanged(QAbstractSocket::SocketState)), this, SIGNAL(stateChanged(QAbstractSocket::SocketState)), Qt::QueuedConnection);
 
-    m_thread->start();
     QMetaObject::invokeMethod(m_worker, "init", Qt::QueuedConnection);
     applyInitialStateToWorker();
 }
@@ -258,9 +273,11 @@ void WebSocketClient::startWorkerThread()
 void WebSocketClient::stopWorkerThread()
 {
     if (!m_thread) return;
-    if (m_worker) QMetaObject::invokeMethod(m_worker, "shutdown", Qt::BlockingQueuedConnection);
-    m_thread->quit();
-    m_thread->wait();
+    if (m_worker) {
+        QObject::disconnect(m_worker, nullptr, this, nullptr);
+        QMetaObject::invokeMethod(m_worker, "shutdown", Qt::QueuedConnection);
+        m_worker->deleteLater();
+    }
     m_worker = nullptr;
     m_thread = nullptr;
 }

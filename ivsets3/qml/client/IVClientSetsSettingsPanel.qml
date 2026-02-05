@@ -23,18 +23,31 @@ Rectangle {
     color: IVColors.get("Colors/Background new/BgContextMenuThemed")
 
     Flickable {
+        id: flickableWrapper
+
         anchors.fill: parent
 
         contentWidth: width
         contentHeight: contentLayout.implicitHeight + 2 * contentLayout.anchors.margins
 
-        interactive: true
+        interactive: ScrollBar.vertical.visible
         clip: true
         boundsBehavior: Flickable.StopAtBounds
 
         ScrollBar.vertical: ScrollBar {
+            width: 8
+
             policy: ScrollBar.AlwaysOn
             visible: parent.contentHeight > parent.height
+
+            contentItem: Rectangle {
+                implicitWidth: parent.width
+                implicitHeight: parent.height / flickableWrapper.contentHeight
+                radius: width / 2
+                color: parent.pressed
+                       ? IVColors.get("Colors/Text new/TxPrimaryThemed")
+                       : IVColors.get("Colors/Background new/BgFormSecondaryThemed")
+            }
         }
 
         ColumnLayout {
@@ -94,7 +107,7 @@ Rectangle {
                 Connections {
                     target: IVSetsManager
                     onActiveSetChanged: {
-                        setNameField.text = IVSetsManager.activeSet.name;
+                        setNameField.text = IVSetsManager.activeSet ? IVSetsManager.activeSet.name : "";
                     }
                 }
 
@@ -238,33 +251,11 @@ Rectangle {
                         visible: active
 
                         sourceComponent: IVSlider {
-                            id: slotSlider
-
-                            anchors.fill: parent
-
-                            type: IVButton.Type.Segmented
                             text: "Размер сетки"
+                            valueHandler: IVSetsManager.activeSet
+                            valueKey: "slotCount"
                             minValue: privates.minSlotCount
                             maxValue: privates.maxSlotCount
-                            value: IVSetsManager.activeSet.slotCount
-
-                            onValueChanged: {
-                                IVSetsManager.activeSet.slotCount = value;
-                            }
-
-                            Connections {
-                                target: IVSetsManager.activeSet
-                                onSlotCountChanged: {
-                                    slotSlider.value = IVSetsManager.activeSet.slotCount;
-                                }
-                            }
-
-                            Connections {
-                                target: IVSetsManager
-                                onActiveSetChanged: {
-                                    slotSlider.value = IVSetsManager.activeSet.slotCount;
-                                }
-                            }
                         }
                     }
 
@@ -276,33 +267,11 @@ Rectangle {
                         visible: active
 
                         sourceComponent: IVSlider {
-                            id: hSlotSlider
-
-                            anchors.fill: parent
-
-                            type: IVButton.Type.Segmented
                             text: "Столбцы"
+                            valueHandler: IVSetsManager.activeSet
+                            valueKey: "horizonalSlotCount"
                             minValue: privates.minSlotCount
                             maxValue: privates.maxSlotCount
-                            value: IVSetsManager.activeSet.horizonalSlotCount
-
-                            onValueChanged: {
-                                IVSetsManager.activeSet.horizonalSlotCount = value;
-                            }
-
-                            Connections {
-                                target: IVSetsManager.activeSet
-                                onSlotCountChanged: {
-                                    hSlotSlider.value = IVSetsManager.activeSet.horizonalSlotCount;
-                                }
-                            }
-
-                            Connections {
-                                target: IVSetsManager
-                                onActiveSetChanged: {
-                                    hSlotSlider.value = IVSetsManager.activeSet.horizonalSlotCount;
-                                }
-                            }
                         }
                     }
 
@@ -314,33 +283,11 @@ Rectangle {
                         visible: active
 
                         sourceComponent: IVSlider {
-                            id: vSlotSlider
-
-                            anchors.fill: parent
-
-                            type: IVButton.Type.Segmented
                             text: "Строки"
+                            valueHandler: IVSetsManager.activeSet
+                            valueKey: "verticalSlotCount"
                             minValue: privates.minSlotCount
                             maxValue: privates.maxSlotCount
-                            value: IVSetsManager.activeSet.verticalSlotCount
-
-                            onValueChanged: {
-                                IVSetsManager.activeSet.verticalSlotCount = value;
-                            }
-
-                            Connections {
-                                target: IVSetsManager.activeSet
-                                onSlotCountChanged: {
-                                    vSlotSlider.value = IVSetsManager.activeSet.verticalSlotCount;
-                                }
-                            }
-
-                            Connections {
-                                target: IVSetsManager
-                                onActiveSetChanged: {
-                                    vSlotSlider.value = IVSetsManager.activeSet.verticalSlotCount;
-                                }
-                            }
                         }
                     }
                 }
@@ -443,9 +390,7 @@ Rectangle {
                     standardButtons: StandardButton.Apply | StandardButton.Cancel
 
                     onApply: {
-                        customSets.deleteSet2(IVSetsManager.activeSet.name, IVSetsManager.activeSet.id);
-                        root.globalSignalsObject.tabRemoved2(IVSetsManager.activeSet.name);
-                        root.globalSignalsObject.setRemoved(IVSetsManager.activeSet.id, IVSetsManager.activeSet.name);
+                        IVCustomSets.deleteSet2(IVSetsManager.activeSet.id);
                     }
                 }
             }
@@ -497,20 +442,7 @@ Rectangle {
                         function saveSet(set) {
                             const config = IVSetsManager.getSetConfigToSave(set);
                             const configJson = JSON.parse(config);
-                            customSets.saveSet2(set.initName(),
-                                                configJson.setId,
-                                                set.name,
-                                                config);
-                            set.saveConfigAsDefault();
-                            if (!set.isUser) {
-                                const prevId = set.id;
-                                set.id = configJson.setId;
-                                set.isUser = true;
-                                root.globalSignalsObject.serverSetSaved(prevId, set.id, set.name);
-                            }
-                            else {
-                                root.globalSignalsObject.setSaved(set.id, set.name);
-                            }
+                            IVCustomSets.saveSet2(config);
                         }
                     }
                 }
@@ -538,13 +470,5 @@ Rectangle {
             map[IVSet.GridType.Custom]               = { minSlotCount: 1, maxSlotCount: 8 };
             return map;
         })()
-    }
-
-    IVCustomSets {
-        id: customSets
-
-        Component.onCompleted: {
-            initWs();
-        }
     }
 }

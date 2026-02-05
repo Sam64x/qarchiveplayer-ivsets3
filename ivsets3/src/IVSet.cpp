@@ -46,8 +46,8 @@ IVSet::IVSet(QObject* parent, QString id, bool isUser, IVSetConfig config, QList
         setIsModified(_zones.size() != _initZonesConfigs.size());
     });
 
-    connect(this, &IVSet::zonesCountChanged, this, &IVSet::updateAnyZoneEmptyFlag);
-    connect(this, &IVSet::zoneContentChanged, this, &IVSet::updateAnyZoneEmptyFlag);
+    connect(this, &IVSet::zonesCountChanged, this, &IVSet::updateEmptyZonesCount);
+    connect(this, &IVSet::zoneContentChanged, this, &IVSet::updateEmptyZonesCount);
 
     fillZonesFromInitConfig();
 }
@@ -61,7 +61,6 @@ void IVSet::setId(const QString &id)
     }
 }
 
-QString IVSet::initName() const { return _initConfig.name; }
 QString IVSet::name() const { return _config.name; }
 void IVSet::setName(const QString &name)
 {
@@ -151,13 +150,7 @@ void IVSet::setHorizonalSlotCount(int horizonalSlotCount)
     if (_config.horizonalSlotCount != horizonalSlotCount) {
         _config.horizonalSlotCount = horizonalSlotCount;
 
-        static QList<int> smallSizes = { 28, 30, 32 };
-        if (smallSizes.contains(_config.horizontalCellCount)) {
-            setHorizontalCellCount(_config.horizonalSlotCount == 7 ? 28 : _config.horizonalSlotCount == 8 ? 32 : 30);
-        }
-        else {
-            setHorizontalCellCount(_config.horizonalSlotCount == 7 ? 56 : _config.horizonalSlotCount == 8 ? 64 : 60);
-        }
+        setHorizontalCellCount(_config.horizonalSlotCount == 7 ? 56 : _config.horizonalSlotCount == 8 ? 64 : 60);
 
         if (!_isSlotCountUpdating && _config.gridType == GridType::Quad) {
             updateZones();
@@ -173,13 +166,7 @@ void IVSet::setVerticalSlotCount(int verticalSlotCount)
     if (_config.verticalSlotCount != verticalSlotCount) {
         _config.verticalSlotCount = verticalSlotCount;
 
-        static QList<int> smallSizes = { 28, 30, 32 };
-        if (smallSizes.contains(_config.verticalCellCount)) {
-            setVerticalCellCount(_config.verticalSlotCount == 7 ? 28 : _config.verticalSlotCount == 8 ? 32 : 30);
-        }
-        else {
-            setVerticalCellCount(_config.verticalSlotCount == 7 ? 56 : _config.verticalSlotCount == 8 ? 64 : 60);
-        }
+        setVerticalCellCount(_config.verticalSlotCount == 7 ? 56 : _config.verticalSlotCount == 8 ? 64 : 60);
 
         if (!_isSlotCountUpdating && _config.gridType == GridType::Quad) {
             updateZones();
@@ -253,9 +240,9 @@ int IVSet::zonesCount() const
     return _zones.size();
 }
 
-bool IVSet::anyZoneEmpty() const
+int IVSet::emptyZonesCount() const
 {
-    return _isAnyZoneEmpty;
+    return _emptyZonesCount;
 }
 
 IVZone* IVSet::getZone(int index) const
@@ -323,6 +310,19 @@ void IVSet::addZoneContent(int zoneIndex, const QString& key2, bool running)
 {
     auto zone = _zones.at(zoneIndex);
     if (zone->type() != "empty") {
+        return;
+    }
+    zone->setType("camera");
+    zone->setKey2(key2);
+    zone->setRunning(running);
+
+    emit zoneContentChanged(zoneIndex);
+}
+
+void IVSet::replaceZoneContent(int zoneIndex, const QString& key2, bool running)
+{
+    auto zone = _zones.at(zoneIndex);
+    if (!zone) {
         return;
     }
     zone->setType("camera");
@@ -488,14 +488,14 @@ void IVSet::updateZonesIndexes()
     }
 }
 
-void IVSet::updateAnyZoneEmptyFlag()
+void IVSet::updateEmptyZonesCount()
 {
-    const auto isAnyZoneEmpty = std::any_of(_zones.cbegin(), _zones.cend(), [](IVZone* zone) {
+    const auto emptyZonesCount = std::count_if(_zones.cbegin(), _zones.cend(), [](IVZone* zone) {
         return zone->type() == "empty";
     });
-    if (_isAnyZoneEmpty != isAnyZoneEmpty) {
-        _isAnyZoneEmpty = isAnyZoneEmpty;
-        emit anyZoneEmptyChanged();
+    if (_emptyZonesCount != emptyZonesCount) {
+        _emptyZonesCount = emptyZonesCount;
+        emit emptyZonesCountChanged();
     }
 }
 

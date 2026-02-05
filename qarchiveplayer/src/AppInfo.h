@@ -3,7 +3,11 @@
 #include <QObject>
 #include <QString>
 #include <QFileSystemWatcher>
+#include <QHash>
+#include <QPointer>
+#include <QStringList>
 #include <QTimer>
+#include <QFutureWatcher>
 
 class AppInfo : public QObject
 {
@@ -49,6 +53,11 @@ public:
     Q_INVOKABLE void reloadSettings();
     Q_INVOKABLE void reloadCacheDb();
     Q_INVOKABLE void refreshWsUrlForKey2(const QString& key2);
+    Q_INVOKABLE void requestWsUrlForKey2(const QString& key2);
+    Q_INVOKABLE QString wsUrlForKey2(const QString& key2) const;
+    Q_INVOKABLE QStringList wsIpsForKey2(const QString& key2) const;
+    Q_INVOKABLE void selectWsIpForKey2(const QString& key2, const QString& ip);
+    Q_INVOKABLE void clearWsIpOverrideForKey2(const QString& key2);
 
 signals:
     void ipChanged();
@@ -56,6 +65,8 @@ signals:
     void wsPortChanged();
     void wsPathChanged();
     void wsUrlChanged();
+    void wsUrlForKey2Changed(const QString& key2, const QString& wsUrl);
+    void wsIpsForKey2Changed(const QString& key2, const QStringList& ips);
 
     void archiveKey2Changed();
 
@@ -73,6 +84,10 @@ private:
     void setActiveIp(const QString& newIp);
     void ensureWatching();
     void recomputeWsUrl();
+    QString buildWsUrlForIp(const QString& ip) const;
+    void updateWsUrlForKey2(const QString& key2, const QString& ip);
+    QStringList extractArchiveIps(const QString& response) const;
+    void startWsUrlLookup(const QString& key2, const QString& callIp);
     static QString normalizePath(const QString& path);
 
     void loadCacheValues();
@@ -102,4 +117,16 @@ private:
     QString m_cacheDbPath;
     QString m_exportSaveDirectory;
     QString m_snapshotSaveDirectory;
+
+    QFutureWatcher<QString> m_wsUrlWatcher;
+    QString m_wsUrlPendingKey2;
+    QString m_wsUrlInFlightKey2;
+    int m_wsUrlToken = 0;
+    int m_wsUrlLookupToken = 0;
+    QHash<QString, QString> m_wsUrlByKey2;
+    QHash<QString, QString> m_wsIpByKey2;
+    QHash<QString, QStringList> m_wsIpsByKey2;
+    QHash<QString, QString> m_wsIpOverrideByKey2;
+    QHash<QString, int> m_wsUrlTokenByKey2;
+    QHash<QString, QPointer<QFutureWatcher<QString>>> m_wsUrlWatchers;
 };

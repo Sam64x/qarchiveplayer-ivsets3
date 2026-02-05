@@ -40,11 +40,11 @@ Item {
                 onClicked: {
                     if(privates.isMapInit) {
                         privates.isMapInit = false;
-                        customSets.deinitMap();
+                        IVCustomSets.deinitMap();
                     }
                     else {
                         privates.isMapInit = true;
-                        customSets.initMap();
+                        IVCustomSets.initMap();
                     }
                 }
             }
@@ -116,6 +116,19 @@ Item {
                     if (tabsPagingTimer.running) tabsPagingTimer.stop();
                     else tabsPagingTimer.start();
                 }
+            }
+        }
+
+        Timer {
+            id: tabsPagingTimer
+
+            triggeredOnStart: false
+            interval:5000
+            repeat: true
+            onTriggered: {
+                tabsListView.currentIndex = (tabsListView.currentIndex + 1) % openedTabsModel.count
+                const currentTab = openedTabsModel.get(tabsListView.currentIndex);
+                root.globalSignalsObject.tabSelected5(currentTab.name, currentTab.type, currentTab.id, currentTab.view);
             }
         }
 
@@ -207,20 +220,20 @@ Item {
                         modelSize: tabsListView.count
 
                         onRemoveTab: {
-                            root.globalSignalsObject.tabRemoved2(name);
+                            root.globalSignalsObject.tabRemoved2(name, type);
                         }
 
                         onTabRemoveLeft: {
                             const modelIndex = findItemIndex();
                             openedTabsModel.remove(0, modelIndex);
-                            openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
+                            privates.saveModelToFile();
                         }
 
                         onTabRemoveRight: {
                             const modelIndex = findItemIndex();
                             const count = openedTabsModel.count - modelIndex - 1;
                             openedTabsModel.remove(modelIndex + 1, count);
-                            openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
+                            privates.saveModelToFile();
                         }
 
                         function findItemIndex() {
@@ -242,9 +255,9 @@ Item {
 
                     type: Controls.IVButton.Type.Secondary
                     source: "new_images/plus"
-                    toolTipText: "Новая вкладка"
+                    toolTipText: "Создать новый набор"
                     onClicked: {
-                        root.globalSignalsObject.tabAdded5("New tab", "set", "new_tab", "realtime");
+                        root.globalSignalsObject.tabAdded5("Новый набор", "set", "new_set", "realtime");
                     }
                 }
             }
@@ -275,170 +288,137 @@ Item {
         id: openedTabsModel
     }
 
-    IvVcliSetting {
-        id: interfaceSize
-        name: 'interface.size'
-    }
+    readonly property string currentUserToken: appInfo.ip + "#" + IVCustomSets.currentUser + "#" + root.Window.window.unique
 
     IvVcliSetting {
-        id: eventsMaps
-        name: 'settings.openMapFromEvents'
-    }
-
-    IvVcliSetting {
-        id: autoScroll
-        name: 'sets.autoScroll'
+        id: activeTabSettings
+        name: root.Window.window.unique ? currentUserToken + "#tabs#activeTab" : ""
     }
 
     IvVcliSetting {
         id: openedTabsSettings
-        name: root.Window.window.unique ? privates.userName + "#" + root.Window.window.unique + "#tabs#openedTabs" : ""
-    }
 
-    IvVcliSetting {
-        id: activeTabSettings
-        name: root.Window.window.unique ? privates.userName + "#" + root.Window.window.unique + "#tabs#activeTab" : ""
-    }
+        readonly property bool isResetAvailable: IVCustomSets.sourcesReady
 
-    IvVcliSetting {
-        id: maxTabsLimit
-        name: 'dev.maxTabs'
-        Component.onCompleted: privates.getMaxTabsLimit()
-    }
+        name: root.Window.window.unique ? currentUserToken + "#tabs#openedTabs" : ""
 
-    IvVcliSetting {
-        id: archive_fix2
-        name: 'archive.fixVisible'
-        Component.onCompleted: {
-            if (archive_fix2.value === "true") {
-                root.setViewType("archive");
-            }
-            else {
-                root.setViewType("realtime");
+        onIsResetAvailableChanged: {
+            if (isResetAvailable) {
+                resetModel();
             }
         }
-    }
 
-    function setViewType(viewType) {
-        var tt = null;
-        for (var i = 0; i < openedTabsModel.count; i++ ) {
-            openedTabsModel.setProperty(i, "view", viewType);
-            if (activeTabSettings.value === openedTabsModel.get(i).name) {
-                tt = openedTabsModel.get(i);
+        onValueChanged: {
+            resetModel();
+        }
+
+        function resetModel() {
+            if (!isResetAvailable) {
+                return;
             }
-        }
-        if (tt !== null) {
-            root.globalSignalsObject.tabSelected5(tt.name, tt.type, tt.tabId, tt.view);
-        }
-    }
 
-    Timer {
-        id: tabsPagingTimer
-
-        triggeredOnStart: false
-        interval:5000
-        repeat: true
-        onTriggered: {
-            tabsListView.currentIndex = (tabsListView.currentIndex + 1) % openedTabsModel.count
-            const currentTab = openedTabsModel.get(tabsListView.currentIndex);
-            root.globalSignalsObject.tabSelected5(currentTab.name, currentTab.type, currentTab.id, currentTab.view);
-        }
-    }
-    Timer {
-        id: refreshModelTimer
-
-        interval: 500
-
-        onTriggered: {
-            var opTabs = openedTabsSettings.value;
             openedTabsModel.clear();
             IVSetsManager.clearSets();
+            if (IVCustomSets.currentUser === "guest") {
+                return;
+            }
+
             try {
-                const tabsArray = JSON.parse(opTabs);
+                const tabsArray = JSON.parse(openedTabsSettings.value);
                 if (tabsArray.length > 0) {
-                    for(var i = 0; i < tabsArray.length; i++) {
-                        const tab = tabsArray[i];
-                        if (tab.type === "set") {
-                            const setJson_ = customSets.getZone2(tab.name, tab.tabId);
-                            try {
-                                const correctCheck = JSON.parse(setJson_);
-                            }
-                            catch (e) {
-                                continue;
-                            }
-                        }
-                        const view = archive_fix2.value === "true" ? "archive" : tab.view;
-                        openedTabsModel.append({type: tab.type, name: tab.name, tabId: tab.tabId, view: view})
+                    addValidTabs(tabsArray);
+
+                    trimTabsModel();
+
+                    createSets();
+
+                    const tabSelected = selectActiveTab();
+                    if (tabSelected) {
+                        return;
                     }
 
-                    const trimResult = privates.trimTabsToLimit();
-                    if(trimResult.trimmed) {
-                        openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
-                    }
-
-                    for (var k = 0; k < openedTabsModel.count; k++) {
-                        const tab_ = openedTabsModel.get(k);
-                        if (tab_.type === "set") {
-                            const setJson = customSets.getZone2(tab_.name, tab_.tabId);
-                            try {
-                                const data = JSON.parse(setJson);
-                                openedTabsModel.setProperty(k, "tabId", data.setId);
-                                IVSetsManager.createSet(data);
-                            }
-                            catch (e) {}
-                        }
-                    }
-                    openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
-
-                    const activeTabName = activeTabSettings.value;
-                    for (var i1=0; i1 < openedTabsModel.count; i1++) {
-                        const tabItem = openedTabsModel.get(i1);
-                        if (tabItem.name === activeTabName) {
-                            tabsListView.currentIndex = i1;
-                            root.globalSignalsObject.tabSelected5(tabItem.name,tabItem.type,tabItem.tabId,tabItem.view);
-                            return;
-                        }
-                    }
-
-                    if (openedTabsModel.count > 0) {
-                        tabsListView.currentIndex = trimResult.index >= 0 ? trimResult.index : 0;
-                        var tabItem2 = openedTabsModel.get(tabsListView.currentIndex);
-                        activeTabSettings.value = tabItem2.name;
-                        root.globalSignalsObject.tabSelected5(tabItem2.name,tabItem2.type,tabItem2.tabId,tabItem2.view);
-                    }
+                    selectFirstTabIfExist();
                 }
             }
             catch(exception) {}
         }
+
+
+        function addValidTabs(tabsArray) {
+            for (var i = 0; i < tabsArray.length; i++) {
+                const tabItem = tabsArray[i];
+                if (tabItem.type === "set" && tabItem.tabId !== "new_set") {
+                    const setJsonString = IVCustomSets.getZonesCommon(tabItem.tabId);
+                    if (setJsonString === "{}") {
+                        continue;
+                    }
+                }
+                const view = archive_fix2.value === "true" ? "archive" : tabItem.view;
+                openedTabsModel.append({type: tabItem.type, name: tabItem.name, tabId: tabItem.tabId, view: view})
+            }
+        }
+
+        function trimTabsModel() {
+            const trimResult = privates.trimTabsToLimit();
+            if(trimResult.trimmed) {
+                privates.saveModelToFile();
+            }
+        }
+
+        function createSets() {
+            for (var i = 0; i < openedTabsModel.count; i++) {
+                const tabItem = openedTabsModel.get(i);
+                if (tabItem.type === "set") {
+                    const setJsonString = IVCustomSets.getZonesCommon(tabItem.tabId);
+                    if (setJsonString !== "{}") {
+                        const data = JSON.parse(setJsonString);
+                        openedTabsModel.setProperty(i, "tabId", data.setId);
+                        IVSetsManager.createSet(data);
+                    }
+                }
+            }
+            privates.saveModelToFile();
+        }
+
+        function selectActiveTab() {
+            const activeTabName = activeTabSettings.value;
+            for (var i = 0; i < openedTabsModel.count; i++) {
+                const tabItem = openedTabsModel.get(i);
+                if (tabItem.name === activeTabName) {
+                    tabsListView.currentIndex = i;
+                    root.globalSignalsObject.tabSelected5(tabItem.name,tabItem.type,tabItem.tabId,tabItem.view);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function selectFirstTabIfExist() {
+            if (openedTabsModel.count > 0) {
+                tabsListView.currentIndex = 0;//trimResult.index >= 0 ? trimResult.index : 0;
+                const tabItem = openedTabsModel.get(tabsListView.currentIndex);
+                activeTabSettings.value = tabItem.name;
+                root.globalSignalsObject.tabSelected5(tabItem.name,tabItem.type,tabItem.tabId,tabItem.view);
+            }
+        }
     }
 
-    IVCustomSets {
-        id:customSets
-        Component.onCompleted:
-        {
-            customSets.initWs();
-        }
-        onEventMapChanged:
-        {
+    Connections {
+        target: IVCustomSets
+        onEventMapChanged: {
             root.globalSignalsObject.tabAdded4(mapName,"map","",key2);
         }
     }
 
-
     Connections {
         target: root.globalSignalsObject
 
-        onUserChanged: {
-            privates.userName = userName;
-            refreshModelTimer.restart();
-        }
-
-        onTabRemoved2: function(tabname) {
+        onTabRemoved2: function(tabname, tabType) {
             const count = openedTabsModel.count
             var i1;
             for (i1 = 0; i1 < count; i1++) {
                 const tabItem = openedTabsModel.get(i1);
-                if(tabItem.name === tabname) {
+                if(tabItem.type === tabType && tabItem.name === tabname) {
                     openedTabsModel.remove(i1,1);
                     break;
                 }
@@ -461,8 +441,7 @@ Item {
                 root.globalSignalsObject.tabSelected5("", "", "", "");
             }
 
-            var tmpStr = privates.getStringFromModel(openedTabsModel);
-            openedTabsSettings.value = tmpStr;
+            privates.saveModelToFile();
         }
         onTabAdded4: {
             var isFound = false;
@@ -481,51 +460,36 @@ Item {
             var trimResult4 = privates.trimTabsToLimit(openedTabsModel.count-1);
             tabsListView.currentIndex = trimResult4.index;
             root.globalSignalsObject.tabSelected4(tabname,type,id,key2);
-            var tmpStr = privates.getStringFromModel(openedTabsModel);
-            openedTabsSettings.value = tmpStr;
+            privates.saveModelToFile();
         }
-        onTabAdded5: {
+        onTabAdded5: function (tabName, type, setId, viewType) {
             var isFound = false;
             for(var i =0;i<openedTabsModel.count;i++ )
             {
                 var tabName_ =  openedTabsModel.get(i).name;
                 var tabid_ =  openedTabsModel.get(i).tabId;
                 var _view =  openedTabsModel.get(i).view;
-                if(tabName_ === tabname && tabid_ === id)
+                if(tabName_ === tabName && tabid_ === setId)
                 {
                     tabsListView.currentIndex = i;
                     openedTabsModel.setProperty(i,"view",viewType);
 
-                    //openedTabsModel.sync();
-                    root.globalSignalsObject.tabSelected5(tabName_,type,id,viewType);
-                    var tmpStr = privates.getStringFromModel(openedTabsModel);
-                    openedTabsSettings.value = tmpStr;
+                    root.globalSignalsObject.tabSelected5(tabName_,type,setId,viewType);
+                    privates.saveModelToFile();
                     return;
                 }
             }
-            openedTabsModel.append({type: type, name: tabname, tabId: id, view: viewType});
+            openedTabsModel.append({type: type, name: tabName, tabId: setId, view: viewType});
 
             const trimResult5 = privates.trimTabsToLimit(openedTabsModel.count - 1);
             tabsListView.currentIndex = trimResult5.index;
             const currentTab = openedTabsModel.get(tabsListView.currentIndex);
             root.globalSignalsObject.tabSelected5(currentTab.name, currentTab.type, currentTab.tabId, currentTab.view);
 
-            openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
+            privates.saveModelToFile();
 
             if (tabsListView.currentIndex >= 0) {
                 tabsListView.positionViewAtIndex(tabsListView.currentIndex, ListView.End);
-            }
-        }
-
-        onNewSetCreated: function(setName, setId) {
-            for (var i = openedTabsModel.count - 1; i >= 0; i--) {
-                const tab = openedTabsModel.get(i);
-                if (tab.name === setName && tab.tabId === "new_tab") {
-                    openedTabsModel.setProperty(i, "tabId", setId);
-                    tabsListView.currentIndex = i;
-                    openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
-                    return;
-                }
             }
         }
 
@@ -539,33 +503,86 @@ Item {
                 }
             }
         }
+    }
 
-        onSetSaved: function(setId, setName) {
-            for (var i = 0; i < openedTabsModel.count; i++ ) {
-                const tab = openedTabsModel.get(i);
-                if (tab.tabId === setId) {
-                    if (activeTabSettings.value === tab.name) {
-                        activeTabSettings.value = setName;
-                    }
-                    openedTabsModel.setProperty(i, "name", setName);
-                    openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
+    Connections {
+        target: IVCustomSets
+
+        onNewSetSavedWithId: function(previousSetId, newSetId, savedSetName) {
+            for (var tabIndex = 0; tabIndex < openedTabsModel.count; tabIndex++) {
+                const tab = openedTabsModel.get(tabIndex);
+                if (tab.tabId === previousSetId) {
+                    openedTabsModel.setProperty(tabIndex, "tabId", newSetId);
+                    openedTabsModel.setProperty(tabIndex, "name", savedSetName);
+                    activeTabSettings.value = savedSetName;
                     return;
                 }
             }
         }
-
-        onServerSetSaved: function(prevSetId, setId, setName) {
-            for (var i = 0; i < openedTabsModel.count; i++ ) {
-                const tab = openedTabsModel.get(i);
-                if (tab.tabId === prevSetId) {
-                    if (activeTabSettings.value === tab.name) {
-                        activeTabSettings.value = setName;
-                    }
-                    openedTabsModel.setProperty(i, "name", setName);
-                    openedTabsModel.setProperty(i, "tabId", setId);
-                    openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
+        onSetRemoved: function(setId) {
+            for (var tabIndex = 0; tabIndex < openedTabsModel.count; tabIndex++) {
+                const tab = openedTabsModel.get(tabIndex);
+                if (tab.tabId === setId) {
+                    openedTabsModel.remove(tabIndex, 1);
                     return;
                 }
+            }
+        }
+        onSetsUpdated: {
+            const prevOpenedTabSettings = openedTabsSettings.value;
+            const newOpenedTabSettings = privates.getStringFromModel(openedTabsModel);
+            if (prevOpenedTabSettings === newOpenedTabSettings) {
+                openedTabsSettings.resetModel();
+            }
+            else {
+                privates.saveModelToFile();
+            }
+        }
+    }
+
+    IvVcliSetting {
+        id: interfaceSize
+        name: 'interface.size'
+    }
+
+    IvVcliSetting {
+        id: eventsMaps
+        name: 'settings.openMapFromEvents'
+    }
+
+    IvVcliSetting {
+        id: autoScroll
+        name: 'sets.autoScroll'
+    }
+
+    IvVcliSetting {
+        id: maxTabsLimit
+        name: 'dev.maxTabs'
+        Component.onCompleted: privates.getMaxTabsLimit()
+    }
+
+    IvVcliSetting {
+        id: archive_fix2
+        name: 'archive.fixVisible'
+        Component.onCompleted: {
+            if (archive_fix2.value === "true") {
+                setViewType("archive");
+            }
+            else {
+                setViewType("realtime");
+            }
+        }
+
+        function setViewType(viewType) {
+            var tt = null;
+            for (var i = 0; i < openedTabsModel.count; i++ ) {
+                openedTabsModel.setProperty(i, "view", viewType);
+                if (activeTabSettings.value === openedTabsModel.get(i).name) {
+                    tt = openedTabsModel.get(i);
+                }
+            }
+            if (tt !== null) {
+                root.globalSignalsObject.tabSelected5(tt.name, tt.type, tt.tabId, tt.view);
             }
         }
     }
@@ -574,25 +591,22 @@ Item {
         id: privates
 
         property bool isMapInit: false
-        property string userName: ""
 
         readonly property real isize: interfaceSize.value !== "" ? parseFloat(interfaceSize.value) : 1
 
+        function saveModelToFile() {
+            openedTabsSettings.value = privates.getStringFromModel(openedTabsModel);
+        }
+
         function getStringFromModel(model) {
-            var modelCount = model.count;
             var tabsArray = [];
-            for(var i = 0; i<modelCount;i++)
-            {
-                var tabName = model.get(i).name;
-                var tabtypes = model.get(i).type;
-                var tabid = model.get(i).tabId;
-                var tabView = model.get(i).view;
-                //console.error("getStringFromModel ", tabName , tabtypes , i);
-                var tabsObj = {};
-                tabsObj.name = tabName;
-                tabsObj.type = tabtypes;
-                tabsObj.tabId = tabid;
-                tabsObj.view = tabView;
+            for(var i = 0; i<model.count;i++) {
+                var tabsObj = {
+                    name: model.get(i).name,
+                    type: model.get(i).type,
+                    tabId: model.get(i).tabId,
+                    view: model.get(i).view,
+                };
                 tabsArray.push(tabsObj);
             }
             var tabsStr = JSON.stringify(tabsArray);

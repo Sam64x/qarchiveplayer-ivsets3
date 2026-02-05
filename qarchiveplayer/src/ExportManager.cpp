@@ -14,6 +14,7 @@
 #include <QStandardPaths>
 #include <QUuid>
 #include <QUrl>
+#include <QQuickItem>
 
 namespace {
 constexpr int kRestartStatus = 4;
@@ -268,7 +269,10 @@ void ExportManager::saveCache() const
         obj.insert(QStringLiteral("ws_url"), item.wsUrl);
 
         const auto controller = item.controller;
-        const int status = controller ? static_cast<int>(controller->status()) : item.status;
+        int status = controller ? static_cast<int>(controller->status()) : item.status;
+        if (controller && status == static_cast<int>(ExportController::Status::Idle)) {
+            status = item.status;
+        }
         const int progress = controller ? controller->exportProgress() : item.progress;
         const QString preview = controller ? controller->firstFramePreview() : item.preview;
         const qint64 sizeBytes = controller ? controller->exportedSizeBytes() : item.sizeBytes;
@@ -351,4 +355,30 @@ void ExportManager::updateSizeBytes(ExportController* controller)
 
     m_model->updateSizeBytes(row, controller->exportedSizeBytes());
     saveCache();
+}
+
+QQuickItem* ExportManager::commonTimeline() const
+{
+    return m_commonTimeline;
+}
+
+void ExportManager::setCommonTimeline(QQuickItem* value)
+{
+    if (m_commonTimeline != value) {
+        m_commonTimeline = value;
+        emit commonTimelineChanged();
+    }
+}
+
+QString ExportManager::archiveId() const
+{
+    return m_archiveId;
+}
+
+void ExportManager::setArchiveId(const QString& value)
+{
+    if (m_archiveId != value) {
+        m_archiveId = value;
+        emit archiveIdChanged();
+    }
 }

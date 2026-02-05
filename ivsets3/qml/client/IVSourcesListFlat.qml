@@ -2,69 +2,48 @@ import QtQuick 2.11
 import QtQuick.Layouts 1.3
 import QtQuick.Controls 2.4
 import QtQml 2.3
+import QtQuick.Window 2.3
 
 import iv.plugins.loader 1.0
 import iv.sets.sets3 1.0
 import iv.colors 1.0
 import iv.controls 1.0
+import iv.viewers.archiveplayer 1.0 as ArchivePlayerModule
 
 Item {
     id: root
 
-    property var customSets: null
-    property var devices: null
+    property string listType
+    property string searchText
     property var globSignalsObject: null
-    property bool isSameOpened: false
-    property bool isAllOpen: false
+    property bool isSomeOpened: false
 
     readonly property bool setNeedCamsVisible: newSetsHideCames.value === "false" || newSetsHideCames.value === ""
     readonly property bool isFixArchive: archive_fix.value === "true"
     readonly property real isize: interfaceSize.value !== "" ? parseFloat(interfaceSize.value) : 1
 
-    signal expandChanged()
-    signal setRemoved()
-
-    function switchExpandFlag() {
-        isSameOpened ^= true;
-        isAllOpen = isSameOpened;
-        expandChanged();
-    }
-
-    IvVcliSetting {
-        id: interfaceSize
-        name: 'interface.size'
-    }
-
-    IvVcliSetting {
-        id: newSetsHideCames
-        name: 'settings.new_sets_hide_cams'
-    }
-
-    IvVcliSetting {
-        id: archive_fix
-        name: 'archive.fixVisible'
-    }
-
-    ListView {
-        id: contentListView
+    Flickable {
+        id: flickableWrapper
 
         anchors.fill: parent
-        rightMargin: 10
-        spacing: 1
 
-        model: root.devices ? root.devices.children : []
-        boundsBehavior: ListView.StopAtBounds
-        cacheBuffer: 3000
+        contentWidth: width
+        contentHeight: contentLayout.implicitHeight + contentLayout.anchors.bottomMargin
+        bottomMargin: selectionFooter.actualHeight
+
         clip: true
+        interactive: ScrollBar.vertical.visible
+        boundsBehavior: Flickable.StopAtBounds
 
         ScrollBar.vertical: ScrollBar {
             width: 8
+            bottomPadding: selectionFooter.actualHeight
 
             policy: ScrollBar.AlwaysOn
             visible: parent.contentHeight > parent.height
             contentItem: Rectangle {
                 implicitWidth: parent.width
-                implicitHeight: parent.height / contentListView.contentHeight
+                implicitHeight: parent.height / flickableWrapper.contentHeight
                 radius: width / 2
                 color: parent.pressed
                        ? IVColors.get("Colors/Text new/TxPrimaryThemed")
@@ -72,30 +51,151 @@ Item {
             }
         }
 
-        delegate: componentChooser
+        ColumnLayout {
+            id: contentLayout
+
+            anchors.fill: parent
+            anchors.leftMargin: 8
+            anchors.rightMargin: 8
+            anchors.bottomMargin: 4
+            spacing: 1
+
+            Repeater {
+                model: IVCustomSets.currentUser === "guest" ? [] : sourcesModel.children
+                delegate: componentChooser
+            }
+        }
+    }
+
+    Loader {
+        id: selectionFooter
+
+        readonly property real actualHeight: active ? height + anchors.bottomMargin : 0
+        readonly property int selectedSourcesCount: sourcesModel.selectedCamerasCount
+                                                    + sourcesModel.selectedMapsCount
+
+        width: parent.width
+        height: 40 * root.isize
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 4
+
+        active: selectedSourcesCount
+        visible: active
+
+        sourceComponent: Rectangle {
+            color: IVColors.get("Colors/Background new/BgFormAccent")
+            radius: 12 * root.isize
+
+            MouseArea {
+                id: removingListElementHover
+                anchors.fill: parent
+                hoverEnabled: true
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 8
+                spacing: 8
+
+                RowLayout {
+                    spacing: 4
+
+                    IVCheckBoxControl {
+                        text: selectedSourcesCount
+                        type: IVCheckBoxControl.Type.Contrast
+                        checked: true
+
+                        onCheckedChanged: {
+                            root.clearSelection();
+                        }
+                    }
+
+                    Text {
+                        id: selectedText
+                        text: "из %2".arg(sourcesModel.sourcesCount)
+                        font: IVColors.getFont("Label")
+                        color: IVColors.get("Colors/Text new/TxSecondaryContrast")
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                IVButtonControl {
+                    enabled: sourcesModel.selectedMapsCount === 0
+                             && (IVSetsManager.activeSet.emptyZonesCount >= selectionFooter.selectedSourcesCount)
+                    horizontalPadding: 8
+                    type: IVButtonControl.Type.Secondary
+                    size: IVButtonControl.Size.Small
+                    text: "Добавить"
+
+                    onClicked: {
+                        const selectedCamerasNames = sourcesModel.getSelectedCameras();
+                        for (var i = 0; i < selectedCamerasNames.length; i++) {
+                            IVSetsManager.activeSet.addZoneContentToFirstEmptyZone(selectedCamerasNames[i], true);
+                        }
+                        root.clearSelection();
+                    }
+                }
+
+                Loader {
+                    active: root.globSignalsObject.tabType === "set"
+                            && root.globSignalsObject.tabViewType === "archive"
+                            && ArchivePlayerModule.ExportManager.commonTimeline
+                            && ArchivePlayerModule.ExportManager.commonTimeline.exportMode
+                    visible: active
+
+                    sourceComponent: ArchivePlayerModule.ExportSettingsButton {
+                        width: undefined
+                        height: undefined
+                        horizontalPadding: 8
+                        enabled: sourcesModel.selectedMapsCount === 0
+                        type: IVButtonControl.Type.Secondary
+                        size: IVButtonControl.Size.Small
+                        text: "Выгрузить"
+                        source: ""
+                        toolTipVisible: false
+
+                        archiveId: ArchivePlayerModule.ExportManager.archiveId
+                        rootRef: root.globSignalsObject.clientRect
+                        externalFromTime: ArchivePlayerModule.ExportManager.commonTimeline.exportBounds.left
+                        externalToTime: ArchivePlayerModule.ExportManager.commonTimeline.exportBounds.right
+                        useExternalBounds: true
+                        applyBounds: function(fromTime, toTime) {
+                            ArchivePlayerModule.ExportManager.commonTimeline.setExportBounds(fromTime, toTime)
+                        }
+
+                        onClicked: {
+                            exportCameraIds = sourcesModel.getSelectedCameras();
+                        }
+                    }
+                }
+            }
+        }
     }
 
     Component {
         id: componentChooser
+
         Loader {
-            id: itemLoader
+            readonly property var viewType: modelData.viewType
 
-            readonly property var view_type: modelData.getProp("view_type")
-            readonly property var type: modelData.getProp("type")
+            Layout.fillWidth: true
 
-            width: ListView.view.width - ListView.view.rightMargin
+            active: modelData.visible
+            visible: active
 
-            sourceComponent: switch(view_type) {
-                             case "group": return groupComponent;
-                             case "item": return itemComponent;
-                             default: return null;
-                            }
+            sourceComponent: switch(viewType) {
+                case "group": return groupComponent;
+                case "item": return itemComponent;
+                default: return null;
+            }
 
-            Binding {
-                target: itemLoader.item
-                property: "model"
-                value: modelData
-                when: itemLoader.item !== null
+            onStatusChanged: {
+                if (status === Loader.Ready) {
+                    item.model = modelData
+                }
             }
         }
     }
@@ -108,38 +208,28 @@ Item {
 
             property var model: null
 
-            readonly property string name: model && model.getProp("name_")
-            readonly property string type: model && model.getProp("type")
-            readonly property string view_type: model && model.getProp("view_type")
-            readonly property var tabId: model && model.getProp("id_")
+            readonly property string name: model && model.name
+            readonly property string type: model && model.type
+            readonly property string viewType: model && model.viewType
+            readonly property var tabId: model && model.setId
             readonly property bool opened: model && model.opened
-
             readonly property bool isSetGroup: type === "set"
-            readonly property bool isLocal: model && Boolean(model.getProp("isLocal"))
-            // property var isNotAvalCount: model && model.getProp("isNotAval")
+            readonly property bool isLocal: model && model.isLocal
+            readonly property var unavailableCount: model && model.unavailableCount
+            readonly property var count: model && model.count
+            readonly property var groupColor: model && model.groupColor
 
-            implicitHeight: groupContentLayout.implicitHeight
+            implicitHeight: visible ?  groupContentLayout.implicitHeight : 0
 
             visible: model && model.visible
 
             function open() {
                 model.opened = true;
-                root.isSameOpened = true;
+                root.isSomeOpened = true;
             }
 
             function close() {
                 model.opened = false;
-            }
-
-            Connections {
-                target: root
-                onExpandChanged: {
-                    const notExpandableGroup = isSetGroup || groupRoot.type === "server";
-                    if (notExpandableGroup) {
-                        return;
-                    }
-                    groupRoot.model.opened = root.isAllOpen;
-                }
             }
 
             ColumnLayout {
@@ -175,7 +265,7 @@ Item {
                                 readonly property var source: privates.groupTypeImage[groupRoot.type]
 
                                 name: source ? source : "new_images/view_small"
-                                color: IVColors.get("Colors/Text new/TxAccentThemed")
+                                color: groupRoot.groupColor || IVColors.get("Colors/Text new/TxAccentThemed")
                                 fillMode: Image.PreserveAspectFit
                             }
                         }
@@ -191,6 +281,19 @@ Item {
                                 name: groupRoot.opened ? "new_images/chevron-down" : "new_images/chevron-right"
                                 color: IVColors.get("Colors/Text new/TxAccentThemed")
                                 fillMode: Image.PreserveAspectFit
+                            }
+                        }
+
+                        Loader {
+                            Layout.preferredWidth: 24 * root.isize
+                            Layout.preferredHeight: 24 * root.isize
+
+                            active: groupRoot.type === "custom" && groupRoot.groupColor
+                            visible: active
+
+                            sourceComponent: Rectangle {
+                                radius: width / 2
+                                color: groupRoot.groupColor
                             }
                         }
 
@@ -223,6 +326,7 @@ Item {
                             Layout.preferredWidth: camsCountText.width + 8
                             Layout.preferredHeight: 24 * root.isize
 
+                            visible: groupRoot.count
                             radius: 8 * root.isize
                             color: IVColors.get("Colors/Background new/BgSegmentUnselected")
 
@@ -231,7 +335,7 @@ Item {
 
                                 anchors.centerIn: parent
 
-                                text: groupRoot.model ? groupRoot.model.getCurrentCount() : ""
+                                text: groupRoot.count
                                 clip: true
                                 elide: Text.ElideRight
                                 font: IVColors.getFont("Text body accent")
@@ -244,7 +348,7 @@ Item {
                                 anchors.horizontalCenter: parent.right
                                 anchors.verticalCenter: parent.top
 
-                                visible: false//(groupRoot.isNotAvalCount!== undefined && groupRoot.isNotAvalCount>0)?true:false
+                                visible: Boolean(groupRoot.unavailableCount)
                                 radius: 8 * root.isize
                                 color: IVColors.get("Colors/Statuse new/Defective")
 
@@ -253,7 +357,7 @@ Item {
 
                                     anchors.centerIn: parent
 
-                                    text: "10"//groupRoot.isNotAvalCount
+                                    text: String(groupRoot.unavailableCount)
                                     font: IVColors.getFont("Subtext accent")
                                     color: IVColors.get("Colors/Text new/TxContrast")
                                 }
@@ -272,7 +376,7 @@ Item {
                         z: -1
                         anchors.fill: parent
 
-                        hoverEnabled: true
+                        hoverEnabled: groupRoot.visible
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
 
                         onClicked: {
@@ -288,7 +392,7 @@ Item {
                                     groupContextMenu.open();
                                 }
                             }
-                            else if (groupRoot.view_type === "group") {
+                            else if (groupRoot.viewType === "group") {
                                 if(groupRoot.opened) {
                                     groupRoot.close();
                                 }
@@ -307,20 +411,22 @@ Item {
                     }
                 }
 
-                ListView {
-                    id: componentListView
-
+                Loader {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: visible ? componentListView.contentHeight : 0
                     Layout.leftMargin: 16
-                    spacing: 1
 
-                    visible: groupRoot.opened && (!groupRoot.isSetGroup || root.setNeedCamsVisible)
-                    model: groupRoot.model && groupRoot.model.children
-                    boundsBehavior: ListView.StopAtBounds
-                    cacheBuffer: 3000
-                    clip: true
-                    delegate: componentChooser
+                    active: groupRoot.opened && (!groupRoot.isSetGroup || root.setNeedCamsVisible)
+                            && groupRoot.model && groupRoot.model.children.length
+                    visible: active
+
+                    sourceComponent: ColumnLayout {
+                        spacing: 1
+
+                        Repeater {
+                            model: groupRoot.model && groupRoot.model.children
+                            delegate: componentChooser
+                        }
+                    }
                 }
             }
         }
@@ -333,15 +439,13 @@ Item {
             id: itemItem
 
             property var model: null
-            property bool checkable: true
-            property bool selected: false
 
-            readonly property var itemName: model && model.getProp("name_")
-            readonly property var type: model && model.getProp("type")
-            readonly property var view_type: model && model.getProp("view_type")
-            readonly property bool isAvailable: model && Boolean(model.getProp("is_available"))
+            readonly property var itemName: model && model.name
+            readonly property var type: model && model.type
+            readonly property var selected: model && model.selected
+            readonly property bool isAvailable: model && model.available
 
-            implicitHeight: 32 * root.isize
+            implicitHeight: visible ? 32 * root.isize : 0
 
             visible: itemItem.model && itemItem.model.visible
             color: itemMouseArea.pressed
@@ -356,18 +460,13 @@ Item {
                 anchors.rightMargin: 4
                 spacing: 4
 
-                Loader {
-                    Layout.preferredWidth: 16 * root.isize
-                    Layout.preferredHeight: 16 * root.isize
+                IVCheckBoxControl {
+                    enabled: itemItem.type === "camera"
+                    checked: itemItem.selected
+                    size: IVCheckBoxControl.Size.Small
 
-                    active: itemItem.checkable
-                    visible: active
-
-                    sourceComponent: IVButtonControl {
-                        enabled: false
-                        source: "new_images/" + (itemItem.selected ? "check-fill" : "uncheck")
-                        size: IVButtonControl.Size.Small
-                        contentColor: IVColors.get("Colors/Text new/TxTertiaryThemed")
+                    onClicked: {
+                        root.selectItem(itemItem.type, itemItem.itemName, !itemItem.selected);
                     }
                 }
 
@@ -387,7 +486,7 @@ Item {
                     Layout.preferredHeight: 24 * root.isize
                     Layout.rightMargin: 4
 
-                    active: !itemItem.isAvailable
+                    active: itemItem.type === "camera" && !itemItem.isAvailable
                     visible: active
 
                     sourceComponent: Rectangle {
@@ -410,21 +509,18 @@ Item {
                     Layout.preferredWidth: 24 * root.isize
                     Layout.preferredHeight: 24 * root.isize
 
-                    enabled: privates.addToSetEnabled
+                    enabled: itemItem.type === "camera" && privates.singleAddToSetEnabled
                     backgroundColor: "transparent"
                     source: "new_images/plus_circle"
                     toolTipText: "Добавить в набор"
                     type: IVButtonControl.Type.Helper
 
                     onClicked: {
-                        const obj = root.customSets.getTypePreset(itemItem.type, "key2", "string", itemItem.itemName);
-                        const key2 = obj.params.key2.value[0];
-                        const running = obj.params.running.value[0];
                         if (IVSetsManager.freeEditEnabled) {
-                            IVSetsManager.activeSet.addZone(key2, running)
+                            IVSetsManager.activeSet.addZone(itemItem.itemName, true)
                         }
                         else {
-                            IVSetsManager.activeSet.addZoneContentToFirstEmptyZone(key2, running)
+                            IVSetsManager.activeSet.addZoneContentToFirstEmptyZone(itemItem.itemName, true)
                         }
                     }
                 }
@@ -435,23 +531,11 @@ Item {
                 visible: nameLabel.truncated && itemMouseArea.containsMouse
             }
 
-            IVImage {
-                id: dragItem
-
-                property var dragData: ({})
-
-                width: 36
-                height: 24
-
-                visible: Drag.active
-                name: "black/dash"
-
-                Drag.hotSpot.x: width / 2
-                Drag.hotSpot.y: height / 2
-            }
-
             MouseArea {
                 id: itemMouseArea
+
+                readonly property bool isDragEnabled: itemItem.type === "camera" && !IVSetsManager.freeEditEnabled
+                                                      && privates.dragEnabled
 
                 z: -1
                 anchors.fill: parent
@@ -459,25 +543,27 @@ Item {
                 hoverEnabled: true
                 propagateComposedEvents: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
+                cursorShape: isDragEnabled ? Qt.OpenHandCursor : Qt.ArrowCursor
 
                 drag.target: dragItem
                 drag.axis: Drag.XAndYAxis
                 drag.threshold: 5
 
                 onPressed: {
-                    const obj = root.customSets.getTypePreset(itemItem.type, "key2", "string", itemItem.itemName);
-                    if (!obj.params || !obj.params.key2 || !obj.params.running) {
+                    if (!isDragEnabled) {
                         return;
                     }
 
                     dragItem.dragData = {
-                        key2: obj.params.key2.value[0],
-                        running: obj.params.running.value[0],
-                        indexInSavedSet: null
+                        key2: itemItem.itemName,
+                        running: true,
+                        indexInSavedSet: null,
+                        replaceContent: Boolean(mouse.modifiers & Qt.ControlModifier)
                     }
 
-                    dragItem.x = mouseX - dragItem.width / 2;
-                    dragItem.y = mouseY - dragItem.height / 2;
+                    const globalPosition = mapToItem(Window.contentItem, mouse.x, mouse.y);
+                    dragItem.x = globalPosition.x - dragItem.width / 2;
+                    dragItem.y = globalPosition.y - dragItem.height / 2;
                     dragItem.Drag.start();
                 }
 
@@ -486,6 +572,10 @@ Item {
                 }
 
                 onClicked: {
+                    if (itemItem.type !== "camera") {
+                        return;
+                    }
+
                     if (mouse.button & Qt.RightButton) {
                         const point = mapToItem(root, mouseX, mouseY);
                         itemContextMenu.x = point.x;
@@ -506,20 +596,46 @@ Item {
         }
     }
 
+    IVImage {
+        id: dragItem
+
+        property var dragData: ({})
+        property bool aboveSlot: false
+        property bool slotEmpty: false
+        property var cursorShape: aboveSlot && !slotEmpty && !dragData.replaceContent
+                                  ? Qt.ForbiddenCursor
+                                  : Qt.ClosedHandCursor
+
+        width: 36
+        height: 24
+
+        parent: Overlay.overlay
+        visible: Drag.active
+        name: "black/dash"
+
+        Drag.hotSpot.x: width / 2
+        Drag.hotSpot.y: height / 2
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: dragItem.cursorShape
+        }
+    }
+
     IVContextMenuControl {
         id: itemContextMenu
 
         property string name
         property string type
 
-        readonly property alias addToSetEnabled: privates.addToSetEnabled
+        readonly property alias singleAddToSetEnabled: privates.singleAddToSetEnabled
 
         implicitWidth: 254 * root.isize
 
         closePolicy: Popup.CloseOnPressOutside
 
-        onAddToSetEnabledChanged: {
-            if (addToSetEnabled) {
+        onSingleAddToSetEnabledChanged: {
+            if (singleAddToSetEnabled) {
                 itemMenuModel.append({
                     text: "Добавить в набор",
                     icon: "new_images/Add-to-sets2",
@@ -553,12 +669,8 @@ Item {
                     if (action === "open") {
                         root.globSignalsObject.tabAdded5(itemContextMenu.name, itemContextMenu.type, "", "realtime");
                     }
-                    else if(action === "add_to_set")
-                    {
-                        const item = root.customSets.getTypePreset(itemContextMenu.type, "key2", "string", itemContextMenu.name);
-                        const key2 = item.params.key2.value[0];
-                        const running = item.params.running.value[0];
-                        IVSetsManager.activeSet.addZoneContentToFirstEmptyZone(key2, running);
+                    else if(action === "add_to_set") {
+                        IVSetsManager.activeSet.addZoneContentToFirstEmptyZone(itemContextMenu.name, true);
                     }
                     itemContextMenu.close();
                 }
@@ -627,8 +739,7 @@ Item {
                         root.globSignalsObject.tabAdded5(groupContextMenu.name, groupContextMenu.type, groupContextMenu.tabId, "archive");
                     }
                     else if (action === "remove") {
-                        root.customSets.deleteSet2(groupContextMenu.name, groupContextMenu.tabId);
-                        root.setRemoved();
+                        IVCustomSets.deleteSet2(groupContextMenu.tabId);
                     }
                     groupContextMenu.close();
                 }
@@ -636,12 +747,114 @@ Item {
         }
     }
 
+    function clearSelection() {
+        sourcesModel.clearSourcesSelection();
+        sourcesModel.clearSelection();
+    }
+
+    function selectItem(type, name, value) {
+        if (type === "camera") {
+            sourcesModel.changeCameraSelected(name, value);
+            sourcesModel.updateSelectedCameras(name, value);
+        }
+        else if (type === "map") {
+            sourcesModel.changeMapSelected(name, value);
+            sourcesModel.updateSelectedMaps(name, value);
+        }
+    }
+
+    function switchExpandFlag() {
+        isSomeOpened ^= true;
+        sourcesModel.switchExpandAll(isSomeOpened);
+    }
+
+    IvVcliSetting {
+        id: interfaceSize
+        name: 'interface.size'
+    }
+
+    IvVcliSetting {
+        id: newSetsHideCames
+        name: 'settings.new_sets_hide_cams'
+    }
+
+    IvVcliSetting {
+        id: archive_fix
+        name: 'archive.fixVisible'
+    }
+
+    Connections {
+        target: IVCustomSets
+
+        onSourcesReadyChanged: {
+            if (IVCustomSets.sourcesReady) {
+                sourcesModel.updateSources();
+            }
+        }
+
+        onSetsUpdated: {
+            if (root.listType === "flat" || root.listType === "custom") {
+                sourcesModel.changeGroup();
+            }
+        }
+    }
+
+    onListTypeChanged: {
+        sourcesModel.changeGroup();
+        if (searchText) {
+            filterDelay.restart();
+        }
+    }
+
+    Component.onCompleted: {
+        sourcesModel.updateSources();
+    }
+
+    onSearchTextChanged: {
+        filterDelay.restart();
+    }
+
+    Timer {
+        id: filterDelay
+        interval: 300
+        onTriggered: {
+            sourcesModel.search(root.searchText);
+        }
+    }
+
+    SourceTree {
+        id: sourcesModel
+
+        function updateSources() {
+            initSources();
+            changeGroup();
+        }
+
+        function changeGroup() {
+            switch(root.listType) {
+            case "flat":
+                initFlat();
+                break;
+            case "fact":
+                initFact();
+                break;
+            case "custom":
+                initCustom();
+                break;
+            }
+        }
+    }
+
     QtObject {
         id: privates
 
-        readonly property bool addToSetEnabled: globSignalsObject.tabType === "set" && IVSetsManager.activeSet
-                                                && (IVSetsManager.freeEditEnabled ? IVSetsManager.activeSet.zonesCount < 64
-                                                                                  : IVSetsManager.activeSet.anyZoneEmpty)
+        readonly property bool isSetTabActive: globSignalsObject.tabType === "set" && IVSetsManager.activeSet
+        readonly property bool singleAddToSetEnabled: isSetTabActive && (IVSetsManager.freeEditEnabled
+                                                                         ? IVSetsManager.activeSet.zonesCount < 64
+                                                                         : IVSetsManager.activeSet.emptyZonesCount > 0)
+
+        readonly property bool dragEnabled: isSetTabActive && (root.globSignalsObject.ctrlPressed
+                                            || IVSetsManager.activeSet.emptyZonesCount > 0)
 
         readonly property var groupTypeImage: (function() {
             const map = {};
@@ -654,6 +867,5 @@ Item {
             map["maps"]     = "new_images/Earth"
             return map;
         })()
-
     }
 }

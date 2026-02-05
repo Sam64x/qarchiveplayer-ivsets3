@@ -4,6 +4,7 @@
 #include <QMutex>
 #include <QDateTime>
 #include <QPointer>
+#include <QRectF>
 #include <QVariant>
 #include "Nv12Frame.h"
 
@@ -23,6 +24,7 @@ class VideoItem : public QQuickFramebufferObject
 
     Q_PROPERTY(FillMode fillMode READ fillMode WRITE setFillMode NOTIFY fillModeChanged)
     Q_PROPERTY(int orientation READ orientation WRITE setOrientation NOTIFY orientationChanged)
+    Q_PROPERTY(QRectF videoRect READ videoRect NOTIFY videoRectChanged)
 
 public:
     enum FillMode { Fit = 0, Fill = 1 };
@@ -47,6 +49,7 @@ public:
 
     FillMode fillMode() const { return m_fillMode; }
     int      orientation() const { return m_orientationDeg; }
+    QRectF   videoRect() const { return m_videoRect; }
 
 signals:
     void colorControlsChanged();
@@ -54,6 +57,7 @@ signals:
     void pipelineChanged();
     void fillModeChanged();
     void orientationChanged();
+    void videoRectChanged();
 
 public slots:
     void setRgbR(int v);
@@ -84,6 +88,10 @@ public:
 private:
     void syncColorsFromSource(QObject* src);
     void syncColorsFromPipeline(QObject* p);
+    void updateVideoRect();
+
+protected:
+    void geometryChanged(const QRectF& newGeometry, const QRectF& oldGeometry) override;
 
 private:
     mutable QMutex m_mutex;
@@ -101,6 +109,8 @@ private:
 
     FillMode m_fillMode { Fit };
     int      m_orientationDeg { 0 };
+    QSize    m_videoSize;
+    QRectF   m_videoRect;
 
     QPointer<QObject> m_source;
     QPointer<QObject> m_pipeline;

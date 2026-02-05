@@ -11,11 +11,14 @@ set(IVOUTPUT_RELATIVE_DIRECTORY qtplugins/iv/viewers/archiveplayer)
 set(FILETOCOPY
     "${CMAKE_SOURCE_DIR}/other/qmldir"
     "${CMAKE_SOURCE_DIR}/qml/ArchiveControls.qml"
+    "${CMAKE_SOURCE_DIR}/qml/CommonArchiveControls.qml"
     "${CMAKE_SOURCE_DIR}/qml/ArchiveMarker.qml"
     "${CMAKE_SOURCE_DIR}/qml/CommonArchiveCameraBar.qml"
     "${CMAKE_SOURCE_DIR}/qml/CommonArchiveTimeline.qml"
+    "${CMAKE_SOURCE_DIR}/qml/CommonTimelineSlider.qml"
     "${CMAKE_SOURCE_DIR}/qml/EventButtons.qml"
     "${CMAKE_SOURCE_DIR}/qml/ExportSettingsButton.qml"
+    "${CMAKE_SOURCE_DIR}/qml/ExportControls.qml"
     "${CMAKE_SOURCE_DIR}/qml/FrameRewindButtons.qml"
     "${CMAKE_SOURCE_DIR}/qml/FillRect.qml"
     "${CMAKE_SOURCE_DIR}/qml/FillRect2.qml"
@@ -53,6 +56,11 @@ file(GLOB_RECURSE PROJECT_SRC
     qml/*.qml
     other/*.js
     other/qmldir
+)
+
+list(APPEND PROJECT_SRC
+    src/PlaybackCoordinator.cpp
+    src/PlaybackCoordinator.h
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)

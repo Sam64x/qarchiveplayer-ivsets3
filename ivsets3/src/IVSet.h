@@ -9,9 +9,9 @@
 class IVSet : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(QString id READ id WRITE setId NOTIFY idChanged)
+    Q_PROPERTY(QString id READ id NOTIFY idChanged)
     Q_PROPERTY(QString name READ name WRITE setName NOTIFY nameChanged)
-    Q_PROPERTY(bool isUser READ isUser WRITE setIsUser NOTIFY isUserChanged)
+    Q_PROPERTY(bool isUser READ isUser NOTIFY isUserChanged)
     Q_PROPERTY(GridType gridType READ gridType WRITE setGridType NOTIFY gridTypeChanged)
     Q_PROPERTY(int xRatio READ xRatio WRITE setXRatio NOTIFY xRatioChanged)
     Q_PROPERTY(int yRatio READ yRatio WRITE setYRatio NOTIFY yRatioChanged)
@@ -21,11 +21,11 @@ class IVSet : public QObject
     Q_PROPERTY(int verticalSlotCount READ verticalSlotCount WRITE setVerticalSlotCount NOTIFY verticalSlotCountChanged)
     Q_PROPERTY(int customSlotCount READ customSlotCount WRITE setCustomSlotCount NOTIFY customSlotCountChanged)
 
-    Q_PROPERTY(int horizontalCellCount READ horizontalCellCount WRITE setHorizontalCellCount NOTIFY horizontalCellCountChanged)
-    Q_PROPERTY(int verticalCellCount READ verticalCellCount WRITE setVerticalCellCount NOTIFY verticalCellCountChanged)
+    Q_PROPERTY(int horizontalCellCount READ horizontalCellCount NOTIFY horizontalCellCountChanged)
+    Q_PROPERTY(int verticalCellCount READ verticalCellCount NOTIFY verticalCellCountChanged)
 
     Q_PROPERTY(int zonesCount READ zonesCount NOTIFY zonesCountChanged)
-    Q_PROPERTY(bool anyZoneEmpty READ anyZoneEmpty NOTIFY anyZoneEmptyChanged)
+    Q_PROPERTY(int emptyZonesCount READ emptyZonesCount NOTIFY emptyZonesCountChanged)
 
     Q_PROPERTY(bool isModified READ isModified WRITE setIsModified NOTIFY isModifiedChanged)
 
@@ -61,7 +61,6 @@ public:
     QString id() const;
     void setId(const QString &id);
 
-    Q_INVOKABLE QString initName() const;
     QString name() const;
     void setName(const QString &name);
 
@@ -102,13 +101,14 @@ public:
     void initZones(const QList<IVZone*> &zones);
     int zonesCount() const;
 
-    bool anyZoneEmpty() const;
+    int emptyZonesCount() const;
 
     Q_INVOKABLE IVZone* getZone(int index) const;
     Q_INVOKABLE void removeZone(int zoneIndex);
     Q_INVOKABLE void addZone(const QString& key2, bool running);
     Q_INVOKABLE void addZoneContentToFirstEmptyZone(const QString& key2, bool running);
     Q_INVOKABLE void addZoneContent(int zoneIndex, const QString& key2, bool running);
+    Q_INVOKABLE void replaceZoneContent(int zoneIndex, const QString& key2, bool running);
     Q_INVOKABLE void removeZoneContent(int zoneIndex);
     Q_INVOKABLE void swapZoneContent(int zoneIndexFrom, int zoneIndexTo);
 
@@ -134,7 +134,7 @@ signals:
     void zonesCountChanged();
     void zoneContentChanged(int zoneIndex);
 
-    void anyZoneEmptyChanged();
+    void emptyZonesCountChanged();
 
     void beginInsertZones(int first, int last);
     void endInsertZones();
@@ -150,7 +150,7 @@ private:
     void createZoneConnections(IVZone* zone);
 
     void updateZonesIndexes();
-    void updateAnyZoneEmptyFlag();
+    void updateEmptyZonesCount();
 
     void updateZones();
 
@@ -175,5 +175,5 @@ private:
     bool _isModified = false;
 
     bool _isSlotCountUpdating = false;
-    bool _isAnyZoneEmpty = false;
+    int _emptyZonesCount {0};
 };

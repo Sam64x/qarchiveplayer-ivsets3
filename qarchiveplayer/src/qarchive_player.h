@@ -7,6 +7,8 @@
 #include <QThreadPool>
 #include <QImage>
 #include <QFutureWatcher>
+#include <QVariant>
+#include <QElapsedTimer>
 
 #include "iv_autoloader.h"
 #include <iv_log3.h>
@@ -33,18 +35,18 @@
 //      2 - высокое качество (видео/видео+звук)
 //      3 - неизвестный тип (или ошибка обработки)
 
+struct ArchiveInitData {
+    std::vector<std::string> ipList;
+    QString csServer;
+    QVariantList evtVals;
+    QVariantList evtNames;
+};
+
 class ArchivePlayer: public QObject
 {
     Q_OBJECT
 public:
     Q_INVOKABLE void createExprogressWindow();
-    Q_INVOKABLE void setScale(int value);
-    Q_INVOKABLE void dt(quint64 t);
-    Q_INVOKABLE QString dt_minutes(quint64 t);
-    Q_INVOKABLE QString dt_10min_hours(quint64 t);
-    Q_INVOKABLE QString u64_to_qstr_time( quint64 q_time_av);
-    Q_INVOKABLE qint64 u64_time_now();
-    Q_INVOKABLE QString dt_weeks(quint64 t);
 
     Q_PROPERTY(QDateTime currentDate READ currentDate WRITE setCurrentDate NOTIFY currentDateChanged)
     QDateTime _currentDate;
@@ -58,12 +60,12 @@ public:
     Q_SIGNAL void evJsonChanged();
     QVariantList evtVals;
     QVariantList evtNames;
-    Q_INVOKABLE QVariant getAllEvTypes();
     Q_INVOKABLE QVariant getEvtDescription(quint64 val);
     
     bool _ev_thread_isRunning = false;
     bool stop_evThread = false;
     int _newEvents_isSupported = -1;
+
     std::thread _ev_thread;
 
     QString _eventsStr;
@@ -85,7 +87,6 @@ public:
     QString fnJson;
 
     // превью по архиву
-    Q_INVOKABLE void start_thread(QString key2 , qint64 left_bound, qint64 right_bound, int count_preview );
     Q_INVOKABLE void start_thread2(QString key2 , qint64 frame_time, qreal x, qreal y );
     Q_INVOKABLE void stop_thread();
     Q_SIGNAL void drawPreviewQML123(
@@ -100,9 +101,9 @@ public:
             qreal qr_mouse_y_av,
             QString qs_provider_param_lv
             );
-    void* _thread_get_data_cache;
+
     QString _key2;
-    std::thread _t;
+    std::unique_ptr<QThread> _thread {nullptr};
     std::mutex cs;
     bool _succes=false;
     bool _finish_thread=false;
@@ -113,8 +114,6 @@ public:
     ~ArchivePlayer();
     qint64 _left_bound;
     qint64 _right_bound;
-    qreal _coordX;
-    qreal _coordY;
     qreal _x;
     qreal _y;
     qint64 _frame_time;
@@ -123,16 +122,18 @@ public:
     bool isNewStrip = false;
     bool getIsNewStrip(){return isNewStrip;}
     void setIsNewStrip(bool b);
-    int scale;
+    int scale; // only write
     void getIps();
     std::vector<std::string> _ipList;
     //QString _clientName;
-    QString _csServer;
+    QString _csServer; // only write
     QString _Key2;
 
     QDateTime _startDate;
     QDateTime _endDate;
     bool _threadEnd;
+
+    std::atomic<bool> m_alive{true};
 
 private:
     struct EventsRequestParams {
@@ -150,10 +151,7 @@ private:
         int scale = 0;
     };
 
-    void GenFilter(iv::ewriter::filter & fl,std::vector<int64_t> vals,QString tBegin,QString tEnd);
-    profile_t _track_windows_command;
-    void* _eventsTask = 0;
-    std::string common_filter = "{\"group\":[{\"col\":\"evttime\",\"val\":\"%s\",\"op\":\">\"},{\"col\":\"evttime\",\"val\":\"%s\",\"op\":\"<\"},{\"col\":\"evtgroupid\",\"op\":\"=\",\"val\":[2,6]}],\"op\":\"and\"}";
+    profile_t _track_windows_command {nullptr};
 
     void startEventsFuture(const EventsRequestParams& params);
     void startFullnessFuture(const FullnessRequestParams& params);
@@ -161,13 +159,18 @@ private:
     void executeFullnessRequest(const FullnessRequestParams& params);
     void handleEventsFinished();
     void handleFullnessFinished();
+    void startArchiveInit();
+    void handleInitFinished();
+    void applyInitData(const ArchiveInitData& data);
 
     QFutureWatcher<void> m_eventsWatcher;
     QFutureWatcher<void> m_fullnessWatcher;
+    QFutureWatcher<ArchiveInitData> m_initWatcher;
     bool m_hasPendingEvents = false;
     EventsRequestParams m_pendingEvents;
     bool m_hasPendingFullness = false;
     FullnessRequestParams m_pendingFullness;
+    QElapsedTimer m_initElapsed;
 };
 
 #endif // QARCHIVE_PLAYER_H

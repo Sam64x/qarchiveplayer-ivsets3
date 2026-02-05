@@ -3,7 +3,7 @@ import QtQuick.Controls 2.4
 import QtQuick.Layouts 1.11
 import QtQuick.Dialogs 1.3
 
-import ArchiveComponents 1.0
+import iv.viewers.archiveplayer 1.0
 import iv.colors 1.0
 import iv.calendar 1.0
 import iv.singletonLang 1.0
@@ -42,6 +42,7 @@ C.IVButtonControl {
 
     readonly property real rootWidth: rootRef.width
     readonly property real rootHeight: rootRef.height
+    property string wsUrl: appInfo.wsUrl
 
     property var time_intervals: [
         {"name": Language.getTranslate("5 sec","5 сек")},
@@ -54,8 +55,8 @@ C.IVButtonControl {
         {"name": Language.getTranslate("30 min","30 мин")}
     ]
 
-    readonly property int timeBefore: rootRef ? rootRef.exportIntervalBeforeIndex : 2
-    readonly property int timeAfter: rootRef ? rootRef.exportIntervalAfterIndex : 4
+    readonly property int timeBefore: (rootRef && rootRef.exportIntervalBeforeIndex) ? rootRef.exportIntervalBeforeIndex : 2
+    readonly property int timeAfter: (rootRef && rootRef.exportIntervalAfterIndex) ? rootRef.exportIntervalAfterIndex : 4
 
     readonly property int contentMargins: 8
 
@@ -126,7 +127,7 @@ C.IVButtonControl {
             ExportManager.startExport(cameraIds[i], times.fromTime, times.toTime, root.archiveId,
                                       root.selectedPath, root.selectedFormat, maxChunkDurationMinutes,
                                       maxChunkFileSizeBytes, exportPrimitives, exportCameraInformation,
-                                      exportImagePipeline, root.imagePipeline, appInfo.wsUrl)
+                                      exportImagePipeline, root.imagePipeline, root.wsUrl)
         }
     }
 

@@ -516,6 +516,13 @@ void VideoItem::presentNv12Frame(const Nv12Frame& frame, const QDateTime& ts)
 
 void VideoItem::onFrameReadyNv12(const Nv12Frame& frame, const QDateTime& ts)
 {
+    if (frame.isValid()) {
+        const QSize nextSize(frame.width(), frame.height());
+        if (m_videoSize != nextSize) {
+            m_videoSize = nextSize;
+            updateVideoRect();
+        }
+    }
     {
         QMutexLocker l(&m_mutex);
         m_pendingNv12    = frame;
@@ -582,6 +589,7 @@ void VideoItem::setFillMode(VideoItem::FillMode m)
     if (m_fillMode == m) return;
     m_fillMode = m;
     emit fillModeChanged();
+    updateVideoRect();
     update();
 }
 
@@ -592,6 +600,7 @@ void VideoItem::setOrientation(int degrees)
         if (m_orientationDeg != d) {
             m_orientationDeg = d;
             emit orientationChanged();
+            updateVideoRect();
             update();
         }
     } else {
@@ -600,6 +609,7 @@ void VideoItem::setOrientation(int degrees)
         if (m_orientationDeg != r) {
             m_orientationDeg = r;
             emit orientationChanged();
+            updateVideoRect();
             update();
         }
     }
@@ -660,4 +670,53 @@ void VideoItem::syncColorsFromPipeline(QObject* p)
     v = p->property("brightness"); if (v.isValid()) setBrightness(v.toInt());
     v = p->property("contrast");   if (v.isValid()) setContrast(v.toInt());
     v = p->property("saturation"); if (v.isValid()) setSaturation(v.toInt());
+}
+
+void VideoItem::updateVideoRect()
+{
+    const qreal itemW = width();
+    const qreal itemH = height();
+    QRectF nextRect(0.0, 0.0, itemW, itemH);
+
+    QSize vsz = m_videoSize;
+    if ((m_orientationDeg % 180) != 0)
+        vsz = QSize(vsz.height(), vsz.width());
+
+    if (itemW > 0.0 && itemH > 0.0 && !vsz.isEmpty()) {
+        const qreal vw = vsz.width();
+        const qreal vh = vsz.height();
+        const qreal videoAspect = vw / vh;
+        const qreal itemAspect = itemW / itemH;
+
+        qreal sx = 1.0;
+        qreal sy = 1.0;
+        if (m_fillMode == VideoItem::Fit) {
+            if (itemAspect > videoAspect) {
+                sx = videoAspect / itemAspect;
+            } else {
+                sy = itemAspect / videoAspect;
+            }
+        } else {
+            if (itemAspect > videoAspect) {
+                sy = itemAspect / videoAspect;
+            } else {
+                sx = videoAspect / itemAspect;
+            }
+        }
+
+        const qreal drawW = itemW * sx;
+        const qreal drawH = itemH * sy;
+        nextRect = QRectF((itemW - drawW) / 2.0, (itemH - drawH) / 2.0, drawW, drawH);
+    }
+
+    if (m_videoRect != nextRect) {
+        m_videoRect = nextRect;
+        emit videoRectChanged();
+    }
+}
+
+void VideoItem::geometryChanged(const QRectF& newGeometry, const QRectF& oldGeometry)
+{
+    QQuickFramebufferObject::geometryChanged(newGeometry, oldGeometry);
+    updateVideoRect();
 }

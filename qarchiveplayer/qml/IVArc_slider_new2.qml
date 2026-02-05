@@ -9,7 +9,7 @@ import iv.plugins.loader 1.0
 
 import iv.colors 1.0
 import iv.controls 1.0
-import iv.data 1.0
+import iv.viewers.archiveplayer 1.0
 
 Item {
     id: root
@@ -59,6 +59,7 @@ Item {
     property bool sliderFullHeight: false
 
     property var viewBounds: ({ "left": null, "right": null })
+    property bool refreshScheduled: false
 
     readonly property real sliderVisualX: sliderRect.x + sliderRect.width/2
     readonly property real sliderVisualWidth: sliderRect.implicitWidth
@@ -156,7 +157,9 @@ Item {
     FullnessModel { id: fullnessModel }
 
     function updateEvJson() {
-        eventsModel.updateFromJson(archivePlayer.getEventsStr(), root.eventsFilter, root.timeline_model, eventsModel.dateCheckSum)
+        if (archivePlayer) {
+            eventsModel.updateFromJson(archivePlayer.getEventsStr(), root.eventsFilter, root.timeline_model, eventsModel.dateCheckSum)
+        }
     }
     function updateFnJson() {
         fullnessModel.updateFromJson(archivePlayer.getFnJson(), root.timeline_model, fullnessModel.dateCheckSum)
@@ -167,7 +170,7 @@ Item {
         interval: 2000
         repeat: true
         onTriggered: {
-            if (root.archivePlayer) {
+            if (root.archivePlayer && timelineModel.count > 0) {
                 root.archivePlayer.getFullness(
                     timelineModel.get(0)["start"],
                     timelineModel.get(timelineModel.count-1)["end"],
@@ -183,6 +186,7 @@ Item {
         target: root.archivePlayer
         enabled: !!root.archivePlayer
         onFnJsonChanged: updateFnJson()
+        onEvJsonChanged: updateEvJson()
     }
 
     property bool setInterval: false
@@ -384,7 +388,6 @@ Item {
 
             ListView {
                 id: timeline
-
                 anchors.fill: parent
                 clip: true
 
@@ -1175,7 +1178,10 @@ Item {
                 property var evModel: evProj
 
                 function loadFullness() {
+                    if (!content.startDate || !content.endDate)
+                        return
                     fnProj.project()
+                    fulnessLine.requestPaint()
                 }
 
                 function loadEvents() {
@@ -1184,8 +1190,18 @@ Item {
                     evProj.project()
                 }
 
-                onStartDateChanged: loadEvents()
-                onEndDateChanged: loadEvents()
+                onStartDateChanged: {
+                    loadFullness()
+                    loadEvents()
+                }
+                onEndDateChanged: {
+                    loadFullness()
+                    loadEvents()
+                }
+                onWidthChanged: {
+                    loadFullness()
+                    loadEvents()
+                }
 
                 FullnessProjectionModel {
                     id: fnProj
@@ -1222,6 +1238,8 @@ Item {
                         ctx.fillStyle = gradient
                         ctx.fillRect(0, 0, width, height)
                     }
+                    onWidthChanged: requestPaint()
+                    onHeightChanged: requestPaint()
                     Component.onCompleted: {
                         requestPaint()
                     }
@@ -1434,7 +1452,7 @@ Item {
                             interactive: false
                             orientation: ListView.Horizontal
                             spacing: 0
-                            cacheBuffer: width
+                            cacheBuffer: Math.max(1, width)
                             model: null
                             delegate: eventsDelegateComponent
                         }
@@ -1461,7 +1479,7 @@ Item {
                                 property real textWidth: tpText.contentWidth
                                 Label {
                                     id: tpText
-                                    text: content.getHighDateText(root.timeline_model, model)
+                                    text: content.getHighDateText(root.timeline_model, { start: content.startDate, index: index })
                                     anchors{
                                         left: parent.left
                                         leftMargin: contentWidth > valueTP.width ? getMargin() : 0
@@ -1473,13 +1491,13 @@ Item {
                                     property real defOpacity: 0.8
                                     opacity: tpRepeater.hideElems < 0 ? 0 :
                                              tpRepeater.hideElems === 0 ? defOpacity :
-                                             model.index%(tpRepeater.hideElems) === 0 ? defOpacity : 0
+                                             index % (tpRepeater.hideElems) === 0 ? defOpacity : 0
                                     Behavior on opacity {
                                         NumberAnimation { duration: 150 }
                                     }
                                     function getMargin(){
                                         var res = 2*isize
-                                        if (model.index > 0){
+                                        if (index > 0){
                                             res = valueTP.width - contentWidth - 2*isize
                                         }
                                         return res
@@ -1508,8 +1526,12 @@ Item {
                                 }
                                 var currWidth = width / valueBar.count_
                                 var minTextWidth = currWidth
-                                for (var i = 0; i < valueBar.count_; i++){
-                                    minTextWidth = Math.min(minTextWidth, itemAt(i).textWidth)
+                                for (var i = 0; i < valueBar.count_; i++) {
+                                    var item = itemAt(i)
+                                    if (!item) {
+                                        continue
+                                    }
+                                    minTextWidth = Math.min(minTextWidth, item.textWidth)
                                 }
                                 if (minTextWidth * 2 < currWidth) tpRepeater.hideElems = 0
                                 else if (minTextWidth * 1.5 < currWidth) tpRepeater.hideElems = 2
@@ -1563,8 +1585,8 @@ Item {
 
                 function getHighDateText(view, model_){
                     if (model_){
-                        if (model.start){
-                            var time = model.start;
+                        if (model_.start){
+                            var time = model_.start;
                             var date = time.getDate()
                             var month = time.getMonth()+1
                             var hours = time.getHours()
@@ -1635,14 +1657,14 @@ Item {
         if (root.canAutoMove){
             if (timeline.needToUpdate()){
                 root.ready = false;
-                refreshModel()
+                scheduleRefreshModel()
             }
             timeline.contentX = sliderRect.getX()-timeline.width/2+timeline.originX
         }
     }
     onIsMultiscreenChanged: {
         root.ready = false;
-        refreshModel()
+        scheduleRefreshModel()
         timeline.contentX = sliderRect.getX()-timeline.width/2+timeline.originX
         root.canAutoMove = true;
     }
@@ -1653,12 +1675,12 @@ Item {
         firstBound.setX(timeToX(containerArea.bounds.first))
         secondBound.setX(timeToX(containerArea.bounds.second))
     }
-    onTimeline_modelChanged: refreshModel()
+    onTimeline_modelChanged: scheduleRefreshModel()
     onCanAutoMoveChanged: {
         if (root.canAutoMove){
             if (timeline.needToUpdate()){
                 root.ready = false;
-                refreshModel()
+                scheduleRefreshModel()
             }
             timeline.contentX = sliderRect.getX()-timeline.width/2+timeline.originX
         }
@@ -1822,9 +1844,8 @@ Item {
     }
 
     function refreshModel(){
-        var today
-        if (!root.ready) today = root.currentDate
-        else {
+        var today = root.currentDate
+        if (root.ready && timelineModel.count > 0 && timeline.contentWidth > 0) {
             var tl_start = timelineModel.get(0)["start"]
             var tl_end = timelineModel.get(timelineModel.count-1)["end"]
             var tl_time = tl_end - tl_start
@@ -1850,8 +1871,19 @@ Item {
             timelineModel.append(obj)
             today = root.incrementDate(root.timeline_model, today)
         }
-        timeline.positionViewAtIndex(root.getCurrDateIndex(root.currentDate), ListView.SnapPosition)
+        if (timelineModel.count > 0) {
+            timeline.positionViewAtIndex(root.getCurrDateIndex(root.currentDate), ListView.SnapPosition)
+        }
         refreshTimer.start()
+    }
+    function scheduleRefreshModel(){
+        if (root.refreshScheduled)
+            return
+        root.refreshScheduled = true
+        Qt.callLater(function() {
+            root.refreshScheduled = false
+            refreshModel()
+        })
     }
     function setPreviewSource(source) {
         previewFrame.source = source

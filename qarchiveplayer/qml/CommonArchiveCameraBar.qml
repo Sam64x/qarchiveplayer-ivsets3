@@ -3,7 +3,7 @@ import QtQml 2.1
 import QtQuick.Controls 2.3
 import iv.colors 1.0
 import iv.controls 1.0
-import iv.data 1.0
+import iv.viewers.archiveplayer 1.0
 
 Rectangle {
     id: root
@@ -15,6 +15,11 @@ Rectangle {
     property var viewEnd: null
     property var dataStart: null
     property var dataEnd: null
+    readonly property var safeViewStart: viewStart ? viewStart : new Date(0)
+    readonly property var safeViewEnd: viewEnd ? viewEnd : new Date(0)
+    readonly property var backend: archivePlayer && archivePlayer.idarchive_player
+                                 ? archivePlayer.idarchive_player
+                                 : archivePlayer
     property real isize: 1
     property bool clampNow: true
 
@@ -34,8 +39,8 @@ Rectangle {
     FullnessProjectionModel {
         id: fullnessProjection
         source: fullnessModel
-        startDate: root.viewStart
-        endDate: root.viewEnd
+        startDate: root.safeViewStart
+        endDate: root.safeViewEnd
         viewWidth: barCanvas.width
         minPx: 0
         clampNow: root.clampNow
@@ -44,31 +49,46 @@ Rectangle {
     EventsProjectionModel {
         id: eventsProjection
         source: eventsModel
-        startDate: root.viewStart
-        endDate: root.viewEnd
+        startDate: root.safeViewStart
+        endDate: root.safeViewEnd
         viewWidth: barCanvas.width
         minPx: 0
     }
 
     function refreshModels() {
-        var backend = archivePlayer && archivePlayer.idarchive_player
-                      ? archivePlayer.idarchive_player
-                      : archivePlayer;
-
         if (!backend || !dataStart || !dataEnd)
             return;
 
         backend.getFullness(dataStart, dataEnd, key2, timelineModel);
-        fullnessModel.updateFromJson(backend.getFnJson(), timelineModel, fullnessModel.dateCheckSum);
+        updateFullnessFromBackend();
 
         backend.getEvents(dataStart, dataEnd, 0, key2, timelineModel);
-        eventsModel.updateFromJson(backend.getEventsStr(), [], timelineModel, eventsModel.dateCheckSum);
+        updateEventsFromBackend();
 
+        projectData();
+    }
+
+    function updateFullnessFromBackend() {
+        if (!backend)
+            return;
+        fullnessModel.updateFromJson(backend.getFnJson(), timelineModel, fullnessModel.dateCheckSum);
+        projectData();
+    }
+
+    function updateEventsFromBackend() {
+        if (!backend)
+            return;
+        eventsModel.updateFromJson(backend.getEventsStr(), [], timelineModel, eventsModel.dateCheckSum);
         projectData();
     }
 
     function syncDataForView(forceFetch) {
         if (!viewStart || !viewEnd) {
+            dataStart = null
+            dataEnd = null
+            return
+        }
+        if (!backend) {
             dataStart = null
             dataEnd = null
             return
@@ -235,7 +255,7 @@ Rectangle {
             interactive: false
             orientation: ListView.Horizontal
             spacing: 0
-            cacheBuffer: width
+            cacheBuffer: Math.max(1, width)
             model: root.showEvents ? eventsProjection : null
             delegate: eventsDelegateComponent
         }
@@ -246,6 +266,19 @@ Rectangle {
 
         onCountChanged: root.projectData()
         onDateCheckSumChanged: root.projectData()
+    }
+
+    Connections {
+        target: eventsModel
+
+        onCountChanged: root.projectData()
+        onDateCheckSumChanged: root.projectData()
+    }
+
+    Connections {
+        target: backend
+        onFnJsonChanged: updateFullnessFromBackend()
+        onEvJsonChanged: updateEventsFromBackend()
     }
 
     Connections {

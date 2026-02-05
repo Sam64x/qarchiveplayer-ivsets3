@@ -43,6 +43,8 @@ Rectangle {
     DropArea {
         id: dropArea
 
+        property var dragSource: null
+
         anchors.fill: parent
 
         enabled: !editEnabled
@@ -53,6 +55,18 @@ Rectangle {
                 return;
             }
             root.drop(dragData);
+
+            dragSource.aboveSlot = false;
+            dragSource = null;
+        }
+        onEntered: function(drag) {
+            drag.source.aboveSlot = true;
+            drag.source.slotEmpty = !Boolean(content.visibleChildren.length);
+            dragSource = drag.source;
+        }
+        onExited: {
+            dragSource.aboveSlot = false;
+            dragSource = null;
         }
     }
 
@@ -71,9 +85,13 @@ Rectangle {
     }
 
     Label {
+        width: parent.width
         anchors.centerIn: parent
+
         font.pixelSize: 14
         text: "Свободное поле"
+        elide: Text.ElideRight
+        horizontalAlignment: Text.AlignHCenter
     }
 
     Item {
@@ -86,7 +104,8 @@ Rectangle {
 
         anchors.fill: parent
 
-        enabled: root.editEnabled
+        visible: root.editEnabled
+        enabled: visible
         drag.target: parent
         drag.minimumX: 1
         drag.maximumX: root.parent.width - root.width + 1
@@ -139,7 +158,8 @@ Rectangle {
             right: parent.right
         }
 
-        enabled: root.editEnabled
+        visible: root.editEnabled
+        enabled: visible
         cursorShape: Qt.SizeVerCursor
 
         onPressed: {
@@ -167,7 +187,8 @@ Rectangle {
             right: parent.right
         }
 
-        enabled: root.editEnabled
+        visible: root.editEnabled
+        enabled: visible
         cursorShape: Qt.SizeVerCursor
 
         onPressed: {
@@ -195,7 +216,8 @@ Rectangle {
             bottom: parent.bottom
         }
 
-        enabled: root.editEnabled
+        visible: root.editEnabled
+        enabled: visible
         cursorShape: Qt.SizeHorCursor
 
         onPressed: {
@@ -223,7 +245,8 @@ Rectangle {
             bottom: parent.bottom
         }
 
-        enabled: root.editEnabled
+        visible: root.editEnabled
+        enabled: visible
         cursorShape: Qt.SizeHorCursor
 
         onPressed: {

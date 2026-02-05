@@ -7,11 +7,17 @@
 
 class ExportController;
 class ImagePipeline;
+class QQuickItem;
 
 class ExportManager : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(ExportListModel* activeExportsModel READ activeExportsModel CONSTANT)
+
+    //для возможности выгрузки из списка источников
+    Q_PROPERTY(QQuickItem* commonTimeline READ commonTimeline WRITE setCommonTimeline NOTIFY commonTimelineChanged)
+    Q_PROPERTY(QString archiveId READ archiveId WRITE setArchiveId NOTIFY archiveIdChanged)
+
 public:
     explicit ExportManager(QObject* parent = nullptr);
 
@@ -33,6 +39,16 @@ public:
     Q_INVOKABLE void restartExport(int index);
     Q_INVOKABLE void removeExport(int index);
 
+    QQuickItem* commonTimeline() const;
+    void setCommonTimeline(QQuickItem* value);
+
+    QString archiveId() const;
+    void setArchiveId(const QString& value);
+
+signals:
+    void commonTimelineChanged();
+    void archiveIdChanged();
+
 private:
     void loadCache();
     void saveCache() const;
@@ -49,4 +65,7 @@ private:
     void updateSizeBytes(ExportController* controller);
 
     ExportListModel* m_model {nullptr};
+
+    QQuickItem* m_commonTimeline {nullptr};
+    QString m_archiveId;
 };

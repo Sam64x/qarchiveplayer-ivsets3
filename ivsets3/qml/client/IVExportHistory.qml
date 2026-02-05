@@ -4,10 +4,9 @@ import QtQuick.Controls 2.4
 import QtQuick.Layouts 1.11
 import QtGraphicalEffects 1.0
 
-import ArchiveComponents 1.0
+import iv.colors 1.0
 import iv.singletonLang 1.0
 import iv.controls 1.0 as Controls
-import iv.colors 1.0
 import iv.viewers.archiveplayer 1.0 as ArchivePlayerModule
 
 Popup {
@@ -54,7 +53,7 @@ Popup {
                 Layout.bottomMargin: visible ? 16 : 0
                 Layout.alignment: Qt.AlignHCenter
 
-                visible: !ExportManager.activeExportsModel.count
+                visible: !ArchivePlayerModule.ExportManager.activeExportsModel.count
                 text: "Нет активных/завершенных выгрузок для отображения"
                 color: IVColors.get("Colors/Text new/TxPrimaryThemed")
                 font: IVColors.getFont("Label accent")
@@ -64,7 +63,7 @@ Popup {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 56
 
-                visible: ExportManager.activeExportsModel.count
+                visible: ArchivePlayerModule.ExportManager.activeExportsModel.count
                 color: IVColors.get("Colors/Background new/BgListPrimaryThemed")
                 radius: 4
 
@@ -116,7 +115,7 @@ Popup {
                 rightMargin: 12
                 bottomMargin: 4
 
-                model: ExportManager.activeExportsModel
+                model: ArchivePlayerModule.ExportManager.activeExportsModel
                 visible: count
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
@@ -151,7 +150,7 @@ Popup {
                 }
 
                 delegate: ArchivePlayerModule.UploadProgressBar {
-                    property int modelIndex: index
+                    readonly property int modelIndex: index
 
                     width: ListView.view.width - ListView.view.rightMargin
 
@@ -167,12 +166,12 @@ Popup {
                     sizeOverride: model.sizeBytes
 
                     onRemoveRequested: {
-                         if (ExportManager)
-                            ExportManager.removeExport(modelIndex)
+                         if (ArchivePlayerModule.ExportManager)
+                            ArchivePlayerModule.ExportManager.removeExport(modelIndex)
                     }
                     onRestartRequested: {
-                        if (ExportManager)
-                            ExportManager.restartExport(modelIndex)
+                        if (ArchivePlayerModule.ExportManager)
+                            ArchivePlayerModule.ExportManager.restartExport(modelIndex)
                     }
 
                     onSelectedPathChanged: {
@@ -188,6 +187,7 @@ Popup {
                     }
 
                     Rectangle {
+                        visible: parent.modelIndex !== activeExportListView.count - 1
                         height: 1
                         anchors {
                             left: parent.left
